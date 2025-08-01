@@ -1,0 +1,24 @@
+name: flutter_fixtures_workspace
+description: "Flutter Fixtures Workspace"
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+  flutter: ">=3.0.0"
+
+workspace:
+  - packages/flutter_fixtures_core
+  - packages/flutter_fixtures_dio
+  - packages/flutter_fixtures_ui
+  - packages/flutter_fixtures
+  - example
+
+topics:
+  - mock
+  - http
+  - testing
+  - fixtures
+
+dev_dependencies:
+  flutter_lints: ^3.0.0

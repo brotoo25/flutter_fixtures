@@ -1,0 +1,27 @@
+{
+    "description": "Login Request",
+    "values": [
+        {
+            "identifier": "Success",
+            "description": "200",
+            "default": true,
+            "data": {
+                "username": "admin",
+                "token": "410004a8-992b-471f-9b5e-9cc912495456"
+            }
+        },
+        {
+            "identifier": "Success - Data File",
+            "description": "200",
+            "dataPath": "data/POST_login_success.json"
+        },
+        {
+            "identifier": "Failure",
+            "description": "400",
+            "data": {
+                "message": "Invalid username or password",
+                "type": "CREDENTIALS_ERROR"
+            }
+        }
+    ]
+}

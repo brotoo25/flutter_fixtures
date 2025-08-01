@@ -1,0 +1,29 @@
+name: flutter_fixtures_core
+description: "Core interfaces and domain models for Flutter Fixtures"
+version: 0.1.0
+homepage: https://github.com/brotoo25/flutter_fixtures
+repository: https://github.com/brotoo25/flutter_fixtures
+issue_tracker: https://github.com/brotoo25/flutter_fixtures/issues
+documentation: https://github.com/brotoo25/flutter_fixtures#readme
+
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+  flutter: ">=3.0.0"
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+topics:
+  - mock
+  - testing
+  - fixtures
+
+flutter:

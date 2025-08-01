@@ -1,0 +1,31 @@
+name: flutter_fixtures
+description: "A Flutter library for mocking HTTP requests and other data sources with fixture files"
+version: 0.1.0
+homepage: https://github.com/brotoo25/flutter_fixtures
+repository: https://github.com/brotoo25/flutter_fixtures
+issue_tracker: https://github.com/brotoo25/flutter_fixtures/issues
+documentation: https://github.com/brotoo25/flutter_fixtures#readme
+
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+  flutter: ">=3.0.0"
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_fixtures_core: ^0.1.0
+  flutter_fixtures_dio: ^0.1.0
+  flutter_fixtures_ui: ^0.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+topics:
+  - mock
+  - http
+  - testing
+  - fixtures
