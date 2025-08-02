@@ -80,10 +80,8 @@ void main() {
           );
           final responseData = {'result': 'success'};
 
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => fixtureCollection);
+          when(mockDataQuery.find(requestOptions)).thenAnswer((_) async => fixtureData);
+          when(mockDataQuery.parse(fixtureData)).thenAnswer((_) async => fixtureCollection);
           when(mockDataQuery.select(
             fixtureCollection,
             mockDataSelectorView,
@@ -108,9 +106,8 @@ void main() {
           )).called(1);
           verify(mockDataQuery.data(fixtureCollection.items.first)).called(1);
 
-          final capturedResponse = verify(mockHandler.resolve(captureAny))
-              .captured
-              .single as Response;
+          final capturedResponse =
+              verify(mockHandler.resolve(captureAny)).captured.single as Response;
           expect(capturedResponse.data, equals(responseData));
           expect(capturedResponse.statusCode, equals(200));
           expect(capturedResponse.requestOptions, equals(requestOptions));
@@ -132,10 +129,8 @@ void main() {
           );
           final responseData = {'id': 123, 'name': 'Alice'};
 
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => fixtureCollection);
+          when(mockDataQuery.find(requestOptions)).thenAnswer((_) async => fixtureData);
+          when(mockDataQuery.parse(fixtureData)).thenAnswer((_) async => fixtureCollection);
           when(mockDataQuery.select(any, any, any))
               .thenAnswer((_) async => fixtureCollection.items.first);
           when(mockDataQuery.data(fixtureCollection.items.first))
@@ -148,9 +143,8 @@ void main() {
           await Future.delayed(Duration.zero);
 
           // Assert
-          final capturedResponse = verify(mockHandler.resolve(captureAny))
-              .captured
-              .single as Response;
+          final capturedResponse =
+              verify(mockHandler.resolve(captureAny)).captured.single as Response;
           expect(capturedResponse.data, equals(responseData));
           expect(capturedResponse.statusCode, equals(201));
           expect(
@@ -163,8 +157,7 @@ void main() {
       group('error handling', () {
         test('rejects when no fixture found', () async {
           // Arrange
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => null);
+          when(mockDataQuery.find(requestOptions)).thenAnswer((_) async => null);
 
           // Act
           interceptor.onRequest(requestOptions, mockHandler);
@@ -173,9 +166,8 @@ void main() {
           await Future.delayed(Duration.zero);
 
           // Assert
-          final capturedError = verify(mockHandler.reject(captureAny))
-              .captured
-              .single as DioException;
+          final capturedError =
+              verify(mockHandler.reject(captureAny)).captured.single as DioException;
           expect(capturedError.error, equals('No fixture found for request.'));
           expect(capturedError.requestOptions, equals(requestOptions));
         });
@@ -183,8 +175,7 @@ void main() {
         test('rejects when fixture collection is null', () async {
           // Arrange
           final fixtureData = {'description': 'Test', 'values': []};
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
+          when(mockDataQuery.find(requestOptions)).thenAnswer((_) async => fixtureData);
           when(mockDataQuery.parse(fixtureData)).thenAnswer((_) async => null);
 
           // Act
@@ -194,11 +185,9 @@ void main() {
           await Future.delayed(Duration.zero);
 
           // Assert
-          final capturedError = verify(mockHandler.reject(captureAny))
-              .captured
-              .single as DioException;
-          expect(capturedError.error,
-              equals('No fixture options found for request.'));
+          final capturedError =
+              verify(mockHandler.reject(captureAny)).captured.single as DioException;
+          expect(capturedError.error, equals('No fixture options found for request.'));
         });
 
         test('rejects when fixture collection is empty', () async {
@@ -208,10 +197,8 @@ void main() {
             description: 'Empty Collection',
             items: [],
           );
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => emptyCollection);
+          when(mockDataQuery.find(requestOptions)).thenAnswer((_) async => fixtureData);
+          when(mockDataQuery.parse(fixtureData)).thenAnswer((_) async => emptyCollection);
 
           // Act
           interceptor.onRequest(requestOptions, mockHandler);
@@ -220,11 +207,9 @@ void main() {
           await Future.delayed(Duration.zero);
 
           // Assert
-          final capturedError = verify(mockHandler.reject(captureAny))
-              .captured
-              .single as DioException;
-          expect(capturedError.error,
-              equals('No fixture options found for request.'));
+          final capturedError =
+              verify(mockHandler.reject(captureAny)).captured.single as DioException;
+          expect(capturedError.error, equals('No fixture options found for request.'));
         });
 
         test('rejects when no document selected', () async {
@@ -242,12 +227,9 @@ void main() {
             ],
           );
 
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => fixtureCollection);
-          when(mockDataQuery.select(any, any, any))
-              .thenAnswer((_) async => null);
+          when(mockDataQuery.find(requestOptions)).thenAnswer((_) async => fixtureData);
+          when(mockDataQuery.parse(fixtureData)).thenAnswer((_) async => fixtureCollection);
+          when(mockDataQuery.select(any, any, any)).thenAnswer((_) async => null);
 
           // Act
           interceptor.onRequest(requestOptions, mockHandler);
@@ -256,17 +238,14 @@ void main() {
           await Future.delayed(Duration.zero);
 
           // Assert
-          final capturedError = verify(mockHandler.reject(captureAny))
-              .captured
-              .single as DioException;
-          expect(
-              capturedError.error, equals('No fixture selected for request.'));
+          final capturedError =
+              verify(mockHandler.reject(captureAny)).captured.single as DioException;
+          expect(capturedError.error, equals('No fixture selected for request.'));
         });
 
         test('rejects when exception occurs during processing', () async {
           // Arrange
-          when(mockDataQuery.find(requestOptions))
-              .thenThrow(Exception('Test exception'));
+          when(mockDataQuery.find(requestOptions)).thenThrow(Exception('Test exception'));
 
           // Act
           interceptor.onRequest(requestOptions, mockHandler);
@@ -275,9 +254,8 @@ void main() {
           await Future.delayed(Duration.zero);
 
           // Assert
-          final capturedError = verify(mockHandler.reject(captureAny))
-              .captured
-              .single as DioException;
+          final capturedError =
+              verify(mockHandler.reject(captureAny)).captured.single as DioException;
           expect(capturedError.error, contains('Error processing fixture:'));
           expect(capturedError.error, contains('Test exception'));
         });
@@ -301,10 +279,8 @@ void main() {
           );
           final responseData = {'result': 'success'};
 
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => fixtureCollection);
+          when(mockDataQuery.find(requestOptions)).thenAnswer((_) async => fixtureData);
+          when(mockDataQuery.parse(fixtureData)).thenAnswer((_) async => fixtureCollection);
           when(mockDataQuery.select(any, any, any))
               .thenAnswer((_) async => fixtureCollection.items.first);
           when(mockDataQuery.data(fixtureCollection.items.first))
@@ -317,9 +293,8 @@ void main() {
           await Future.delayed(Duration.zero);
 
           // Assert
-          final capturedResponse = verify(mockHandler.resolve(captureAny))
-              .captured
-              .single as Response;
+          final capturedResponse =
+              verify(mockHandler.resolve(captureAny)).captured.single as Response;
           expect(
             capturedResponse.headers.value('x-fixture-file-path'),
             isNull,
@@ -342,10 +317,8 @@ void main() {
           );
           final responseData = {'error': 'Not found'};
 
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => fixtureCollection);
+          when(mockDataQuery.find(requestOptions)).thenAnswer((_) async => fixtureData);
+          when(mockDataQuery.parse(fixtureData)).thenAnswer((_) async => fixtureCollection);
           when(mockDataQuery.select(any, any, any))
               .thenAnswer((_) async => fixtureCollection.items.first);
           when(mockDataQuery.data(fixtureCollection.items.first))
@@ -358,9 +331,8 @@ void main() {
           await Future.delayed(Duration.zero);
 
           // Assert
-          final capturedResponse = verify(mockHandler.resolve(captureAny))
-              .captured
-              .single as Response;
+          final capturedResponse =
+              verify(mockHandler.resolve(captureAny)).captured.single as Response;
           expect(capturedResponse.statusCode, equals(404));
         });
       });

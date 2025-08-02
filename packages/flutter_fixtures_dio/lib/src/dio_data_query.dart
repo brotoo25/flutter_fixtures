@@ -8,9 +8,7 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 ///
 /// This class provides functionality for finding and parsing fixture data
 /// for Dio HTTP requests.
-class DioDataQuery
-    with FixtureSelector
-    implements DataQuery<RequestOptions, Map<String, dynamic>> {
+class DioDataQuery with FixtureSelector implements DataQuery<RequestOptions, Map<String, dynamic>> {
   /// The folder where mock data is stored
   final String mockFolder;
 
@@ -24,8 +22,7 @@ class DioDataQuery
 
   @override
   Future<Map<String, dynamic>?> find(RequestOptions input) async {
-    final fileName =
-        '$mockFolder/${input.method}${input.path.replaceAll('/', '_')}.json';
+    final fileName = '$mockFolder/${input.method}${input.path.replaceAll('/', '_')}.json';
     final response = await rootBundle.loadString(fileName);
     final data = jsonDecode(response);
 
@@ -66,8 +63,7 @@ class DioDataQuery
     }
 
     // Load data from file
-    final response =
-        await rootBundle.loadString('$mockFolder/${document.dataPath}');
+    final response = await rootBundle.loadString('$mockFolder/${document.dataPath}');
     final data = jsonDecode(response);
 
     return data;
