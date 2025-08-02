@@ -1,0 +1,60 @@
+name: Publish to pub.dev
+
+on:
+  push:
+    tags:
+      # Package-specific tags
+      - 'flutter_fixtures_core-v[0-9]+.[0-9]+.[0-9]+*'
+      - 'flutter_fixtures_dio-v[0-9]+.[0-9]+.[0-9]+*'
+      - 'flutter_fixtures_ui-v[0-9]+.[0-9]+.[0-9]+*'
+      - 'flutter_fixtures-v[0-9]+.[0-9]+.[0-9]+*'
+      # Legacy support for main package
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  detect-package:
+    runs-on: ubuntu-latest
+    outputs:
+      package-name: ${{ steps.detect.outputs.package-name }}
+      package-path: ${{ steps.detect.outputs.package-path }}
+      version: ${{ steps.detect.outputs.version }}
+    steps:
+      - name: Detect package from tag
+        id: detect
+        run: |
+          TAG="${{ github.ref_name }}"
+          echo "Processing tag: $TAG"
+
+          if [[ $TAG =~ ^flutter_fixtures_core-v(.+)$ ]]; then
+            echo "package-name=flutter_fixtures_core" >> $GITHUB_OUTPUT
+            echo "package-path=packages/flutter_fixtures_core" >> $GITHUB_OUTPUT
+            echo "version=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+          elif [[ $TAG =~ ^flutter_fixtures_dio-v(.+)$ ]]; then
+            echo "package-name=flutter_fixtures_dio" >> $GITHUB_OUTPUT
+            echo "package-path=packages/flutter_fixtures_dio" >> $GITHUB_OUTPUT
+            echo "version=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+          elif [[ $TAG =~ ^flutter_fixtures_ui-v(.+)$ ]]; then
+            echo "package-name=flutter_fixtures_ui" >> $GITHUB_OUTPUT
+            echo "package-path=packages/flutter_fixtures_ui" >> $GITHUB_OUTPUT
+            echo "version=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+          elif [[ $TAG =~ ^flutter_fixtures-v(.+)$ ]]; then
+            echo "package-name=flutter_fixtures" >> $GITHUB_OUTPUT
+            echo "package-path=packages/flutter_fixtures" >> $GITHUB_OUTPUT
+            echo "version=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+          elif [[ $TAG =~ ^v(.+)$ ]]; then
+            # Legacy support - defaults to main package
+            echo "package-name=flutter_fixtures" >> $GITHUB_OUTPUT
+            echo "package-path=packages/flutter_fixtures" >> $GITHUB_OUTPUT
+            echo "version=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+          else
+            echo "Error: Tag format not recognized: $TAG"
+            exit 1
+          fi
+
+  publish:
+    needs: detect-package
+    permissions:
+      id-token: write # Required for authentication using OIDC
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+    with:
+      working-directory: ${{ needs.detect-package.outputs.package-path }}
