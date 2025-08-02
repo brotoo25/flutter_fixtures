@@ -11,116 +11,94 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        flutter-version: ['stable', 'beta']
+        flutter: [ {channel: stable, version: 3.32.4},
+                   {channel: beta,  version: 3.33.0-0.2.pre} ]
       fail-fast: false
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: ${{ matrix.flutter-version }}
-        channel: ${{ matrix.flutter-version }}
-        cache: true
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2.21.0 
+        with:
+          channel: ${{ matrix.flutter.channel }}
+          flutter-version: ${{ matrix.flutter.version }}
+          cache: true                         
 
-    - name: Get dependencies
-      run: flutter pub get
+      - name: Get dependencies
+        run: flutter pub get
 
-    - name: Verify formatting
-      run: dart format --output=none --set-exit-if-changed .
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed --line-length 100 .
 
-    - name: Analyze project source
-      run: flutter analyze
+      - name: Analyze project source
+        run: flutter analyze
 
-    - name: Run tests
-      run: flutter test
+      - name: Run tests
+        run: flutter test
 
-    - name: Test individual packages
-      run: |
-        echo "Testing flutter_fixtures_core..."
-        cd packages/flutter_fixtures_core
-        flutter test
-        cd ../..
-        
-        echo "Testing flutter_fixtures_dio..."
-        cd packages/flutter_fixtures_dio
-        flutter test
-        cd ../..
-        
-        echo "Testing flutter_fixtures_ui..."
-        cd packages/flutter_fixtures_ui
-        flutter test
-        cd ../..
-        
-        echo "Testing flutter_fixtures..."
-        cd packages/flutter_fixtures
-        flutter test
-        cd ../..
+      # ---- Test individual packages ----
+      - name: Test flutter_fixtures_core
+        working-directory: packages/flutter_fixtures_core
+        run: |
+          flutter pub get
+          flutter test
 
-    - name: Build example app
-      run: |
-        cd example
-        flutter build apk --debug
+      - name: Test flutter_fixtures_dio
+        working-directory: packages/flutter_fixtures_dio
+        run: |
+          flutter pub get
+          flutter test
+
+      - name: Test flutter_fixtures_ui
+        working-directory: packages/flutter_fixtures_ui
+        run: |
+          flutter pub get
+          flutter test
+
+      - name: Test flutter_fixtures
+        working-directory: packages/flutter_fixtures
+        run: |
+          flutter pub get
+          flutter test
+
+      - name: Build example app
+        working-directory: example
+        run: |
+          flutter pub get
+          flutter build apk --debug
 
   package-analysis:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: 'stable'
-        channel: 'stable'
-        cache: true
+      - uses: subosito/flutter-action@v2.21.0
+        with:
+          channel: stable
+          cache: true
 
-    - name: Get dependencies
-      run: flutter pub get
+      - name: Install pana
+        run: dart pub global activate pana
 
-    - name: Check package scores
-      run: |
-        dart pub global activate pana
-        echo "Analyzing flutter_fixtures_core..."
-        cd packages/flutter_fixtures_core
-        pana --no-warning
-        cd ../..
-        
-        echo "Analyzing flutter_fixtures_dio..."
-        cd packages/flutter_fixtures_dio
-        pana --no-warning
-        cd ../..
-        
-        echo "Analyzing flutter_fixtures_ui..."
-        cd packages/flutter_fixtures_ui
-        pana --no-warning
-        cd ../..
-        
-        echo "Analyzing flutter_fixtures..."
-        cd packages/flutter_fixtures
-        pana --no-warning
-        cd ../..
+      - name: Analyze packages
+        run: |
+          for dir in packages/*; do
+            echo "::group::$dir"
+            cd "$dir"
+            flutter pub get
+            pana --exit-code-threshold 0 --no-warning
+            cd -
+            echo "::endgroup::"
+          done
 
-    - name: Check publish readiness
-      run: |
-        echo "Checking if main package is ready for publishing..."
-        cd packages/flutter_fixtures
-        dart pub publish --dry-run
-        cd ../..
-
-        echo "Checking if flutter_fixtures_core is ready for publishing..."
-        cd packages/flutter_fixtures_core
-        dart pub publish --dry-run
-        cd ../..
-
-        echo "Checking if flutter_fixtures_dio is ready for publishing..."
-        cd packages/flutter_fixtures_dio
-        dart pub publish --dry-run
-        cd ../..
-
-        echo "Checking if flutter_fixtures_ui is ready for publishing..."
-        cd packages/flutter_fixtures_ui
-        dart pub publish --dry-run
-        cd ../..
+      - name: Dry-run publish check
+        run: |
+          for dir in packages/*; do
+            echo "::group::Dry-run $dir"
+            cd "$dir"
+            dart pub publish --dry-run
+            cd -
+            echo "::endgroup::"
+          done
