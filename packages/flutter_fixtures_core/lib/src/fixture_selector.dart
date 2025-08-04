@@ -22,8 +22,7 @@ mixin FixtureSelector {
   ) async {
     final selectedOption = switch (selector) {
       Pick() => await view?.pick(fixture) ?? fixture.items.first,
-      Default() =>
-        fixture.items.firstWhere((option) => option.defaultOption ?? false),
+      Default() => fixture.items.firstWhere((option) => option.defaultOption ?? false),
       Random() => fixture.items[math.Random().nextInt(fixture.items.length)],
     };
 

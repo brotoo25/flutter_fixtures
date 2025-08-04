@@ -10,18 +10,18 @@ void main() {
       expect(DataSelectorType.random(), isA<Random>());
       expect(DataSelectorType.defaultValue(), isA<Default>());
       expect(DataSelectorType.pick(), isA<Pick>());
-      
+
       // Verify that the Fixture mixin is available
       expect(FixtureSelector, isNotNull);
-      
+
       // Verify that the FixtureCollection classes are available
       expect(FixtureCollection, isNotNull);
       expect(FixtureDocument, isNotNull);
-      
+
       // Verify that the Dio implementation is exported
       expect(DioDataQuery, isNotNull);
       expect(FixturesInterceptor, isNotNull);
-      
+
       // Verify that the UI components are exported
       expect(FixturesDialogView, isNotNull);
     });

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
 /// A dialog-based implementation of DataSelectorView
-/// 
+///
 /// This class provides a dialog UI for users to select a fixture from a collection.
 class FixturesDialogView extends StatefulWidget implements DataSelectorView {
   /// The BuildContext used to show the dialog
   final BuildContext context;
-  
+
   /// The fixture collection to display, if any
   final FixtureCollection? fixture;
 
@@ -56,8 +56,7 @@ class _FixturesDialogViewState extends State<FixturesDialogView> {
                     title: Text("${option.identifier} - ${option.description}"),
                     value: index,
                     groupValue: _selectedOptionIndex,
-                    onChanged: (value) =>
-                        setState(() => _selectedOptionIndex = value),
+                    onChanged: (value) => setState(() => _selectedOptionIndex = value),
                   );
                 },
               ),
@@ -70,8 +69,7 @@ class _FixturesDialogViewState extends State<FixturesDialogView> {
               TextButton(
                 onPressed: () {
                   if (_selectedOptionIndex != null) {
-                    Navigator.pop(
-                        context, widget.fixture!.items[_selectedOptionIndex!]);
+                    Navigator.pop(context, widget.fixture!.items[_selectedOptionIndex!]);
                   }
                 },
                 child: const Text('Select'),
