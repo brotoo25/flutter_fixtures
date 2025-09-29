@@ -1,0 +1,41 @@
+{
+  "description": "Reports with any type and format (double wildcard - Priority 3)",
+  "values": [
+    {
+      "identifier": "Sales Report Generated",
+      "description": "200",
+      "default": true,
+      "data": {
+        "reportType": "sales",
+        "format": "pdf",
+        "generatedAt": "2024-01-15T10:30:00Z",
+        "period": "2024-01",
+        "summary": {
+          "totalSales": 125000.50,
+          "totalOrders": 1250,
+          "averageOrderValue": 100.00,
+          "topProducts": [
+            "Gaming Laptop",
+            "Wireless Headphones",
+            "Smartphone"
+          ]
+        },
+        "downloadUrl": "https://api.example.com/downloads/sales-report-2024-01.pdf",
+        "expiresAt": "2024-01-22T10:30:00Z"
+      }
+    },
+    {
+      "identifier": "Report Generation Failed",
+      "description": "500",
+      "default": false,
+      "data": {
+        "error": "Report generation failed",
+        "message": "Unable to generate report due to insufficient data",
+        "reportType": "sales",
+        "format": "pdf",
+        "timestamp": "2024-01-15T10:30:00Z",
+        "supportTicket": "RPT-2024-001"
+      }
+    }
+  ]
+}

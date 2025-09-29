@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_fixtures/flutter_fixtures.dart';
@@ -41,6 +42,27 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
     );
   }
 
+  String _prettifyJson(dynamic data) {
+    try {
+      // If it's already a string, try to parse it first
+      if (data is String) {
+        try {
+          data = jsonDecode(data);
+        } catch (e) {
+          // If parsing fails, return the original string
+          return data;
+        }
+      }
+
+      // Convert to pretty JSON
+      const encoder = JsonEncoder.withIndent('  ');
+      return encoder.convert(data);
+    } catch (e) {
+      // If prettification fails, return string representation
+      return data.toString();
+    }
+  }
+
   DataSelectorType _getDataSelectorType() {
     switch (_selectedSelectorType) {
       case 'Random':
@@ -69,7 +91,7 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
 
       setState(() {
         responseCode = response.statusCode.toString();
-        responseData = response.data.toString();
+        responseData = _prettifyJson(response.data);
         responseFilePath = filePath;
       });
     } catch (e) {
@@ -92,11 +114,12 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
           const Text(
             'Selector Type:',
             style: TextStyle(fontWeight: FontWeight.bold),
@@ -178,6 +201,7 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
