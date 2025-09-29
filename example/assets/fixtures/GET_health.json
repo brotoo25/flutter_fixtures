@@ -1,0 +1,38 @@
+{
+  "description": "Health check endpoint (exact match - Priority 1)",
+  "values": [
+    {
+      "identifier": "System Healthy",
+      "description": "200",
+      "default": true,
+      "data": {
+        "status": "healthy",
+        "timestamp": "2024-01-15T10:30:00Z",
+        "version": "1.2.3",
+        "uptime": "72h 15m 30s",
+        "services": {
+          "database": "connected",
+          "cache": "connected",
+          "external_api": "connected"
+        }
+      }
+    },
+    {
+      "identifier": "System Degraded",
+      "description": "503",
+      "default": false,
+      "data": {
+        "status": "degraded",
+        "timestamp": "2024-01-15T10:30:00Z",
+        "version": "1.2.3",
+        "uptime": "72h 15m 30s",
+        "services": {
+          "database": "connected",
+          "cache": "disconnected",
+          "external_api": "timeout"
+        },
+        "message": "Some services are experiencing issues"
+      }
+    }
+  ]
+}

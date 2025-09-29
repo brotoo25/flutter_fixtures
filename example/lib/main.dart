@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'basic_example.dart';
+import 'advanced_example.dart';
 
 void main() {
   runApp(const MyApp());
@@ -20,12 +21,26 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       navigatorKey: navigatorKey,
-      home: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          title: const Text('Flutter Fixtures Example'),
+      home: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            title: const Text('Flutter Fixtures Example'),
+            bottom: const TabBar(
+              tabs: [
+                Tab(text: 'Basic'),
+                Tab(text: 'Advanced'),
+              ],
+            ),
+          ),
+          body: TabBarView(
+            children: [
+              BasicExamplePage(navigatorKey: MyApp.navigatorKey),
+              AdvancedExamplePage(navigatorKey: MyApp.navigatorKey),
+            ],
+          ),
         ),
-        body: BasicExamplePage(navigatorKey: MyApp.navigatorKey),
       ),
     );
   }

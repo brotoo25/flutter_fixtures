@@ -1,0 +1,39 @@
+{
+  "description": "User profile with any ID (single wildcard - Priority 3)",
+  "values": [
+    {
+      "identifier": "Active User Profile",
+      "description": "200",
+      "default": true,
+      "data": {
+        "id": 456,
+        "username": "jane_doe",
+        "email": "jane.doe@example.com",
+        "firstName": "Jane",
+        "lastName": "Doe",
+        "status": "active",
+        "role": "user",
+        "createdAt": "2023-06-15T09:20:00Z",
+        "lastLogin": "2024-01-15T08:45:00Z",
+        "preferences": {
+          "theme": "dark",
+          "notifications": true,
+          "language": "en"
+        }
+      }
+    },
+    {
+      "identifier": "Suspended User",
+      "description": "403",
+      "default": false,
+      "data": {
+        "id": 456,
+        "username": "suspended_user",
+        "status": "suspended",
+        "message": "This user account has been temporarily suspended",
+        "suspendedAt": "2024-01-10T14:30:00Z",
+        "reason": "Terms of service violation"
+      }
+    }
+  ]
+}

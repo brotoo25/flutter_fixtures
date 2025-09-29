@@ -1,0 +1,46 @@
+{
+  "description": "File download with category and filename (fallback mustache - Priority 5)",
+  "values": [
+    {
+      "identifier": "File Download Ready",
+      "description": "200",
+      "default": true,
+      "data": {
+        "category": "images",
+        "filename": "logo.png",
+        "fileSize": 45678,
+        "mimeType": "image/png",
+        "uploadedAt": "2023-12-01T14:20:00Z",
+        "downloadUrl": "https://cdn.example.com/images/logo.png",
+        "metadata": {
+          "width": 512,
+          "height": 512,
+          "format": "PNG",
+          "colorSpace": "sRGB"
+        },
+        "permissions": {
+          "public": true,
+          "downloadable": true,
+          "shareable": true
+        }
+      }
+    },
+    {
+      "identifier": "File Not Found",
+      "description": "404",
+      "default": false,
+      "data": {
+        "error": "File not found",
+        "category": "images",
+        "filename": "logo.png",
+        "message": "The requested file does not exist or has been removed",
+        "timestamp": "2024-01-15T10:30:00Z",
+        "suggestions": [
+          "Check the file path",
+          "Verify file permissions",
+          "Contact support if the file should exist"
+        ]
+      }
+    }
+  ]
+}

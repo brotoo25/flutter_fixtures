@@ -1,0 +1,61 @@
+{
+  "description": "Search results with query and page (mustache pattern - Priority 4)",
+  "values": [
+    {
+      "identifier": "Search Results Found",
+      "description": "200",
+      "default": true,
+      "data": {
+        "query": "flutter",
+        "page": 1,
+        "totalResults": 1250,
+        "totalPages": 125,
+        "resultsPerPage": 10,
+        "searchTime": "0.045s",
+        "results": [
+          {
+            "id": "flutter-docs",
+            "title": "Flutter Documentation",
+            "url": "https://flutter.dev/docs",
+            "description": "Official Flutter documentation and guides",
+            "relevance": 0.95
+          },
+          {
+            "id": "flutter-github",
+            "title": "Flutter GitHub Repository",
+            "url": "https://github.com/flutter/flutter",
+            "description": "Flutter framework source code and issues",
+            "relevance": 0.92
+          },
+          {
+            "id": "flutter-packages",
+            "title": "Flutter Packages",
+            "url": "https://pub.dev/flutter",
+            "description": "Discover Flutter packages and plugins",
+            "relevance": 0.88
+          }
+        ]
+      }
+    },
+    {
+      "identifier": "No Search Results",
+      "description": "404",
+      "default": false,
+      "data": {
+        "query": "flutter",
+        "page": 1,
+        "totalResults": 0,
+        "totalPages": 0,
+        "resultsPerPage": 10,
+        "searchTime": "0.012s",
+        "message": "No results found for your search query",
+        "suggestions": [
+          "Check your spelling",
+          "Try different keywords",
+          "Use more general terms"
+        ]
+      }
+    }
+  ]
+}
+
