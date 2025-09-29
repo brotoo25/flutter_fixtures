@@ -106,29 +106,25 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
           break;
         case 'user':
           final queryParams = {'id': '456'};
-          final queryString =
-              queryParams.entries.map((e) => '${e.key}=${e.value}').join('&');
+          final queryString = queryParams.entries.map((e) => '${e.key}=${e.value}').join('&');
           fullUrl = '$baseUrl/users?$queryString';
           response = await dio.get('/users', queryParameters: queryParams);
           break;
         case 'report':
           final queryParams = {'type': 'sales', 'format': 'pdf'};
-          final queryString =
-              queryParams.entries.map((e) => '${e.key}=${e.value}').join('&');
+          final queryString = queryParams.entries.map((e) => '${e.key}=${e.value}').join('&');
           fullUrl = '$baseUrl/reports?$queryString';
           response = await dio.get('/reports', queryParameters: queryParams);
           break;
         case 'search':
           final queryParams = {'q': 'flutter', 'page': '1'};
-          final queryString =
-              queryParams.entries.map((e) => '${e.key}=${e.value}').join('&');
+          final queryString = queryParams.entries.map((e) => '${e.key}=${e.value}').join('&');
           fullUrl = '$baseUrl/search?$queryString';
           response = await dio.get('/search', queryParameters: queryParams);
           break;
         case 'file':
           final queryParams = {'category': 'images', 'filename': 'logo.png'};
-          final queryString =
-              queryParams.entries.map((e) => '${e.key}=${e.value}').join('&');
+          final queryString = queryParams.entries.map((e) => '${e.key}=${e.value}').join('&');
           fullUrl = '$baseUrl/files?$queryString';
           response = await dio.get('/files', queryParameters: queryParams);
           break;
@@ -205,18 +201,15 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   SizedBox(height: 4),
-                  Text('• Health Check: Exact match (Priority 1)',
-                      style: TextStyle(fontSize: 12)),
+                  Text('• Health Check: Exact match (Priority 1)', style: TextStyle(fontSize: 12)),
                   Text('• User Profile: Single wildcard (Priority 3)',
                       style: TextStyle(fontSize: 12)),
-                  Text('• Report: Double wildcard (Priority 3)',
-                      style: TextStyle(fontSize: 12)),
+                  Text('• Report: Double wildcard (Priority 3)', style: TextStyle(fontSize: 12)),
                   Text('• Search Results: Mustache pattern (Priority 4)',
                       style: TextStyle(fontSize: 12)),
                   Text('• File Download: Fallback mustache (Priority 5)',
                       style: TextStyle(fontSize: 12)),
-                  Text('• Invalid API: No match (Error handling)',
-                      style: TextStyle(fontSize: 12)),
+                  Text('• Invalid API: No match (Error handling)', style: TextStyle(fontSize: 12)),
                 ],
               ),
             ),
@@ -232,24 +225,14 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
               value: _selectedScenario,
               isExpanded: true,
               items: const [
-                DropdownMenuItem(
-                    value: 'health', child: Text('Health Check (Exact Match)')),
-                DropdownMenuItem(
-                    value: 'user',
-                    child: Text('User Profile (Single Wildcard)')),
-                DropdownMenuItem(
-                    value: 'report', child: Text('Report (Double Wildcard)')),
-                DropdownMenuItem(
-                    value: 'search',
-                    child: Text('Search Results (Mustache Pattern)')),
-                DropdownMenuItem(
-                    value: 'file',
-                    child: Text('File Download (Fallback Mustache)')),
-                DropdownMenuItem(
-                    value: 'invalid', child: Text('Invalid API (No Match)')),
+                DropdownMenuItem(value: 'health', child: Text('Health Check (Exact Match)')),
+                DropdownMenuItem(value: 'user', child: Text('User Profile (Single Wildcard)')),
+                DropdownMenuItem(value: 'report', child: Text('Report (Double Wildcard)')),
+                DropdownMenuItem(value: 'search', child: Text('Search Results (Mustache Pattern)')),
+                DropdownMenuItem(value: 'file', child: Text('File Download (Fallback Mustache)')),
+                DropdownMenuItem(value: 'invalid', child: Text('Invalid API (No Match)')),
               ],
-              onChanged: (v) =>
-                  setState(() => _selectedScenario = v ?? 'health'),
+              onChanged: (v) => setState(() => _selectedScenario = v ?? 'health'),
             ),
 
             const SizedBox(height: 24),
@@ -264,8 +247,7 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
             if (errorText.isNotEmpty) ...[
               const Text(
                 'Error:',
-                style:
-                    TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
               ),
               const SizedBox(height: 8),
               Card(

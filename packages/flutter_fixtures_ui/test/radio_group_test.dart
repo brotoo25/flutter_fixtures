@@ -5,13 +5,16 @@ import 'package:flutter_fixtures_ui/flutter_fixtures_ui.dart';
 
 void main() {
   group('FixturesDialogView RadioGroup', () {
-    testWidgets('uses RadioGroup instead of deprecated groupValue/onChanged', (WidgetTester tester) async {
+    testWidgets('uses RadioGroup instead of deprecated groupValue/onChanged',
+        (WidgetTester tester) async {
       // Create test fixture data
       final fixture = FixtureCollection(
         description: 'Test Fixture',
         items: [
-          FixtureDocument(identifier: 'Option 1', description: '200', defaultOption: true, data: {'test': 1}),
-          FixtureDocument(identifier: 'Option 2', description: '404', defaultOption: false, data: {'test': 2}),
+          FixtureDocument(
+              identifier: 'Option 1', description: '200', defaultOption: true, data: {'test': 1}),
+          FixtureDocument(
+              identifier: 'Option 2', description: '404', defaultOption: false, data: {'test': 2}),
         ],
       );
 
@@ -33,7 +36,7 @@ void main() {
 
       // Verify RadioGroup is present
       expect(find.byType(RadioGroup<int>), findsOneWidget);
-      
+
       // Verify Radio widgets don't have deprecated properties
       final radioWidgets = tester.widgetList<Radio<int>>(find.byType(Radio<int>));
       for (final radio in radioWidgets) {
@@ -56,8 +59,10 @@ void main() {
       final fixture = FixtureCollection(
         description: 'Test Selection',
         items: [
-          FixtureDocument(identifier: 'First', description: '200', defaultOption: true, data: {'id': 1}),
-          FixtureDocument(identifier: 'Second', description: '201', defaultOption: false, data: {'id': 2}),
+          FixtureDocument(
+              identifier: 'First', description: '200', defaultOption: true, data: {'id': 1}),
+          FixtureDocument(
+              identifier: 'Second', description: '201', defaultOption: false, data: {'id': 2}),
         ],
       );
 

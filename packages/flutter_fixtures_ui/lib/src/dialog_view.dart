@@ -49,8 +49,7 @@ class _FixturesDialogViewState extends State<FixturesDialogView> {
               height: 200,
               child: RadioGroup<int>(
                 groupValue: _selectedOptionIndex,
-                onChanged: (value) =>
-                    setState(() => _selectedOptionIndex = value),
+                onChanged: (value) => setState(() => _selectedOptionIndex = value),
                 child: ListView.builder(
                   shrinkWrap: false,
                   itemCount: widget.fixture!.items.length,
@@ -58,8 +57,7 @@ class _FixturesDialogViewState extends State<FixturesDialogView> {
                     final option = widget.fixture!.items[index];
                     return ListTile(
                       leading: Radio<int>(value: index),
-                      title:
-                          Text("${option.identifier} - ${option.description}"),
+                      title: Text("${option.identifier} - ${option.description}"),
                       onTap: () => setState(() => _selectedOptionIndex = index),
                     );
                   },
@@ -74,8 +72,7 @@ class _FixturesDialogViewState extends State<FixturesDialogView> {
               TextButton(
                 onPressed: () {
                   if (_selectedOptionIndex != null) {
-                    Navigator.pop(
-                        context, widget.fixture!.items[_selectedOptionIndex!]);
+                    Navigator.pop(context, widget.fixture!.items[_selectedOptionIndex!]);
                   }
                 },
                 child: const Text('Select'),
