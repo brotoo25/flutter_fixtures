@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 - Bump dependency constraints
+
+- Update meta-package dependencies: flutter_fixtures_dio ^0.1.1, flutter_fixtures_ui ^0.1.1.
+- No code changes.
+
+
 ## 0.1.1 - Align with dio/ui 0.1.1
 
 - Bump meta-package version; no code changes.
