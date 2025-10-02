@@ -12,9 +12,15 @@ void main() {
         description: 'Test Fixture',
         items: [
           FixtureDocument(
-              identifier: 'Option 1', description: '200', defaultOption: true, data: {'test': 1}),
+              identifier: 'Option 1',
+              description: '200',
+              defaultOption: true,
+              data: {'test': 1}),
           FixtureDocument(
-              identifier: 'Option 2', description: '404', defaultOption: false, data: {'test': 2}),
+              identifier: 'Option 2',
+              description: '404',
+              defaultOption: false,
+              data: {'test': 2}),
         ],
       );
 
@@ -38,7 +44,8 @@ void main() {
       expect(find.byType(RadioGroup<int>), findsOneWidget);
 
       // Verify Radio widgets don't have deprecated properties
-      final radioWidgets = tester.widgetList<Radio<int>>(find.byType(Radio<int>));
+      final radioWidgets =
+          tester.widgetList<Radio<int>>(find.byType(Radio<int>));
       for (final radio in radioWidgets) {
         // In the new API, Radio widgets should not have groupValue or onChanged
         // These are managed by the RadioGroup ancestor
@@ -55,14 +62,21 @@ void main() {
       expect(find.text('Option 2 - 404'), findsOneWidget);
     });
 
-    testWidgets('radio selection works with RadioGroup', (WidgetTester tester) async {
+    testWidgets('radio selection works with RadioGroup',
+        (WidgetTester tester) async {
       final fixture = FixtureCollection(
         description: 'Test Selection',
         items: [
           FixtureDocument(
-              identifier: 'First', description: '200', defaultOption: true, data: {'id': 1}),
+              identifier: 'First',
+              description: '200',
+              defaultOption: true,
+              data: {'id': 1}),
           FixtureDocument(
-              identifier: 'Second', description: '201', defaultOption: false, data: {'id': 2}),
+              identifier: 'Second',
+              description: '201',
+              defaultOption: false,
+              data: {'id': 2}),
         ],
       );
 
@@ -82,15 +96,17 @@ void main() {
       );
 
       // Verify initial state - first radio should be selected (index 0)
-      final radioGroup = tester.widget<RadioGroup<int>>(find.byType(RadioGroup<int>));
+      final radioGroup =
+          tester.widget<RadioGroup<int>>(find.byType(RadioGroup<int>));
       expect(radioGroup.groupValue, equals(0));
 
-      // Tap on the second ListTile to select the second radio button
-      await tester.tap(find.byType(ListTile).last);
+      // Tap on the second option to select the second radio button (avoid the Remember checkbox tile)
+      await tester.tap(find.text('Second - 201'));
       await tester.pump();
 
       // Verify the selection changed
-      final updatedRadioGroup = tester.widget<RadioGroup<int>>(find.byType(RadioGroup<int>));
+      final updatedRadioGroup =
+          tester.widget<RadioGroup<int>>(find.byType(RadioGroup<int>));
       expect(updatedRadioGroup.groupValue, equals(1));
 
       // Verify the dialog content is still visible

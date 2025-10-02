@@ -37,6 +37,7 @@ class FixturesDialogView extends StatefulWidget implements DataSelectorView {
 
 class _FixturesDialogViewState extends State<FixturesDialogView> {
   int? _selectedOptionIndex = 0;
+  bool _remember = false;
 
   final ScrollController _scrollController = ScrollController();
   @override
@@ -69,31 +70,54 @@ class _FixturesDialogViewState extends State<FixturesDialogView> {
               ),
               child: SizedBox(
                 width: 300,
-                child: RadioGroup<int>(
-                  groupValue: _selectedOptionIndex,
-                  onChanged: (value) =>
-                      setState(() => _selectedOptionIndex = value),
-                  child: Scrollbar(
-                    thumbVisibility: true,
-                    trackVisibility: true,
-                    interactive: true,
-                    controller: _scrollController,
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      shrinkWrap: true,
-                      itemCount: widget.fixture!.items.length,
-                      itemBuilder: (context, index) {
-                        final option = widget.fixture!.items[index];
-                        return ListTile(
-                          leading: Radio<int>(value: index),
-                          title: Text(
-                              "${option.identifier} - ${option.description}"),
-                          onTap: () =>
-                              setState(() => _selectedOptionIndex = index),
-                        );
-                      },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      fit: FlexFit.loose,
+                      child: RadioGroup<int>(
+                        groupValue: _selectedOptionIndex,
+                        onChanged: (value) =>
+                            setState(() => _selectedOptionIndex = value),
+                        child: Scrollbar(
+                          thumbVisibility: true,
+                          trackVisibility: true,
+                          interactive: true,
+                          controller: _scrollController,
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            shrinkWrap: true,
+                            itemCount: widget.fixture!.items.length,
+                            itemBuilder: (context, index) {
+                              final option = widget.fixture!.items[index];
+                              return ListTile(
+                                leading: Radio<int>(value: index),
+                                title: Text(
+                                    "${option.identifier} - ${option.description}"),
+                                onTap: () => setState(
+                                    () => _selectedOptionIndex = index),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    const Divider(height: 1),
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _remember,
+                          onChanged: (val) =>
+                              setState(() => _remember = val ?? false),
+                        ),
+                        GestureDetector(
+                          onTap: () => setState(() => _remember = !_remember),
+                          child: const Text('Remember'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -105,8 +129,13 @@ class _FixturesDialogViewState extends State<FixturesDialogView> {
               TextButton(
                 onPressed: () {
                   if (_selectedOptionIndex != null) {
-                    Navigator.pop(
-                        context, widget.fixture!.items[_selectedOptionIndex!]);
+                    final selected =
+                        widget.fixture!.items[_selectedOptionIndex!];
+                    if (_remember) {
+                      FixtureSelectionMemory.remember(
+                          widget.fixture!, selected);
+                    }
+                    Navigator.pop(context, selected);
                   }
                 },
                 child: const Text('Select'),
