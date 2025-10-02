@@ -5,6 +5,7 @@ import 'package:flutter_fixtures_core/src/fixture_document.dart';
 import 'data_selector_type.dart';
 import 'data_selector_view.dart';
 import 'fixture_collection.dart';
+import 'fixture_selection_memory.dart';
 
 /// Mixin that provides fixture functionality for data sources
 ///
@@ -20,6 +21,18 @@ mixin FixtureSelector {
     DataSelectorView? view,
     DataSelectorType selector,
   ) async {
+    // If there's only one option, skip any UI and return it directly.
+    if (fixture.items.length == 1) {
+      return fixture.items.first;
+    }
+
+    // If using Pick selector and a remembered choice exists, use it.
+    if (selector is Pick) {
+      final remembered = FixtureSelectionMemory.getRemembered(fixture);
+      if (remembered != null) return remembered;
+    }
+
+    // Otherwise, use strategy-specific logic
     final selectedOption = switch (selector) {
       Pick() => fixture.items.length == 1
           ? fixture.items.first

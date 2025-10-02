@@ -30,7 +30,8 @@ import 'package:mockito/mockito.dart' as _i1;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
-class _FakeInterceptorState_0<T> extends _i1.SmartFake implements _i2.InterceptorState<T> {
+class _FakeInterceptorState_0<T> extends _i1.SmartFake
+    implements _i2.InterceptorState<T> {
   _FakeInterceptorState_0(
     Object parent,
     Invocation parentInvocation,
@@ -43,7 +44,8 @@ class _FakeInterceptorState_0<T> extends _i1.SmartFake implements _i2.Intercepto
 /// A class which mocks [DataQuery].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockDataQuery<Input, Output> extends _i1.Mock implements _i3.DataQuery<Input, Output> {
+class MockDataQuery<Input, Output> extends _i1.Mock
+    implements _i3.DataQuery<Input, Output> {
   MockDataQuery() {
     _i1.throwOnMissingStub(this);
   }
@@ -58,7 +60,8 @@ class MockDataQuery<Input, Output> extends _i1.Mock implements _i3.DataQuery<Inp
       ) as _i4.Future<Output?>);
 
   @override
-  _i4.Future<_i5.FixtureCollection?> parse(Output? source) => (super.noSuchMethod(
+  _i4.Future<_i5.FixtureCollection?> parse(Output? source) =>
+      (super.noSuchMethod(
         Invocation.method(
           #parse,
           [source],
@@ -67,7 +70,8 @@ class MockDataQuery<Input, Output> extends _i1.Mock implements _i3.DataQuery<Inp
       ) as _i4.Future<_i5.FixtureCollection?>);
 
   @override
-  _i4.Future<Output?> data(_i6.FixtureDocument? document) => (super.noSuchMethod(
+  _i4.Future<Output?> data(_i6.FixtureDocument? document) =>
+      (super.noSuchMethod(
         Invocation.method(
           #data,
           [document],
@@ -103,7 +107,8 @@ class MockDataSelectorView extends _i1.Mock implements _i7.DataSelectorView {
   }
 
   @override
-  _i4.Future<_i6.FixtureDocument?> pick(_i5.FixtureCollection? fixture) => (super.noSuchMethod(
+  _i4.Future<_i6.FixtureDocument?> pick(_i5.FixtureCollection? fixture) =>
+      (super.noSuchMethod(
         Invocation.method(
           #pick,
           [fixture],
@@ -115,7 +120,8 @@ class MockDataSelectorView extends _i1.Mock implements _i7.DataSelectorView {
 /// A class which mocks [RequestInterceptorHandler].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockRequestInterceptorHandler extends _i1.Mock implements _i2.RequestInterceptorHandler {
+class MockRequestInterceptorHandler extends _i1.Mock
+    implements _i2.RequestInterceptorHandler {
   MockRequestInterceptorHandler() {
     _i1.throwOnMissingStub(this);
   }
@@ -123,8 +129,8 @@ class MockRequestInterceptorHandler extends _i1.Mock implements _i2.RequestInter
   @override
   _i4.Future<_i2.InterceptorState<dynamic>> get future => (super.noSuchMethod(
         Invocation.getter(#future),
-        returnValue:
-            _i4.Future<_i2.InterceptorState<dynamic>>.value(_FakeInterceptorState_0<dynamic>(
+        returnValue: _i4.Future<_i2.InterceptorState<dynamic>>.value(
+            _FakeInterceptorState_0<dynamic>(
           this,
           Invocation.getter(#future),
         )),
