@@ -1,6 +1,6 @@
 name: flutter_fixtures_core
 description: "Core interfaces and domain models for Flutter Fixtures"
-version: 0.1.0
+version: 0.1.1
 homepage: https://github.com/brotoo25/flutter_fixtures
 repository: https://github.com/brotoo25/flutter_fixtures
 issue_tracker: https://github.com/brotoo25/flutter_fixtures/issues

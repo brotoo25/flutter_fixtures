@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 Mustache matching refinements
+
+* Remove hardcoded mustache placeholder generation; placeholders now only match actual request query parameter keys (alphabetically sorted) when building candidates.
+* Keep candidate order: exact > value-appended > star-by-count > mustache-by-keys.
+* Update tests accordingly and minor internal cleanups.
+
 ## 0.1.0 - First Minor Release
 
 * Updated all packages to version 0.1.0

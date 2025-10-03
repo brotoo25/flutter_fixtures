@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.2 Dialog dynamic height
+
+* Fix dialog height to be dynamic based on content.
+* Update `FixturesDialogView` to include "Remember" checkbox.
+
+## 0.1.1 Minor polish
+
+* Minor UI code cleanup/formatting and test updates to keep parity with latest core/dio behavior.
+
 ## 0.1.0 - First Minor Release
 
 * Updated all packages to version 0.1.0

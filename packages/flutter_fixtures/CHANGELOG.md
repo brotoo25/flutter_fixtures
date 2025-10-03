@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.3 Bump dependency constraints
+
+* Update meta-package dependencies: flutter_fixtures_core ^0.1.1, flutter_fixtures_ui ^0.1.2.
+
+## 0.1.2 Bump dependency constraints
+
+* Update meta-package dependencies: flutter_fixtures_dio ^0.1.1, flutter_fixtures_ui ^0.1.1.
+
+## 0.1.1 Align with dio/ui 0.1.1
+
+* Bump meta-package version; no code changes.
+* Depends on flutter_fixtures_dio and flutter_fixtures_ui compatible with 0.1.1.
+
 ## 0.1.0 - First Minor Release
 
 * Updated all packages to version 0.1.0

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 Selection Memory
+
+* Add in-memory selection memory to remember user choices for fixture collections.
+* Add `FixtureSelectionMemory` class to manage remembered selections.
+* Auto-select single option when using Pick selector.
+
 ## 0.1.0 - First Minor Release
 
 * Updated all packages to version 0.1.0
