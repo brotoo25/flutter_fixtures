@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 Response Delay
+
+  * Add `DataSelectorDelay` class to simulate response delays.
+  * Add delay to `FixtureSelector.select` method.
+
 ## 0.1.1 Selection Memory
 
 * Add in-memory selection memory to remember user choices for fixture collections.

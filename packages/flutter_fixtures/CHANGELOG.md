@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4 Bump dependency constraints
+
+* Update meta-package dependencies: flutter_fixtures_core ^0.1.2, flutter_fixtures_dio ^0.1.2.
+
 ## 0.1.3 Bump dependency constraints
 
 * Update meta-package dependencies: flutter_fixtures_core ^0.1.1, flutter_fixtures_ui ^0.1.2.
