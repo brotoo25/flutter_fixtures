@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 Response Delay
+
+* Add `dataSelectorDelay` parameter to `FixturesInterceptor` to simulate response delays.
+
 ## 0.1.1 Mustache matching refinements
 
 * Remove hardcoded mustache placeholder generation; placeholders now only match actual request query parameter keys (alphabetically sorted) when building candidates.

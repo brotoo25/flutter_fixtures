@@ -1,6 +1,5 @@
 name: flutter_fixtures_workspace
 description: "Flutter Fixtures Workspace"
-version: 0.1.0
 publish_to: none
 
 environment:
