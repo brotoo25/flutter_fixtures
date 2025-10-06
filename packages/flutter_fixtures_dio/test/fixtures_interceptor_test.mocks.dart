@@ -10,6 +10,7 @@ import 'package:dio/src/dio_mixin.dart' as _i2;
 import 'package:dio/src/options.dart' as _i9;
 import 'package:dio/src/response.dart' as _i10;
 import 'package:flutter_fixtures_core/src/data_query.dart' as _i3;
+import 'package:flutter_fixtures_core/src/data_selector_delay.dart' as _i12;
 import 'package:flutter_fixtures_core/src/data_selector_type.dart' as _i8;
 import 'package:flutter_fixtures_core/src/data_selector_view.dart' as _i7;
 import 'package:flutter_fixtures_core/src/fixture_collection.dart' as _i5;
@@ -83,8 +84,9 @@ class MockDataQuery<Input, Output> extends _i1.Mock
   _i4.Future<_i6.FixtureDocument?> select(
     _i5.FixtureCollection? fixture,
     _i7.DataSelectorView? view,
-    _i8.DataSelectorType? selector,
-  ) =>
+    _i8.DataSelectorType? selector, {
+    _i12.DataSelectorDelay? delay,
+  }) =>
       (super.noSuchMethod(
         Invocation.method(
           #select,
@@ -93,6 +95,7 @@ class MockDataQuery<Input, Output> extends _i1.Mock
             view,
             selector,
           ],
+          {#delay: delay},
         ),
         returnValue: _i4.Future<_i6.FixtureDocument?>.value(),
       ) as _i4.Future<_i6.FixtureDocument?>);

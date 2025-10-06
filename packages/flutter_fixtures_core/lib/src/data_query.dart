@@ -1,5 +1,6 @@
 import 'package:flutter_fixtures_core/src/fixture_document.dart';
 
+import 'data_selector_delay.dart';
 import 'data_selector_type.dart';
 import 'data_selector_view.dart';
 import 'fixture_collection.dart';
@@ -32,9 +33,13 @@ abstract class DataQuery<Input, Output> {
   ///
   /// This method uses the provided selector type to choose a fixture document
   /// from the collection, potentially using the view for user selection.
+  ///
+  /// The optional [delay] parameter allows simulating response delays.
+  /// Defaults to [DataSelectorDelay.instant] (no delay).
   Future<FixtureDocument?> select(
     FixtureCollection fixture,
     DataSelectorView? view,
-    DataSelectorType selector,
-  );
+    DataSelectorType selector, {
+    DataSelectorDelay delay = DataSelectorDelay.instant,
+  });
 }

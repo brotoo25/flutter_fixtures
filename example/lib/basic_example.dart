@@ -38,6 +38,7 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
           context: widget.navigatorKey.currentContext!,
         ),
         dataSelector: _getDataSelectorType(),
+        dataSelectorDelay: DataSelectorDelay.moderate,
       ),
     );
   }

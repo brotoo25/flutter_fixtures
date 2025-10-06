@@ -15,11 +15,15 @@ class FixturesInterceptor extends Interceptor {
   /// The strategy for selecting fixtures
   final DataSelectorType dataSelector;
 
+  /// The delay to apply when selecting fixtures
+  final DataSelectorDelay dataSelectorDelay;
+
   /// Creates a new FixturesInterceptor with the specified components
   FixturesInterceptor({
     required this.dataQuery,
     this.dataSelectorView,
     required this.dataSelector,
+    this.dataSelectorDelay = DataSelectorDelay.instant,
   });
 
   @override
@@ -57,6 +61,7 @@ class FixturesInterceptor extends Interceptor {
         fixtureCollection,
         dataSelectorView,
         dataSelector,
+        delay: dataSelectorDelay,
       );
 
       // If no document was selected, reject the request
