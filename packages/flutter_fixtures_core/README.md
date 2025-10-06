@@ -32,6 +32,15 @@ This package defines the core contracts and data models used by all Flutter Fixt
   - `Default()`: Use the fixture marked as default
   - `Pick()`: Let user choose through UI
 
+### Response Delays
+
+- **`DataSelectorDelay`**: Class for simulating response delays
+  - `instant`: No delay (0ms)
+  - `fast`: Fast response (~100ms)
+  - `moderate`: Moderate response (~500ms)
+  - `slow`: Slow response (~2000ms)
+  - `custom(milliseconds)`: Custom delay duration
+
 ## 🚀 Quick Start
 
 Add to your `pubspec.yaml`:
@@ -122,8 +131,47 @@ class MyDataProvider with FixtureSelector implements DataQuery<String, Map<Strin
   }
 
   // select() method is provided by the FixtureSelector mixin
+  // It automatically handles delays when specified
 }
 ```
+
+## ⏱️ Simulating Response Delays
+
+Use `DataSelectorDelay` to simulate network latency or other delays:
+
+```dart
+// Use predefined delays
+await dataQuery.select(
+  fixture,
+  view,
+  DataSelectorType.random(),
+  delay: DataSelectorDelay.moderate, // 500ms delay
+);
+
+// Or create custom delays
+await dataQuery.select(
+  fixture,
+  view,
+  DataSelectorType.random(),
+  delay: DataSelectorDelay.custom(1500), // 1.5 second delay
+);
+
+// Default is instant (no delay)
+await dataQuery.select(
+  fixture,
+  view,
+  DataSelectorType.random(),
+  // delay defaults to DataSelectorDelay.instant
+);
+```
+
+### Available Delays
+
+- **`DataSelectorDelay.instant`** - No delay (0ms) - Default
+- **`DataSelectorDelay.fast`** - Fast response (~100ms, comparable to fast 4G/5G)
+- **`DataSelectorDelay.moderate`** - Moderate response (~500ms, comparable to 3G)
+- **`DataSelectorDelay.slow`** - Slow response (~2000ms, comparable to 2G/EDGE)
+- **`DataSelectorDelay.custom(ms)`** - Custom delay with specified milliseconds
 
 ## 📋 Data Model Reference
 

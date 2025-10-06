@@ -85,9 +85,10 @@ void main() {
           when(mockDataQuery.parse(fixtureData))
               .thenAnswer((_) async => fixtureCollection);
           when(mockDataQuery.select(
-            fixtureCollection,
-            mockDataSelectorView,
             any,
+            any,
+            any,
+            delay: anyNamed('delay'),
           )).thenAnswer((_) async => fixtureCollection.items.first);
           when(mockDataQuery.data(fixtureCollection.items.first))
               .thenAnswer((_) async => responseData);
@@ -102,9 +103,10 @@ void main() {
           verify(mockDataQuery.find(requestOptions)).called(1);
           verify(mockDataQuery.parse(fixtureData)).called(1);
           verify(mockDataQuery.select(
-            fixtureCollection,
-            mockDataSelectorView,
             any,
+            any,
+            any,
+            delay: anyNamed('delay'),
           )).called(1);
           verify(mockDataQuery.data(fixtureCollection.items.first)).called(1);
 
@@ -136,7 +138,7 @@ void main() {
               .thenAnswer((_) async => fixtureData);
           when(mockDataQuery.parse(fixtureData))
               .thenAnswer((_) async => fixtureCollection);
-          when(mockDataQuery.select(any, any, any))
+          when(mockDataQuery.select(any, any, any, delay: anyNamed('delay')))
               .thenAnswer((_) async => fixtureCollection.items.first);
           when(mockDataQuery.data(fixtureCollection.items.first))
               .thenAnswer((_) async => responseData);
@@ -246,7 +248,7 @@ void main() {
               .thenAnswer((_) async => fixtureData);
           when(mockDataQuery.parse(fixtureData))
               .thenAnswer((_) async => fixtureCollection);
-          when(mockDataQuery.select(any, any, any))
+          when(mockDataQuery.select(any, any, any, delay: anyNamed('delay')))
               .thenAnswer((_) async => null);
 
           // Act
@@ -305,7 +307,7 @@ void main() {
               .thenAnswer((_) async => fixtureData);
           when(mockDataQuery.parse(fixtureData))
               .thenAnswer((_) async => fixtureCollection);
-          when(mockDataQuery.select(any, any, any))
+          when(mockDataQuery.select(any, any, any, delay: anyNamed('delay')))
               .thenAnswer((_) async => fixtureCollection.items.first);
           when(mockDataQuery.data(fixtureCollection.items.first))
               .thenAnswer((_) async => responseData);
@@ -346,7 +348,7 @@ void main() {
               .thenAnswer((_) async => fixtureData);
           when(mockDataQuery.parse(fixtureData))
               .thenAnswer((_) async => fixtureCollection);
-          when(mockDataQuery.select(any, any, any))
+          when(mockDataQuery.select(any, any, any, delay: anyNamed('delay')))
               .thenAnswer((_) async => fixtureCollection.items.first);
           when(mockDataQuery.data(fixtureCollection.items.first))
               .thenAnswer((_) async => responseData);

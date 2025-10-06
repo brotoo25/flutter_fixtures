@@ -87,6 +87,7 @@ dio.interceptors.add(
       context: navigatorKey.currentContext!,
     ),
     dataSelector: DataSelectorType.random(),
+    dataSelectorDelay: DataSelectorDelay.moderate, // Optional: simulate network delay
   ),
 );
 
@@ -153,6 +154,25 @@ Example fixture file (`assets/fixtures/GET_users.json`):
 ## Extensibility
 
 Flutter Fixtures is designed to be highly extensible. You can create your own implementations for different data providers, UI components, or storage mechanisms.
+
+### Response Delays
+
+Simulate network latency to test loading states:
+
+```dart
+// Use predefined delays
+dataSelectorDelay: DataSelectorDelay.moderate  // 500ms delay
+
+// Or create custom delays
+dataSelectorDelay: DataSelectorDelay.custom(1500)  // 1.5 second delay
+```
+
+Available options:
+- `DataSelectorDelay.instant` - No delay (default)
+- `DataSelectorDelay.fast` - ~100ms
+- `DataSelectorDelay.moderate` - ~500ms
+- `DataSelectorDelay.slow` - ~2000ms
+- `DataSelectorDelay.custom(ms)` - Custom delay
 
 ### Creating a Custom Data Provider
 

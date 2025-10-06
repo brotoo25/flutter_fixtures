@@ -15,11 +15,18 @@ class FixturesInterceptor extends Interceptor {
   /// The strategy for selecting fixtures
   final DataSelectorType dataSelector;
 
+  /// The delay to apply when selecting fixtures
+  ///
+  /// Defaults to [DataSelectorDelay.instant] (no delay).
+  /// Can be used to simulate network latency for testing loading states.
+  final DataSelectorDelay dataSelectorDelay;
+
   /// Creates a new FixturesInterceptor with the specified components
   FixturesInterceptor({
     required this.dataQuery,
     this.dataSelectorView,
     required this.dataSelector,
+    this.dataSelectorDelay = DataSelectorDelay.instant,
   });
 
   @override
@@ -57,6 +64,7 @@ class FixturesInterceptor extends Interceptor {
         fixtureCollection,
         dataSelectorView,
         dataSelector,
+        delay: dataSelectorDelay,
       );
 
       // If no document was selected, reject the request

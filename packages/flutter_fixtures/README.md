@@ -83,6 +83,7 @@ dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(),
     dataSelector: DataSelectorType.random(),
+    dataSelectorDelay: DataSelectorDelay.moderate, // Optional: simulate network delay
   ),
 );
 
@@ -431,6 +432,32 @@ UI components for interactive fixture selection. Use this to let users choose di
 </div>
 
 ## 🔧 Advanced Configuration
+
+### Simulating Response Delays
+
+Test loading states and timeouts by simulating network latency:
+
+```dart
+dio.interceptors.add(
+  FixturesInterceptor(
+    dataQuery: DioDataQuery(),
+    dataSelector: DataSelectorType.random(),
+    dataSelectorDelay: DataSelectorDelay.moderate, // 500ms delay
+  ),
+);
+```
+
+**Available delays:**
+- `DataSelectorDelay.instant` - No delay (default)
+- `DataSelectorDelay.fast` - ~100ms (fast 4G/5G)
+- `DataSelectorDelay.moderate` - ~500ms (3G)
+- `DataSelectorDelay.slow` - ~2000ms (2G/EDGE)
+- `DataSelectorDelay.custom(milliseconds)` - Custom delay
+
+```dart
+// Custom delay example
+dataSelectorDelay: DataSelectorDelay.custom(1500) // 1.5 second delay
+```
 
 ### Custom Data Providers
 
