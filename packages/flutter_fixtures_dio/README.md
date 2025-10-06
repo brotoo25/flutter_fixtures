@@ -90,6 +90,7 @@ dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(),
     dataSelector: DataSelectorType.random(), // Randomly select fixtures
+    dataSelectorDelay: DataSelectorDelay.instant, // Optional: simulate network delay
   ),
 );
 
@@ -317,6 +318,7 @@ The main interceptor class that handles request interception.
 - `dataQuery` (required): Implementation of `DataQuery` for loading fixtures
 - `dataSelector` (required): Strategy for selecting which fixture to return
 - `dataSelectorView` (optional): UI component for user-driven fixture selection
+- `dataSelectorDelay` (optional): Delay to apply when selecting fixtures (default: `DataSelectorDelay.instant`)
 
 ### DioDataQuery
 

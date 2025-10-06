@@ -16,6 +16,9 @@ class FixturesInterceptor extends Interceptor {
   final DataSelectorType dataSelector;
 
   /// The delay to apply when selecting fixtures
+  ///
+  /// Defaults to [DataSelectorDelay.instant] (no delay).
+  /// Can be used to simulate network latency for testing loading states.
   final DataSelectorDelay dataSelectorDelay;
 
   /// Creates a new FixturesInterceptor with the specified components
