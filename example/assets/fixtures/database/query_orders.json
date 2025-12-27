@@ -1,0 +1,52 @@
+{
+  "description": "Order table query fixtures",
+  "values": [
+    {
+      "identifier": "recent_orders",
+      "description": "Returns recent orders",
+      "default": true,
+      "data": [
+        {
+          "id": 1001,
+          "user_id": 1,
+          "total": 1329.98,
+          "status": "delivered",
+          "created_at": "2024-12-20T10:30:00Z"
+        },
+        {
+          "id": 1002,
+          "user_id": 2,
+          "total": 79.98,
+          "status": "shipped",
+          "created_at": "2024-12-22T14:15:00Z"
+        },
+        {
+          "id": 1003,
+          "user_id": 1,
+          "total": 49.99,
+          "status": "pending",
+          "created_at": "2024-12-25T09:00:00Z"
+        }
+      ]
+    },
+    {
+      "identifier": "pending_only",
+      "description": "Returns only pending orders",
+      "data": [
+        {
+          "id": 1003,
+          "user_id": 1,
+          "total": 49.99,
+          "status": "pending",
+          "created_at": "2024-12-25T09:00:00Z"
+        }
+      ]
+    },
+    {
+      "identifier": "no_orders",
+      "description": "No orders found",
+      "data": []
+    }
+  ]
+}
+

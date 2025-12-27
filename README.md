@@ -13,12 +13,13 @@ This library is designed to be modular and extensible. It consists of the follow
 
 - **flutter_fixtures_core**: Core interfaces and domain models
 - **flutter_fixtures_dio**: Dio HTTP client implementation
+- **flutter_fixtures_sqflite**: SQLite/sqflite database implementation
 - **flutter_fixtures_ui**: UI components for fixture selection
 - **flutter_fixtures**: Meta-package that combines all the above
 
 ## Features
 
-- **Multiple Data Providers**: Support for different data providers (currently Dio, with more planned)
+- **Multiple Data Providers**: Support for different data providers (Dio HTTP, sqflite databases, with more planned)
 - **Flexible Selection Modes**: Choose how fixtures are selected (random, default, or user-selected)
 - **UI Components**: Built-in UI components for user interaction
 - **Extensible Architecture**: Easy to extend with new data providers and UI components
@@ -52,6 +53,9 @@ dependencies:
 
   # Only if you need Dio support
   flutter_fixtures_dio: ^0.1.0
+
+  # Only if you need sqflite support
+  flutter_fixtures_sqflite: ^0.1.0
 
   # Only if you need UI components
   flutter_fixtures_ui: ^0.1.0
@@ -94,6 +98,75 @@ dio.interceptors.add(
 // Make requests as usual
 final response = await dio.get('/users');
 ```
+
+### Basic Usage with sqflite
+
+The sqflite integration uses a `DatabaseAdapter` interface that allows you to swap between real databases and fixtures at runtime with **zero code changes** in your repositories.
+
+```dart
+import 'package:flutter_fixtures_sqflite/flutter_fixtures_sqflite.dart';
+
+// Define your repository using DatabaseAdapter
+class UserRepository {
+  final DatabaseAdapter db;
+  UserRepository(this.db);
+
+  Future<List<Map<String, dynamic>>> getUsers() async {
+    return await db.query('users');
+  }
+
+  Future<int> createUser(Map<String, dynamic> user) async {
+    return await db.insert('users', user);
+  }
+}
+
+// In development/testing - use fixtures:
+final db = FixtureDatabaseAdapter(
+  dataQuery: SqfliteDataQuery(),
+  dataSelector: DataSelectorType.pick(),
+  dataSelectorView: FixturesDialogView(context: context),
+);
+
+// In production - use real sqflite:
+// final db = RealDatabaseAdapter(await openDatabase('app.db'));
+
+// Same repository code works with both!
+final repo = UserRepository(db);
+final users = await repo.getUsers();
+```
+
+#### sqflite Fixture Files
+
+Create fixture files in `assets/fixtures/database/`:
+
+```json
+// assets/fixtures/database/query_users.json
+{
+  "description": "Users table query",
+  "values": [
+    {
+      "identifier": "Multiple Users",
+      "description": "Returns list of users",
+      "default": true,
+      "data": [
+        {"id": 1, "name": "Alice", "email": "alice@example.com"},
+        {"id": 2, "name": "Bob", "email": "bob@example.com"}
+      ]
+    },
+    {
+      "identifier": "Empty",
+      "description": "No users found",
+      "data": []
+    }
+  ]
+}
+```
+
+The file naming convention is `{operation}_{table}.json`:
+- `query_users.json` → `db.query('users')`
+- `insert_orders.json` → `db.insert('orders', ...)`
+- `update_products.json` → `db.update('products', ...)`
+- `delete_sessions.json` → `db.delete('sessions', ...)`
 
 ### Fixture Selection Modes
 
@@ -231,7 +304,7 @@ The following implementations are planned for future releases:
 - [ ] GraphQL
 
 ### Database Providers
-- [ ] SQLite (sqflite)
+- [x] SQLite (sqflite)
 - [ ] Hive
 - [ ] Isar
 - [ ] ObjectBox
@@ -247,7 +320,7 @@ The following implementations are planned for future releases:
 ### Other Features
 - [ ] Fixture recording mode
 - [ ] Fixture validation
-- [ ] Response delay simulation
+- [x] Response delay simulation
 - [ ] Network condition simulation
 
 ## Development
@@ -260,6 +333,7 @@ This project uses Flutter workspaces to manage multiple packages. The workspace 
 workspace:
   - packages/flutter_fixtures_core
   - packages/flutter_fixtures_dio
+  - packages/flutter_fixtures_sqflite
   - packages/flutter_fixtures_ui
   - packages/flutter_fixtures
 ```

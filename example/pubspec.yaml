@@ -35,6 +35,8 @@ dependencies:
   dio: ^5.4.3+1
   flutter_fixtures:
     path: ../packages/flutter_fixtures
+  flutter_fixtures_sqflite:
+    path: ../packages/flutter_fixtures_sqflite
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -66,6 +68,7 @@ flutter:
   assets:
     - assets/fixtures/
     - assets/fixtures/data/
+    - assets/fixtures/database/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

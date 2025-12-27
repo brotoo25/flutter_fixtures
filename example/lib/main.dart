@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'basic_example.dart';
 import 'advanced_example.dart';
+import 'basic_example.dart';
+import 'sqflite_example.dart';
 
 void main() {
   runApp(const MyApp());
@@ -22,7 +23,7 @@ class MyApp extends StatelessWidget {
       ),
       navigatorKey: navigatorKey,
       home: DefaultTabController(
-        length: 2,
+        length: 3,
         child: Scaffold(
           appBar: AppBar(
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -31,6 +32,7 @@ class MyApp extends StatelessWidget {
               tabs: [
                 Tab(text: 'Basic'),
                 Tab(text: 'Advanced'),
+                Tab(text: 'SQLite'),
               ],
             ),
           ),
@@ -38,6 +40,7 @@ class MyApp extends StatelessWidget {
             children: [
               BasicExamplePage(navigatorKey: MyApp.navigatorKey),
               AdvancedExamplePage(navigatorKey: MyApp.navigatorKey),
+              SqfliteExamplePage(navigatorKey: MyApp.navigatorKey),
             ],
           ),
         ),

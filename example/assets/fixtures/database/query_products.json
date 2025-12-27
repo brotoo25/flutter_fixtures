@@ -1,0 +1,29 @@
+{
+  "description": "Product table query fixtures",
+  "values": [
+    {
+      "identifier": "in_stock",
+      "description": "Returns products that are in stock",
+      "default": true,
+      "data": [
+        {"id": 1, "name": "Laptop Pro", "price": 1299.99, "quantity": 15, "category": "electronics"},
+        {"id": 2, "name": "Wireless Mouse", "price": 29.99, "quantity": 50, "category": "electronics"},
+        {"id": 3, "name": "USB-C Hub", "price": 49.99, "quantity": 30, "category": "accessories"}
+      ]
+    },
+    {
+      "identifier": "out_of_stock",
+      "description": "Returns products that are out of stock",
+      "data": [
+        {"id": 4, "name": "Gaming Keyboard", "price": 149.99, "quantity": 0, "category": "electronics"},
+        {"id": 5, "name": "Monitor Stand", "price": 79.99, "quantity": 0, "category": "accessories"}
+      ]
+    },
+    {
+      "identifier": "empty",
+      "description": "No products found",
+      "data": []
+    }
+  ]
+}
+

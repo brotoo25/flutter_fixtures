@@ -1,0 +1,28 @@
+{
+  "description": "User table query fixtures",
+  "values": [
+    {
+      "identifier": "success",
+      "description": "Returns list of all users",
+      "default": true,
+      "data": [
+        {"id": 1, "name": "John Doe", "email": "john@example.com", "role": "admin"},
+        {"id": 2, "name": "Jane Smith", "email": "jane@example.com", "role": "user"},
+        {"id": 3, "name": "Bob Wilson", "email": "bob@example.com", "role": "user"}
+      ]
+    },
+    {
+      "identifier": "empty",
+      "description": "Returns empty result (no users)",
+      "data": []
+    },
+    {
+      "identifier": "single",
+      "description": "Returns single user",
+      "data": [
+        {"id": 1, "name": "John Doe", "email": "john@example.com", "role": "admin"}
+      ]
+    }
+  ]
+}
+
