@@ -338,19 +338,105 @@ workspace:
   - packages/flutter_fixtures
 ```
 
-### Running Tests
+### Melos Commands
 
-To run tests for all packages:
+This project uses [Melos](https://melos.invertase.dev/) for managing the monorepo. Melos provides powerful scripting and automation capabilities while working alongside Dart's native workspace for dependency resolution.
 
-```bash
-flutter test
-```
+#### Setup
 
-To run tests for a specific package:
+If you're a contributor or cloning the repository, initialize the workspace:
 
 ```bash
-flutter test packages/flutter_fixtures_core
+# Install dependencies for all packages
+dart pub get
+
+# Bootstrap the Melos workspace
+melos bootstrap
 ```
+
+#### Development Workflow
+
+**Run tests:**
+```bash
+# Run all tests across all packages
+melos run test
+
+# Run tests only on packages that changed (faster)
+melos run test:changed
+
+# Generate coverage reports
+melos run test:coverage
+```
+
+**Code quality:**
+```bash
+# Format all Dart code
+melos run format
+
+# Check formatting without making changes (useful for CI)
+melos run format:check
+
+# Run static analysis on all packages
+melos run analyze
+
+# Analyze only changed packages
+melos run analyze:changed
+
+# Run all quality checks (format + analyze + test)
+melos run check
+
+# Quick check on changed packages only
+melos run check:changed
+```
+
+**Package management:**
+```bash
+# List all managed packages (excludes example app)
+melos list
+
+# Run pub get in all packages
+melos run get
+
+# Check for outdated dependencies
+melos run deps:outdated
+```
+
+**Cleaning:**
+```bash
+# Clean build artifacts and generated files
+melos run clean
+
+# Deep clean including pubspec.lock files
+melos run clean:deep
+```
+
+**Publishing:**
+```bash
+# Dry run publish to verify packages are ready
+melos run publish:check
+
+# Publish packages (interactive)
+melos publish
+```
+
+**Advanced operations:**
+```bash
+# Run a command in a specific package
+melos exec --scope="flutter_fixtures_core" -- flutter test
+
+# Run a command in packages that depend on core
+melos exec --depends-on="flutter_fixtures_core" -- flutter test
+
+# Run a command on all changed packages
+melos exec --diff="origin/main" -- flutter analyze
+```
+
+#### Why Melos?
+
+- **Automated scripting**: Run commands across all packages with a single command
+- **Selective execution**: Execute commands only on changed packages for faster development
+- **Version management**: Coordinate versioning and changelog generation across packages
+- **Better DX**: Simplified workflows for testing, formatting, and publishing in monorepos
 
 ## Example
 

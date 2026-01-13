@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+* Align version with sibling implementation packages (dio, ui) for consistency
+* No code changes
+
 ## 0.1.0
 
 * Initial release

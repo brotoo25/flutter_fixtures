@@ -136,4 +136,3 @@ class RealDatabaseAdapter implements DatabaseAdapter {
   @override
   bool get isOpen => _database.isOpen;
 }
-
