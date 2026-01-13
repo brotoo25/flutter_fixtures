@@ -1,0 +1,182 @@
+workflows:
+  # Main CI workflow for pull requests and pushes
+  ci:
+    name: CI - Code Quality & Tests
+    instance_type: mac_mini_m1
+    max_build_duration: 30
+    environment:
+      flutter: stable
+      groups:
+        - codemagic # For environment variables if needed
+      vars:
+        FLUTTER_ROOT: $HOME/programs/flutter
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $FLUTTER_ROOT/.pub-cache
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: '*'
+          include: true
+    when:
+      changeset:
+        includes:
+          - 'packages/**'
+          - 'melos.yaml'
+          - 'pubspec.yaml'
+          - 'codemagic.yaml'
+    scripts:
+      - name: Set up environment
+        script: |
+          echo "Flutter version:"
+          flutter --version
+          echo "Dart version:"
+          dart --version
+
+      - name: Install Melos
+        script: |
+          echo "Installing Melos globally..."
+          dart pub global activate melos
+          echo "Melos installed successfully"
+
+      - name: Bootstrap Melos workspace
+        script: |
+          echo "Bootstrapping Melos workspace..."
+          melos bootstrap --verbose
+          echo "Workspace bootstrapped successfully"
+
+      - name: Check code formatting
+        script: |
+          echo "Checking code formatting across all packages..."
+          melos run format:check
+
+      - name: Run static analysis
+        script: |
+          echo "Running static analysis on all packages..."
+          melos run analyze
+
+      - name: Run tests with coverage
+        script: |
+          echo "Running tests across all packages..."
+          melos run test:coverage
+
+      - name: Verify publish readiness
+        script: |
+          echo "Checking if packages are ready to publish..."
+          melos run publish:check
+
+
+  # Workflow for release branches - comprehensive checks
+  release:
+    name: Release - Full Verification
+    instance_type: mac_mini_m1
+    max_build_duration: 45
+    environment:
+      flutter: stable
+      groups:
+        - codemagic
+      vars:
+        FLUTTER_ROOT: $HOME/programs/flutter
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $FLUTTER_ROOT/.pub-cache
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+        - pattern: 'release/*'
+          include: true
+    scripts:
+      - name: Set up environment
+        script: |
+          flutter --version
+          dart --version
+
+      - name: Install Melos
+        script: |
+          dart pub global activate melos
+
+      - name: Bootstrap workspace
+        script: |
+          melos bootstrap --verbose
+
+      - name: Clean workspace
+        script: |
+          echo "Cleaning workspace..."
+          melos run clean
+          melos bootstrap --verbose
+
+      - name: Check formatting
+        script: |
+          melos run format:check
+
+      - name: Run static analysis
+        script: |
+          melos run analyze
+
+      - name: Run all tests
+        script: |
+          melos run test
+
+      - name: Generate coverage report
+        script: |
+          melos run test:coverage
+
+      - name: Check dependency health
+        script: |
+          echo "Checking for outdated dependencies..."
+          melos run deps:outdated || true
+
+      - name: Verify publish readiness
+        script: |
+          melos run publish:check
+
+    artifacts:
+      - coverage/**/*.lcov
+
+  # Workflow for changed packages only (faster CI for large monorepos)
+  quick-check:
+    name: Quick Check - Changed Packages Only
+    instance_type: mac_mini_m1
+    max_build_duration: 20
+    environment:
+      flutter: stable
+      groups:
+        - codemagic
+      vars:
+        FLUTTER_ROOT: $HOME/programs/flutter
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $FLUTTER_ROOT/.pub-cache
+    triggering:
+      events:
+        - pull_request
+      branch_patterns:
+        - pattern: '*'
+          include: true
+          source: true
+    scripts:
+      - name: Set up environment
+        script: |
+          flutter --version
+
+      - name: Install Melos
+        script: |
+          dart pub global activate melos
+
+      - name: Bootstrap workspace
+        script: |
+          melos bootstrap
+
+      - name: Run checks on changed packages
+        script: |
+          echo "Running checks on changed packages only..."
+          melos run check:changed || melos run check
+
