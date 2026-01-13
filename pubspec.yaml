@@ -14,6 +14,124 @@ workspace:
   - packages/flutter_fixtures
   - example
 
+melos:
+  name: flutter_fixtures
+  ignore:
+    - example
+
+  scripts:
+    # Code Quality
+    analyze:
+      description: Run static analysis on all packages
+      run: flutter analyze
+      exec:
+        concurrency: 1
+
+    analyze:changed:
+      description: Run static analysis only on changed packages
+      run: flutter analyze
+      exec:
+        concurrency: 1
+      packageFilters:
+        dirExists: lib
+        diff: origin/main
+
+    format:
+      description: Format all Dart files
+      run: dart format .
+      exec:
+        concurrency: 1
+
+    format:check:
+      description: Check formatting without making changes
+      run: dart format --set-exit-if-changed .
+      exec:
+        concurrency: 1
+
+    # Testing
+    test:
+      description: Run tests for all packages
+      run: flutter test
+      exec:
+        concurrency: 1
+        failFast: true
+      packageFilters:
+        dirExists: test
+
+    test:changed:
+      description: Run tests only for changed packages
+      run: flutter test
+      exec:
+        concurrency: 1
+        failFast: true
+      packageFilters:
+        dirExists: test
+        diff: origin/main
+
+    test:coverage:
+      description: Run tests with coverage for all packages
+      run: flutter test --coverage
+      exec:
+        concurrency: 1
+      packageFilters:
+        dirExists: test
+
+    # Clean
+    clean:
+      description: Clean build artifacts and generated files
+      run: |
+        rm -rf build
+        rm -rf .dart_tool
+        flutter clean
+      exec:
+        concurrency: 1
+
+    clean:deep:
+      description: Deep clean including pubspec.lock files
+      run: |
+        rm -rf build
+        rm -rf .dart_tool
+        rm -f pubspec.lock
+        flutter clean
+      exec:
+        concurrency: 1
+
+    # Build
+    get:
+      description: Run pub get in all packages (uses workspace resolution)
+      run: dart pub get
+      exec:
+        concurrency: 1
+
+    # Publishing
+    publish:check:
+      description: Dry run publish for all packages
+      run: dart pub publish --dry-run
+      exec:
+        concurrency: 1
+
+    # Dependency Management
+    deps:outdated:
+      description: Check for outdated dependencies
+      run: dart pub outdated
+      exec:
+        concurrency: 1
+
+    # Combined Workflows
+    check:
+      description: Run all quality checks (format, analyze, test)
+      run: |
+        melos run format:check &&
+        melos run analyze &&
+        melos run test
+
+    check:changed:
+      description: Run quality checks only on changed packages
+      run: |
+        melos run format:check &&
+        melos run analyze:changed &&
+        melos run test:changed
+
 topics:
   - mock
   - http
@@ -22,3 +140,4 @@ topics:
 
 dev_dependencies:
   flutter_lints: ^3.0.0
+  melos: ^7.3.0

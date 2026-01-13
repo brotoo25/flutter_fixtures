@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5 Add sqflite Support
+
+* Add flutter_fixtures_sqflite ^0.1.2 dependency to meta-package
+* Users can now access SQLite/sqflite database mocking functionality via the main flutter_fixtures package
+
 ## 0.1.4 Bump dependency constraints
 
 * Update meta-package dependencies: flutter_fixtures_core ^0.1.2, flutter_fixtures_dio ^0.1.2.

@@ -99,7 +99,8 @@ void main() {
     });
 
     group('update', () {
-      test('returns default affected rows of 1 when no fixture found', () async {
+      test('returns default affected rows of 1 when no fixture found',
+          () async {
         final mockDataQuery = MockSqfliteDataQuery();
         mockDataQuery.findResult = null;
 
@@ -119,7 +120,8 @@ void main() {
     });
 
     group('delete', () {
-      test('returns default affected rows of 1 when no fixture found', () async {
+      test('returns default affected rows of 1 when no fixture found',
+          () async {
         final mockDataQuery = MockSqfliteDataQuery();
         mockDataQuery.findResult = null;
 
@@ -151,4 +153,3 @@ void main() {
     });
   });
 }
-

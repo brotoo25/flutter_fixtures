@@ -111,4 +111,3 @@ abstract class DatabaseAdapter {
   /// Whether the database is open.
   bool get isOpen;
 }
-
