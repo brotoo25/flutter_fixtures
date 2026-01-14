@@ -19,6 +19,7 @@ dependencies:
   flutter_fixtures_dio: ^0.1.2
   flutter_fixtures_sqflite: ^0.1.2
   flutter_fixtures_ui: ^0.1.2
+  flutter_fixtures_recorder: ^0.1.0
 
 dev_dependencies:
   flutter_test:

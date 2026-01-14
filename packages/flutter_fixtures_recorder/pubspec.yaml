@@ -1,0 +1,21 @@
+name: flutter_fixtures_recorder
+description: "Recording and playback for Flutter Fixtures user selections"
+version: 0.1.0
+repository: https://github.com/brotoo25/flutter_fixtures
+
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+  flutter: ">=3.35.1"
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_fixtures_core: ^0.1.2
+  path_provider: ^2.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0

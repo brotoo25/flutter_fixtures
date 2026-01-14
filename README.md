@@ -17,12 +17,14 @@ This library is designed to be modular and extensible. It consists of the follow
 - **flutter_fixtures_dio**: Dio HTTP client implementation
 - **flutter_fixtures_sqflite**: SQLite/sqflite database implementation
 - **flutter_fixtures_ui**: UI components for fixture selection
+- **flutter_fixtures_recorder**: Recording and playback of fixture selections
 - **flutter_fixtures**: Meta-package that combines all the above
 
 ## Features
 
 - **Multiple Data Providers**: Support for different data providers (Dio HTTP, sqflite databases, with more planned)
 - **Flexible Selection Modes**: Choose how fixtures are selected (random, default, or user-selected)
+- **Recording & Playback**: Record fixture selection sessions and replay them later for testing
 - **UI Components**: Built-in UI components for user interaction
 - **Extensible Architecture**: Easy to extend with new data providers and UI components
 - **Modular Design**: Use only the packages you need or the combined meta-package
@@ -169,6 +171,125 @@ The file naming convention is `{operation}_{table}.json`:
 - `insert_orders.json` → `db.insert('orders', ...)`
 - `update_products.json` → `db.update('products', ...)`
 - `delete_sessions.json` → `db.delete('sessions', ...)`
+
+### Recording and Playback
+
+The recorder package allows you to record fixture selection sessions and replay them later. This is perfect for:
+- Creating repeatable test scenarios
+- Debugging specific user flows
+- Demonstrating features with consistent data
+
+#### Setup
+
+```dart
+import 'package:flutter_fixtures/flutter_fixtures.dart';
+
+// Create a recorder instance
+final recorder = FixtureRecorder(
+  storage: JsonFileSessionStorage(),
+);
+
+// Wrap your data queries
+final dioDataQuery = RecordableDataQuery(
+  delegate: DioDataQuery(),
+  recorder: recorder,
+  source: 'dio',
+);
+
+// Use the wrapped query in your interceptor
+dio.interceptors.add(
+  FixturesInterceptor(
+    dataQuery: dioDataQuery,
+    dataSelectorView: FixturesDialogView(context: context),
+    dataSelector: DataSelectorType.pick(),
+  ),
+);
+
+// Add the recorder overlay to your app
+Stack(
+  children: [
+    YourApp(),
+    RecorderOverlayWidget(
+      recorder: recorder,
+      isMockMode: true, // Only show in mock mode
+    ),
+  ],
+);
+```
+
+#### Recording a Session
+
+1. Tap the blue FAB button in the bottom-right corner
+2. Select "Start Recording"
+3. Interact with your app and select fixtures
+4. Tap the red FAB button to stop recording
+5. Enter a name for your session
+6. Tap "Save"
+
+The recorder automatically filters out:
+- **Default selections**: Fixtures marked with `defaultOption: true`
+- **Consecutive repeats**: Same fixture selected twice in a row
+
+#### Playing Back a Session
+
+1. Tap the blue FAB button
+2. Select a session from the list
+3. Interact with your app - fixtures will be auto-selected
+4. Tap the green FAB button to stop playback
+
+During playback, recorded choices are automatically selected without showing dialogs. If a recorded fixture is not found (e.g., the app changed), it falls back to the default behavior.
+
+#### Session Storage
+
+Sessions are stored as JSON files in:
+```
+<app_documents>/flutter_fixtures_sessions/session_<name>.json
+```
+
+Example session file:
+```json
+{
+  "name": "login_flow_happy_path",
+  "createdAt": "2026-01-13T10:30:00.000Z",
+  "lastUsedAt": "2026-01-13T15:45:00.000Z",
+  "events": [
+    {
+      "fixtureKey": "GET /users/profile",
+      "selectedIdentifier": "success_with_premium",
+      "timestamp": "2026-01-13T10:30:15.123Z",
+      "source": "dio"
+    }
+  ]
+}
+```
+
+#### Integration Mixin
+
+For cleaner setup, use the `RecorderIntegrationMixin`:
+
+```dart
+class MyApp extends StatelessWidget with RecorderIntegrationMixin {
+  @override
+  Widget build(BuildContext context) {
+    final recorder = getOrCreateRecorder();
+
+    dio.interceptors.add(
+      FixturesInterceptor(
+        dataQuery: wrapDataQuery(DioDataQuery(), 'dio'),
+        dataSelectorView: FixturesDialogView(context: context),
+        dataSelector: DataSelectorType.pick(),
+      ),
+    );
+
+    return Stack(
+      children: [
+        MaterialApp(...),
+        RecorderOverlayWidget(recorder: recorder, isMockMode: true),
+      ],
+    );
+  }
+}
+```
 
 ### Fixture Selection Modes
 
@@ -320,7 +441,7 @@ The following implementations are planned for future releases:
 - [ ] Sidebar panel
 
 ### Other Features
-- [ ] Fixture recording mode
+- [x] Fixture recording mode
 - [ ] Fixture validation
 - [x] Response delay simulation
 - [ ] Network condition simulation
@@ -337,6 +458,7 @@ workspace:
   - packages/flutter_fixtures_dio
   - packages/flutter_fixtures_sqflite
   - packages/flutter_fixtures_ui
+  - packages/flutter_fixtures_recorder
   - packages/flutter_fixtures
 ```
 
