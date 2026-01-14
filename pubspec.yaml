@@ -12,6 +12,7 @@ workspace:
   - packages/flutter_fixtures_sqflite
   - packages/flutter_fixtures_ui
   - packages/flutter_fixtures
+  - packages/flutter_fixtures_recorder
   - example
 
 melos:
