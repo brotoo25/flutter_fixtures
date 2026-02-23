@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.7 Remove sqflite from meta-package
+
+* Remove flutter_fixtures_sqflite dependency from meta-package
+* Users who need SQLite/sqflite support should depend on flutter_fixtures_sqflite directly
+
 ## 0.1.5 Add sqflite Support
 
 * Add flutter_fixtures_sqflite ^0.1.2 dependency to meta-package
