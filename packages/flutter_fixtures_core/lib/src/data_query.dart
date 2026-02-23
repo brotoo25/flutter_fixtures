@@ -10,16 +10,21 @@ import 'fixture_collection.dart';
 /// This interface defines the contract for classes that can query data sources
 /// for fixture data. Implementations should handle the specifics of how to
 /// query different data sources (e.g., HTTP, database, etc.)
+///
+/// Type parameters:
+/// - [Input] – the request type used to look up fixtures (e.g. `RequestOptions`)
+/// - [Output] – the fixture data format returned by [find], consumed by [parse],
+///   and returned by [data]. Use `Object` when payload shape can vary.
 abstract class DataQuery<Input, Output> {
   /// Find fixture data for the given input
   ///
   /// This method should search for fixture data that matches the input
-  /// and return it in the specified output format.
+  /// and return it in the specified [Output] format.
   Future<Output?> find(Input input);
 
-  /// Parse the raw output into a FixtureCollection
+  /// Parse the raw source into a FixtureCollection
   ///
-  /// This method should convert the raw output from the data source
+  /// This method should convert the raw source from the data source
   /// into a structured FixtureCollection that can be used by the library.
   Future<FixtureCollection?> parse(Output source);
 

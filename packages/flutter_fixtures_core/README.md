@@ -53,6 +53,8 @@ dependencies:
 ## 🛠️ Creating Custom Data Providers
 
 Implement the `DataQuery` interface to create custom data sources:
+`DataQuery<Input, Output>` uses one output type for find/parse/data. If your
+payload can vary in shape (like map or list), use `Output` as `Object`.
 
 ```dart
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';

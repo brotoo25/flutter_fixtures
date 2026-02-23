@@ -252,6 +252,8 @@ Available options:
 ### Creating a Custom Data Provider
 
 To create a custom data provider, implement the `DataQuery` interface from the core package:
+`DataQuery<Input, Output>` uses one output type for find/parse/data. If your
+payload shape varies (for example, map or list), use `Output` as `Object`.
 
 ```dart
 class MyCustomDataQuery implements DataQuery<MyInput, MyOutput> {

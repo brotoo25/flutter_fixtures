@@ -10,7 +10,7 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 /// for Dio HTTP requests.
 class DioDataQuery
     with FixtureSelector
-    implements DataQuery<RequestOptions, Map<String, dynamic>> {
+    implements DataQuery<RequestOptions, Object> {
   /// The folder where mock data is stored
   final String mockFolder;
 
@@ -23,7 +23,7 @@ class DioDataQuery
   String get mockFolderPath => mockFolder;
 
   @override
-  Future<Map<String, dynamic>?> find(RequestOptions input) async {
+  Future<Object?> find(RequestOptions input) async {
     // Base file name from method and path (slashes replaced by underscores)
     final base = '${input.method}${input.path.replaceAll('/', '_')}';
 
@@ -75,10 +75,11 @@ class DioDataQuery
   }
 
   @override
-  Future<FixtureCollection?> parse(Map<String, dynamic> source) async {
+  Future<FixtureCollection?> parse(Object source) async {
+    final sourceMap = source as Map<String, dynamic>;
     return FixtureCollection(
-      description: source['description'],
-      items: (source['values'] as List)
+      description: sourceMap['description'],
+      items: (sourceMap['values'] as List)
           .map((option) => FixtureDocument(
                 identifier: option['identifier'] as String,
                 description: option['description'] as String,
@@ -91,7 +92,7 @@ class DioDataQuery
   }
 
   @override
-  Future<Map<String, dynamic>?> data(FixtureDocument document) async {
+  Future<Object?> data(FixtureDocument document) async {
     if (document.data == null && document.dataPath == null) {
       return null;
     }

@@ -462,13 +462,16 @@ dataSelectorDelay: DataSelectorDelay.custom(1500) // 1.5 second delay
 ### Custom Data Providers
 
 Create custom data providers for any data source by implementing the `DataQuery` interface:
+`DataQuery<Input, Output>` uses one output type for find/parse/data. If your
+payload can be map or list, use `Output` as `Object`.
 
 #### Database Queries
 ```dart
 import 'dart:math';
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
-class DatabaseDataQuery with FixtureSelector implements DataQuery<String, Map<String, dynamic>> {
+class DatabaseDataQuery with FixtureSelector
+    implements DataQuery<String, Map<String, dynamic>> {
   @override
   Future<Map<String, dynamic>?> find(String sqlQuery) async {
     // Load fixture based on SQL query pattern
@@ -505,7 +508,8 @@ class DatabaseDataQuery with FixtureSelector implements DataQuery<String, Map<St
 
 #### File System Operations
 ```dart
-class FileSystemDataQuery with FixtureSelector implements DataQuery<String, Map<String, dynamic>> {
+class FileSystemDataQuery with FixtureSelector
+    implements DataQuery<String, Map<String, dynamic>> {
   @override
   Future<Map<String, dynamic>?> find(String path) async {
     // Load fixture based on file path
@@ -541,7 +545,8 @@ class FileSystemDataQuery with FixtureSelector implements DataQuery<String, Map<
 
 #### GraphQL Queries
 ```dart
-class GraphQLDataQuery with FixtureSelector implements DataQuery<GraphQLRequest, Map<String, dynamic>> {
+class GraphQLDataQuery with FixtureSelector
+    implements DataQuery<GraphQLRequest, Map<String, dynamic>> {
   @override
   Future<Map<String, dynamic>?> find(GraphQLRequest request) async {
     // Load fixture based on GraphQL operation name
