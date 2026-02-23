@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+* Support JSON arrays as response data in `DataQuery`.
+
 ## 0.1.2 Response Delay
 
   * Add `DataSelectorDelay` class to simulate response delays.
