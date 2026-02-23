@@ -5,12 +5,12 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i4;
 
-import 'package:dio/src/dio_exception.dart' as _i11;
+import 'package:dio/src/dio_exception.dart' as _i12;
 import 'package:dio/src/dio_mixin.dart' as _i2;
-import 'package:dio/src/options.dart' as _i9;
-import 'package:dio/src/response.dart' as _i10;
+import 'package:dio/src/options.dart' as _i10;
+import 'package:dio/src/response.dart' as _i11;
 import 'package:flutter_fixtures_core/src/data_query.dart' as _i3;
-import 'package:flutter_fixtures_core/src/data_selector_delay.dart' as _i12;
+import 'package:flutter_fixtures_core/src/data_selector_delay.dart' as _i9;
 import 'package:flutter_fixtures_core/src/data_selector_type.dart' as _i8;
 import 'package:flutter_fixtures_core/src/data_selector_view.dart' as _i7;
 import 'package:flutter_fixtures_core/src/fixture_collection.dart' as _i5;
@@ -30,6 +30,7 @@ import 'package:mockito/mockito.dart' as _i1;
 // ignore_for_file: unnecessary_parenthesis
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
+// ignore_for_file: invalid_use_of_internal_member
 
 class _FakeInterceptorState_0<T> extends _i1.SmartFake
     implements _i2.InterceptorState<T> {
@@ -85,7 +86,7 @@ class MockDataQuery<Input, Output> extends _i1.Mock
     _i5.FixtureCollection? fixture,
     _i7.DataSelectorView? view,
     _i8.DataSelectorType? selector, {
-    _i12.DataSelectorDelay? delay,
+    _i9.DataSelectorDelay? delay = _i9.DataSelectorDelay.instant,
   }) =>
       (super.noSuchMethod(
         Invocation.method(
@@ -146,7 +147,7 @@ class MockRequestInterceptorHandler extends _i1.Mock
       ) as bool);
 
   @override
-  void next(_i9.RequestOptions? requestOptions) => super.noSuchMethod(
+  void next(_i10.RequestOptions? requestOptions) => super.noSuchMethod(
         Invocation.method(
           #next,
           [requestOptions],
@@ -156,7 +157,7 @@ class MockRequestInterceptorHandler extends _i1.Mock
 
   @override
   void resolve(
-    _i10.Response<dynamic>? response, [
+    _i11.Response<dynamic>? response, [
     bool? callFollowingResponseInterceptor = false,
   ]) =>
       super.noSuchMethod(
@@ -172,7 +173,7 @@ class MockRequestInterceptorHandler extends _i1.Mock
 
   @override
   void reject(
-    _i11.DioException? error, [
+    _i12.DioException? error, [
     bool? callFollowingErrorInterceptor = false,
   ]) =>
       super.noSuchMethod(

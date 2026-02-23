@@ -7,7 +7,7 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 /// based on fixture data.
 class FixturesInterceptor extends Interceptor {
   /// The data query used to find fixture data
-  final DataQuery<RequestOptions, Map<String, dynamic>> dataQuery;
+  final DataQuery<RequestOptions, Object> dataQuery;
 
   /// The view used for user selection of fixtures
   final DataSelectorView? dataSelectorView;

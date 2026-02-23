@@ -16,14 +16,14 @@ import 'fixtures_interceptor_test.mocks.dart';
 ])
 void main() {
   group('FixturesInterceptor', () {
-    late MockDataQuery<RequestOptions, Map<String, dynamic>> mockDataQuery;
+    late MockDataQuery<RequestOptions, Object> mockDataQuery;
     late MockDataSelectorView mockDataSelectorView;
     late MockRequestInterceptorHandler mockHandler;
     late RequestOptions requestOptions;
     late FixturesInterceptor interceptor;
 
     setUp(() {
-      mockDataQuery = MockDataQuery<RequestOptions, Map<String, dynamic>>();
+      mockDataQuery = MockDataQuery<RequestOptions, Object>();
       mockDataSelectorView = MockDataSelectorView();
       mockHandler = MockRequestInterceptorHandler();
       requestOptions = RequestOptions(path: '/users');
@@ -116,6 +116,56 @@ void main() {
           expect(capturedResponse.data, equals(responseData));
           expect(capturedResponse.statusCode, equals(200));
           expect(capturedResponse.requestOptions, equals(requestOptions));
+        });
+
+        test('processes request successfully with JSON array data', () async {
+          // Arrange
+          final fixtureData = {'description': 'Test', 'values': []};
+          final fixtureCollection = FixtureCollection(
+            description: 'Test Collection',
+            items: [
+              FixtureDocument(
+                identifier: 'users_list',
+                description: '200 OK',
+                defaultOption: true,
+                data: [
+                  {'id': 1, 'name': 'Alice'},
+                  {'id': 2, 'name': 'Bob'},
+                ],
+              ),
+            ],
+          );
+          final responseData = [
+            {'id': 1, 'name': 'Alice'},
+            {'id': 2, 'name': 'Bob'},
+          ];
+
+          when(mockDataQuery.find(requestOptions))
+              .thenAnswer((_) async => fixtureData);
+          when(mockDataQuery.parse(fixtureData))
+              .thenAnswer((_) async => fixtureCollection);
+          when(mockDataQuery.select(
+            any,
+            any,
+            any,
+            delay: anyNamed('delay'),
+          )).thenAnswer((_) async => fixtureCollection.items.first);
+          when(mockDataQuery.data(fixtureCollection.items.first))
+              .thenAnswer((_) async => responseData);
+
+          // Act
+          interceptor.onRequest(requestOptions, mockHandler);
+
+          // Wait for async operations to complete
+          await Future.delayed(Duration.zero);
+
+          // Assert
+          final capturedResponse = verify(mockHandler.resolve(captureAny))
+              .captured
+              .single as Response;
+          expect(capturedResponse.data, isA<List>());
+          expect(capturedResponse.data, equals(responseData));
+          expect(capturedResponse.statusCode, equals(200));
         });
 
         test('processes request successfully with file path header', () async {
