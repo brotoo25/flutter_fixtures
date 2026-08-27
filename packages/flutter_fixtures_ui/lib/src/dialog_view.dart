@@ -5,9 +5,6 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 ///
 /// This class provides a dialog UI for users to select a fixture from a collection.
 class FixturesDialogView extends StatefulWidget implements DataSelectorView {
-  static final Map<_DialogRequestKey, Future<FixtureDocument?>>
-      _pendingRequests = {};
-
   /// The BuildContext used to show the dialog
   final BuildContext context;
 
@@ -25,20 +22,8 @@ class FixturesDialogView extends StatefulWidget implements DataSelectorView {
   State<FixturesDialogView> createState() => _FixturesDialogViewState();
 
   @override
-  Future<FixtureDocument?> pick(FixtureCollection fixture) {
-    final navigator = Navigator.of(context, rootNavigator: true);
-    final requestKey = _DialogRequestKey(
-      navigator: navigator,
-      fixtureSignature: _fixtureSignature(fixture),
-    );
-
-    final pendingRequest = _pendingRequests[requestKey];
-    if (pendingRequest != null) {
-      return pendingRequest;
-    }
-
-    late final Future<FixtureDocument?> dialogFuture;
-    dialogFuture = showDialog<FixtureDocument>(
+  Future<FixtureChoice?> pick(FixtureCollection fixture) {
+    return showDialog<FixtureChoice>(
       context: context,
       builder: (BuildContext context) {
         return FixturesDialogView(
@@ -46,59 +31,8 @@ class FixturesDialogView extends StatefulWidget implements DataSelectorView {
           fixture: fixture,
         );
       },
-    ).whenComplete(() {
-      final currentRequest = _pendingRequests[requestKey];
-      if (identical(currentRequest, dialogFuture)) {
-        _pendingRequests.remove(requestKey);
-      }
-    });
-
-    _pendingRequests[requestKey] = dialogFuture;
-    return dialogFuture;
+    );
   }
-
-  static String _fixtureSignature(FixtureCollection fixture) {
-    final signature = StringBuffer(fixture.description);
-    for (final item in fixture.items) {
-      signature
-        ..write('|')
-        ..write(item.identifier)
-        ..write('|')
-        ..write(item.description)
-        ..write('|')
-        ..write(item.defaultOption ?? false)
-        ..write('|')
-        ..write(item.dataPath ?? '');
-    }
-    return signature.toString();
-  }
-}
-
-class _DialogRequestKey {
-  final NavigatorState navigator;
-  final String fixtureSignature;
-
-  const _DialogRequestKey({
-    required this.navigator,
-    required this.fixtureSignature,
-  });
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) {
-      return true;
-    }
-
-    return other is _DialogRequestKey &&
-        identical(other.navigator, navigator) &&
-        other.fixtureSignature == fixtureSignature;
-  }
-
-  @override
-  int get hashCode => Object.hash(
-        identityHashCode(navigator),
-        fixtureSignature,
-      );
 }
 
 class _FixturesDialogViewState extends State<FixturesDialogView> {
@@ -197,11 +131,10 @@ class _FixturesDialogViewState extends State<FixturesDialogView> {
                   if (_selectedOptionIndex != null) {
                     final selected =
                         widget.fixture!.items[_selectedOptionIndex!];
-                    if (_remember) {
-                      FixtureSelectionMemory.remember(
-                          widget.fixture!, selected);
-                    }
-                    Navigator.pop(context, selected);
+                    Navigator.pop(
+                      context,
+                      FixtureChoice(document: selected, remember: _remember),
+                    );
                   }
                 },
                 child: const Text('Select'),

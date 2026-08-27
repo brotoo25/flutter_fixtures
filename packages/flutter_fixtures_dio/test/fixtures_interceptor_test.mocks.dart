@@ -5,14 +5,15 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i4;
 
-import 'package:dio/src/dio_exception.dart' as _i12;
+import 'package:dio/src/dio_exception.dart' as _i13;
 import 'package:dio/src/dio_mixin.dart' as _i2;
-import 'package:dio/src/options.dart' as _i10;
-import 'package:dio/src/response.dart' as _i11;
+import 'package:dio/src/options.dart' as _i11;
+import 'package:dio/src/response.dart' as _i12;
 import 'package:flutter_fixtures_core/src/data_query.dart' as _i3;
 import 'package:flutter_fixtures_core/src/data_selector_delay.dart' as _i9;
 import 'package:flutter_fixtures_core/src/data_selector_type.dart' as _i8;
 import 'package:flutter_fixtures_core/src/data_selector_view.dart' as _i7;
+import 'package:flutter_fixtures_core/src/fixture_choice.dart' as _i10;
 import 'package:flutter_fixtures_core/src/fixture_collection.dart' as _i5;
 import 'package:flutter_fixtures_core/src/fixture_document.dart' as _i6;
 import 'package:mockito/mockito.dart' as _i1;
@@ -111,14 +112,14 @@ class MockDataSelectorView extends _i1.Mock implements _i7.DataSelectorView {
   }
 
   @override
-  _i4.Future<_i6.FixtureDocument?> pick(_i5.FixtureCollection? fixture) =>
+  _i4.Future<_i10.FixtureChoice?> pick(_i5.FixtureCollection? fixture) =>
       (super.noSuchMethod(
         Invocation.method(
           #pick,
           [fixture],
         ),
-        returnValue: _i4.Future<_i6.FixtureDocument?>.value(),
-      ) as _i4.Future<_i6.FixtureDocument?>);
+        returnValue: _i4.Future<_i10.FixtureChoice?>.value(),
+      ) as _i4.Future<_i10.FixtureChoice?>);
 }
 
 /// A class which mocks [RequestInterceptorHandler].
@@ -147,7 +148,7 @@ class MockRequestInterceptorHandler extends _i1.Mock
       ) as bool);
 
   @override
-  void next(_i10.RequestOptions? requestOptions) => super.noSuchMethod(
+  void next(_i11.RequestOptions? requestOptions) => super.noSuchMethod(
         Invocation.method(
           #next,
           [requestOptions],
@@ -157,7 +158,7 @@ class MockRequestInterceptorHandler extends _i1.Mock
 
   @override
   void resolve(
-    _i11.Response<dynamic>? response, [
+    _i12.Response<dynamic>? response, [
     bool? callFollowingResponseInterceptor = false,
   ]) =>
       super.noSuchMethod(
@@ -173,7 +174,7 @@ class MockRequestInterceptorHandler extends _i1.Mock
 
   @override
   void reject(
-    _i12.DioException? error, [
+    _i13.DioException? error, [
     bool? callFollowingErrorInterceptor = false,
   ]) =>
       super.noSuchMethod(
