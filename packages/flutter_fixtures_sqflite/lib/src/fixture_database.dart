@@ -2,7 +2,6 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import 'database_adapter.dart';
-import 'sqflite_data_query.dart';
 import 'sqflite_query.dart';
 
 /// A [DatabaseAdapter] that returns fixture data instead of querying a real database.
@@ -43,7 +42,7 @@ import 'sqflite_query.dart';
 /// - `insert_orders.json` for `db.insert('orders', ...)`
 class FixtureDatabaseAdapter implements DatabaseAdapter {
   /// The data query implementation for loading fixtures
-  final SqfliteDataQuery dataQuery;
+  final DataQuery<SqfliteQuery, Map<String, dynamic>> dataQuery;
 
   /// The selector type for choosing which fixture to return
   final DataSelectorType dataSelector;
@@ -110,18 +109,11 @@ class FixtureDatabaseAdapter implements DatabaseAdapter {
     Map<String, Object?> values, {
     String? nullColumnHack,
     sqflite.ConflictAlgorithm? conflictAlgorithm,
-  }) async {
-    final query = SqfliteQuery.table(
-      table: table,
-      operation: SqfliteOperation.insert,
+  }) {
+    return _executeWrite(
+      SqfliteQuery.table(table: table, operation: SqfliteOperation.insert),
+      resultKey: 'insertId',
     );
-
-    final result = await _executeQueryRaw(query);
-    // Return mock ID from fixture or default to 1
-    if (result is Map && result.containsKey('insertId')) {
-      return result['insertId'] as int;
-    }
-    return 1;
   }
 
   @override
@@ -131,19 +123,12 @@ class FixtureDatabaseAdapter implements DatabaseAdapter {
     String? where,
     sqflite.ConflictAlgorithm? conflictAlgorithm,
     List<Object?>? whereArgs,
-  }) async {
-    final query = SqfliteQuery.table(
-      table: table,
-      operation: SqfliteOperation.update,
-      where: where,
+  }) {
+    return _executeWrite(
+      SqfliteQuery.table(
+          table: table, operation: SqfliteOperation.update, where: where),
+      resultKey: 'affectedRows',
     );
-
-    final result = await _executeQueryRaw(query);
-    // Return affected count from fixture or default to 1
-    if (result is Map && result.containsKey('affectedRows')) {
-      return result['affectedRows'] as int;
-    }
-    return 1;
   }
 
   @override
@@ -151,49 +136,27 @@ class FixtureDatabaseAdapter implements DatabaseAdapter {
     String table, {
     String? where,
     List<Object?>? whereArgs,
-  }) async {
-    final query = SqfliteQuery.table(
-      table: table,
-      operation: SqfliteOperation.delete,
-      where: where,
+  }) {
+    return _executeWrite(
+      SqfliteQuery.table(
+          table: table, operation: SqfliteOperation.delete, where: where),
+      resultKey: 'affectedRows',
     );
-
-    final result = await _executeQueryRaw(query);
-    // Return affected count from fixture or default to 1
-    if (result is Map && result.containsKey('affectedRows')) {
-      return result['affectedRows'] as int;
-    }
-    return 1;
   }
 
   @override
-  Future<int> rawInsert(String sql, [List<Object?>? arguments]) async {
-    final query = SqfliteQuery.raw(sql: sql);
-    final result = await _executeQueryRaw(query);
-    if (result is Map && result.containsKey('insertId')) {
-      return result['insertId'] as int;
-    }
-    return 1;
+  Future<int> rawInsert(String sql, [List<Object?>? arguments]) {
+    return _executeWrite(SqfliteQuery.raw(sql: sql), resultKey: 'insertId');
   }
 
   @override
-  Future<int> rawUpdate(String sql, [List<Object?>? arguments]) async {
-    final query = SqfliteQuery.raw(sql: sql);
-    final result = await _executeQueryRaw(query);
-    if (result is Map && result.containsKey('affectedRows')) {
-      return result['affectedRows'] as int;
-    }
-    return 1;
+  Future<int> rawUpdate(String sql, [List<Object?>? arguments]) {
+    return _executeWrite(SqfliteQuery.raw(sql: sql), resultKey: 'affectedRows');
   }
 
   @override
-  Future<int> rawDelete(String sql, [List<Object?>? arguments]) async {
-    final query = SqfliteQuery.raw(sql: sql);
-    final result = await _executeQueryRaw(query);
-    if (result is Map && result.containsKey('affectedRows')) {
-      return result['affectedRows'] as int;
-    }
-    return 1;
+  Future<int> rawDelete(String sql, [List<Object?>? arguments]) {
+    return _executeWrite(SqfliteQuery.raw(sql: sql), resultKey: 'affectedRows');
   }
 
   @override
@@ -253,17 +216,25 @@ class FixtureDatabaseAdapter implements DatabaseAdapter {
       return null;
     }
 
-    // Get the data - return the raw data, not wrapped
-    if (selected.data != null) {
-      return selected.data;
-    }
-
-    // Load from dataPath if specified
     final result = await dataQuery.data(selected);
     if (result != null && result.containsKey('result')) {
       return result['result'];
     }
     return result;
+  }
+
+  /// Executes a write-style query; returns the int stored under [resultKey]
+  /// in the fixture payload (e.g. `insertId`, `affectedRows`), defaulting
+  /// to 1 when the fixture provides none.
+  Future<int> _executeWrite(
+    SqfliteQuery query, {
+    required String resultKey,
+  }) async {
+    final result = await _executeQueryRaw(query);
+    if (result is Map && result[resultKey] is int) {
+      return result[resultKey] as int;
+    }
+    return 1;
   }
 }
 
