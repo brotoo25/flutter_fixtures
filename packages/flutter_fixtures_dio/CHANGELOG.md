@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+* **BREAKING**: a selected fixture whose description does not start with a 3-digit status code now rejects with a clear error instead of throwing `FormatException`.
+* `DioDataQuery` accepts an `assetLoader`, making `find` testable without a Flutter asset bundle; fixture IO is delegated to core's `FixtureSource`.
+* A matched fixture file with malformed JSON now reports the parse error instead of "no fixture found".
+* Query-parameter candidate priority (exact → values → `*` → `{{key}}`) is now documented.
+
 ## 0.1.3
 
 * Support JSON arrays as response data in `DataQuery`.

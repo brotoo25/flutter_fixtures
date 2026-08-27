@@ -1,6 +1,6 @@
 name: flutter_fixtures_sqflite
 description: "SQLite/sqflite implementation for Flutter Fixtures - mock database queries with fixture files"
-version: 0.1.2
+version: 0.2.0
 homepage: https://github.com/brotoo25/flutter_fixtures
 repository: https://github.com/brotoo25/flutter_fixtures
 issue_tracker: https://github.com/brotoo25/flutter_fixtures/issues
@@ -15,7 +15,7 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  flutter_fixtures_core: ^0.1.2
+  flutter_fixtures_core: ^0.2.0
   sqflite: ^2.4.1
 
 dev_dependencies:

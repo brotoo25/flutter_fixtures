@@ -82,7 +82,7 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
 dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(),
-    dataSelector: DataSelectorType.random(),
+    dataSelector: DataSelectorType.random,
     dataSelectorDelay: DataSelectorDelay.moderate, // Optional: simulate network delay
   ),
 );
@@ -117,13 +117,13 @@ Choose how your app selects fixture responses for any data source:
 
 ```dart
 // Always use the default fixture (marked with "default": true)
-dataSelector: DataSelectorType.defaultValue()
+dataSelector: DataSelectorType.defaultValue
 
 // Randomly select from available fixtures
-dataSelector: DataSelectorType.random()
+dataSelector: DataSelectorType.random
 
 // Show UI dialog to let users choose
-dataSelector: DataSelectorType.pick()
+dataSelector: DataSelectorType.pick
 ```
 
 <div align="center">
@@ -151,8 +151,8 @@ import 'package:flutter/material.dart';
 dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(),
-    dataSelectorView: FixturesDialogView(context: context),
-    dataSelector: DataSelectorType.pick(), // Enables dialog
+    dataSelectorView: FixturesDialogView.of(context),
+    dataSelector: DataSelectorType.pick, // Enables dialog
   ),
 );
 ```
@@ -246,7 +246,7 @@ Organize fixtures in custom directories:
 dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(mockFolder: 'assets/api_mocks'),
-    dataSelector: DataSelectorType.random(),
+    dataSelector: DataSelectorType.random,
   ),
 );
 ```
@@ -262,7 +262,7 @@ if (kDebugMode) {
   dio.interceptors.add(
     FixturesInterceptor(
       dataQuery: DioDataQuery(),
-      dataSelector: DataSelectorType.random(),
+      dataSelector: DataSelectorType.random,
     ),
   );
 }
@@ -290,7 +290,7 @@ class DataService {
       _dio.interceptors.add(
         FixturesInterceptor(
           dataQuery: DioDataQuery(),
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         ),
       );
     }
@@ -319,7 +319,7 @@ class DataService {
         final document = await _dbQuery.select(
           collection,
           null,
-          DataSelectorType.defaultValue()
+          DataSelectorType.defaultValue
         );
         if (document != null) {
           final data = await _dbQuery.data(document);
@@ -343,7 +343,7 @@ class DataService {
         final document = await _fsQuery.select(
           collection,
           null,
-          DataSelectorType.defaultValue()
+          DataSelectorType.defaultValue
         );
         if (document != null) {
           final data = await _fsQuery.data(document);
@@ -441,7 +441,7 @@ Test loading states and timeouts by simulating network latency:
 dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(),
-    dataSelector: DataSelectorType.random(),
+    dataSelector: DataSelectorType.random,
     dataSelectorDelay: DataSelectorDelay.moderate, // 500ms delay
   ),
 );
@@ -587,9 +587,9 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
 class CustomFixtureSelector implements DataSelectorView {
   @override
-  Future<FixtureDocument?> pick(FixtureCollection fixture) async {
+  Future<FixtureChoice?> pick(FixtureCollection fixture) async {
     // Show your custom UI
-    // Return selected fixture or null for cancellation
+    // Return the user's FixtureChoice or null for cancellation
   }
 }
 ```

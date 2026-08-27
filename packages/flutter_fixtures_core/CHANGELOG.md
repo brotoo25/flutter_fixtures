@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0
+
+* **BREAKING**: `DataSelectorView.pick` now returns `FixtureChoice?` (the chosen document plus a remember flag); `null` means the user cancelled.
+* **BREAKING**: `DataSelectorType` is now a plain enum (`pick`, `defaultValue`, `random`) instead of a sealed class hierarchy.
+* **BREAKING**: `FixtureDocument` rejects documents declaring both `data` and `dataPath`; invalid fixtures now fail at parse time.
+* `FixtureSelector` owns the full selection flow: it writes selection memory, deduplicates concurrent picks for the same collection, and propagates cancel as `null`.
+* New `FixtureSource` concentrates fixture-file IO (candidate resolution, JSON decoding, payload loading) behind the new `FixtureAssetLoader` seam.
+* New `FixtureDocument.statusCode` exposes the leading 3-digit code of the description as a typed field.
+* New `FixtureCollection.fromJson` / `FixtureDocument.fromJson` own the fixture wire format.
+
 ## 0.1.3
 
 * Support JSON arrays as response data in `DataQuery`.

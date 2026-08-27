@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0
+
+* Update to `flutter_fixtures_core`, `flutter_fixtures_dio`, and `flutter_fixtures_ui` 0.2.0 (see their changelogs for the breaking selection-flow and dialog API changes).
+
 ## 0.1.7 Remove sqflite from meta-package
 
 * Remove flutter_fixtures_sqflite dependency from meta-package
