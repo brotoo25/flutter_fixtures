@@ -35,7 +35,7 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
       FixturesInterceptor(
         dataQuery: DioDataQuery(),
         dataSelectorView: FixturesDialogView(
-          context: widget.navigatorKey.currentContext!,
+          contextProvider: () => widget.navigatorKey.currentContext!,
         ),
         dataSelector: _getDataSelectorType(),
         dataSelectorDelay: DataSelectorDelay.moderate,

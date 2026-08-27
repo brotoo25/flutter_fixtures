@@ -33,7 +33,7 @@ class _SqfliteExamplePageState extends State<SqfliteExamplePage> {
       dataQuery: SqfliteDataQuery(),
       dataSelector: _getDataSelectorType(),
       dataSelectorView: FixturesDialogView(
-        context: widget.navigatorKey.currentContext!,
+        contextProvider: () => widget.navigatorKey.currentContext!,
       ),
       delay: DataSelectorDelay.fast,
     );

@@ -3,11 +3,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 import 'package:flutter_fixtures_ui/flutter_fixtures_ui.dart';
 
+Future<void> _openDialog(
+  WidgetTester tester,
+  FixtureCollection fixture,
+) async {
+  final navigatorKey = GlobalKey<NavigatorState>();
+  await tester.pumpWidget(
+    MaterialApp(
+      navigatorKey: navigatorKey,
+      home: const Scaffold(body: SizedBox.shrink()),
+    ),
+  );
+  FixturesDialogView(contextProvider: () => navigatorKey.currentContext!)
+      .pick(fixture);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   group('FixturesDialogView RadioGroup', () {
     testWidgets('uses RadioGroup instead of deprecated groupValue/onChanged',
         (WidgetTester tester) async {
-      // Create test fixture data
       final fixture = FixtureCollection(
         description: 'Test Fixture',
         items: [
@@ -24,21 +39,7 @@ void main() {
         ],
       );
 
-      // Build the dialog
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) {
-                return FixturesDialogView(
-                  context: context,
-                  fixture: fixture,
-                );
-              },
-            ),
-          ),
-        ),
-      );
+      await _openDialog(tester, fixture);
 
       // Verify RadioGroup is present
       expect(find.byType(RadioGroup<int>), findsOneWidget);
@@ -80,20 +81,7 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) {
-                return FixturesDialogView(
-                  context: context,
-                  fixture: fixture,
-                );
-              },
-            ),
-          ),
-        ),
-      );
+      await _openDialog(tester, fixture);
 
       // Verify initial state - first radio should be selected (index 0)
       final radioGroup =

@@ -37,7 +37,7 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
       FixturesInterceptor(
         dataQuery: DioDataQuery(),
         dataSelectorView: FixturesDialogView(
-          context: widget.navigatorKey.currentContext!,
+          contextProvider: () => widget.navigatorKey.currentContext!,
         ),
         dataSelector: _getDataSelectorType(),
       ),
