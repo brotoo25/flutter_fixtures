@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+* New `OpenApiFixtureSource` derives fixture collections from an OpenAPI 3.x
+  JSON document: operation docs name the collection, and each response's
+  status, description, and payload examples (or a schema-generated sample)
+  become selectable documents.
+
 ## 0.2.0
 
 * **BREAKING**: `DataSelectorView.pick` now returns `FixtureChoice?` (the chosen document plus a remember flag); `null` means the user cancelled.

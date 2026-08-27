@@ -1,0 +1,98 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Example Products API",
+    "version": "1.0.0"
+  },
+  "servers": [{ "url": "https://api.example.com" }],
+  "paths": {
+    "/products/{id}": {
+      "get": {
+        "summary": "Get product details",
+        "operationId": "getProduct",
+        "responses": {
+          "200": {
+            "description": "Product found",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "inStock": {
+                    "summary": "In stock",
+                    "value": {
+                      "id": 123,
+                      "name": "Ergonomic Keyboard",
+                      "price": 79.9,
+                      "stock": 42
+                    }
+                  },
+                  "outOfStock": {
+                    "summary": "Out of stock",
+                    "value": {
+                      "id": 123,
+                      "name": "Ergonomic Keyboard",
+                      "price": 79.9,
+                      "stock": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "example": { "error": "No product with that id" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products": {
+      "post": {
+        "summary": "Create a product",
+        "operationId": "createProduct",
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Product" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 321 },
+          "name": { "type": "string", "example": "Ergonomic Keyboard" },
+          "price": { "type": "number", "example": 79.9 },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "status": { "type": "string", "enum": ["draft", "published"] }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "example": "name is required" },
+          "field": { "type": "string", "example": "name" }
+        }
+      }
+    }
+  }
+}

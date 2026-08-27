@@ -238,6 +238,43 @@ For large responses, you can store data in separate files:
 
 The `dataPath` is relative to your fixture folder (e.g., `assets/fixtures/data/users_large.json`).
 
+## OpenAPI Fixtures
+
+If your API has an OpenAPI 3.x spec, you don't have to hand-write a fixture
+file per endpoint. Drop the spec's JSON in your assets and point
+`DioDataQuery` at it:
+
+```dart
+dio.interceptors.add(
+  FixturesInterceptor(
+    dataQuery: DioDataQuery(
+      openApiSpecPath: 'assets/fixtures/openapi.json',
+    ),
+    dataSelector: DataSelectorType.pick,
+  ),
+);
+```
+
+Remember to include the file in your `pubspec.yaml` assets (the default
+`assets/fixtures/` entry already covers the path above).
+
+For any request with no matching fixture file, the operation is looked up in
+the spec (path templates like `/users/{id}` and `servers` base paths are
+handled) and its documentation becomes the collection:
+
+- The operation's `summary` (or `operationId`) names the collection.
+- Each response becomes a selectable document, described as
+  `"<status> <response description>"` — e.g. `404 Product not found`.
+- Payloads come from the response's named `examples` (one document each),
+  its inline `example`, the schema's `example`, or — when the spec carries
+  no example at all — sample data generated from the schema
+  (`$ref`, `allOf`, `oneOf`/`anyOf`, `enum`, and string `format`s are honoured).
+- Status ranges like `2XX` map to their first code, and `default` maps to `500`.
+
+Hand-written fixture files always win over spec-derived ones, so you can
+start from the spec and override individual endpoints with richer fixtures
+as you need them.
+
 ## Advanced Usage
 
 ### Response Headers
@@ -340,9 +377,11 @@ Data provider that loads and parses fixture files from app assets.
 
 **Constructor Parameters:**
 - `mockFolder` (optional): Asset directory containing fixture files (default: `'assets/fixtures'`)
+- `openApiSpecPath` (optional): Asset path of an OpenAPI 3.x JSON document used as a fallback for requests with no fixture file
+- `assetLoader` (optional): Seam for reading fixture assets (default: root asset bundle)
 
 **Methods:**
-- `find(RequestOptions)`: Locates fixture file for the request
+- `find(RequestOptions)`: Locates fixture file for the request, falling back to the OpenAPI spec when configured
 - `parse(Map<String, dynamic>)`: Parses fixture file into collection
 - `select(...)`: Selects specific fixture based on strategy
 - `data(FixtureDocument)`: Retrieves response data for selected fixture

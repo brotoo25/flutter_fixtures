@@ -25,6 +25,12 @@ This package defines the core contracts and data models used by all Flutter Fixt
 - **`FixtureCollection`**: Container for multiple fixture response options
 - **`FixtureDocument`**: Individual fixture response definition
 
+### Fixture Sources
+
+- **`FixtureSource`**: Fixture-file IO — candidate resolution, JSON decoding, payload loading
+- **`OpenApiFixtureSource`**: Builds fixture collections from an OpenAPI 3.x JSON document's response documentation and payload examples
+- **`FixtureAssetLoader`**: Seam for reading fixture assets (`BundleAssetLoader` in production)
+
 ### Selection Strategies
 
 - **`DataSelectorType`**: Sealed class defining fixture selection strategies

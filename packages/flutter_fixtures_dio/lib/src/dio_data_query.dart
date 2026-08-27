@@ -20,13 +20,21 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 ///
 /// The `*` and `{{key}}` forms are literal file names, not globs — they
 /// match any values with the same arity.
+///
+/// When [openApiSpecPath] is set, a request with no matching fixture file
+/// falls back to that OpenAPI document (see [OpenApiFixtureSource]);
+/// hand-written fixture files always win.
 class DioDataQuery
     with FixtureSelector
     implements DataQuery<RequestOptions, Object> {
   /// The folder where mock data is stored
   final String mockFolder;
 
+  /// The asset path of the OpenAPI fallback document, if any.
+  final String? openApiSpecPath;
+
   final FixtureSource _source;
+  final OpenApiFixtureSource? _openApiSource;
 
   /// Creates a new DioDataQuery with the specified mock folder
   ///
@@ -35,15 +43,26 @@ class DioDataQuery
   DioDataQuery({
     this.mockFolder = 'assets/fixtures',
     FixtureAssetLoader assetLoader = const BundleAssetLoader(),
-  }) : _source =
-            FixtureSource(mockFolder: mockFolder, assetLoader: assetLoader);
+    this.openApiSpecPath,
+  })  : _source =
+            FixtureSource(mockFolder: mockFolder, assetLoader: assetLoader),
+        _openApiSource = openApiSpecPath == null
+            ? null
+            : OpenApiFixtureSource(
+                specPath: openApiSpecPath,
+                assetLoader: assetLoader,
+              );
 
   /// Gets the mock folder path
   String get mockFolderPath => mockFolder;
 
   @override
-  Future<Object?> find(RequestOptions input) {
-    return _source.resolve(_candidateNames(input));
+  Future<Object?> find(RequestOptions input) async {
+    final fromFiles = await _source.resolve(_candidateNames(input));
+    if (fromFiles != null) {
+      return fromFiles;
+    }
+    return _openApiSource?.resolve(input.method, input.path);
   }
 
   /// Builds the ordered fixture-file candidates for a request.

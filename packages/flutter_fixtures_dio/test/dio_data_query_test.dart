@@ -132,6 +132,83 @@ void main() {
     });
   });
 
+  group('DioDataQuery OpenAPI fallback', () {
+    const spec = '''
+    {
+      "openapi": "3.0.0",
+      "paths": {
+        "/users/{id}": {
+          "get": {
+            "summary": "Get a user",
+            "responses": {
+              "200": {
+                "description": "Success",
+                "content": {
+                  "application/json": {"example": {"id": 42}}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    ''';
+
+    test('falls back to the spec when no fixture file matches', () async {
+      final loader = InMemoryAssetLoader({
+        'assets/fixtures/openapi.json': spec,
+      });
+      final query = DioDataQuery(
+        assetLoader: loader,
+        openApiSpecPath: 'assets/fixtures/openapi.json',
+      );
+
+      final result = await query.find(
+        RequestOptions(path: '/users/42', method: 'GET'),
+      );
+      final collection = await query.parse(result!);
+
+      expect(collection!.description, equals('Get a user'));
+      expect(collection.items.single.data, equals({'id': 42}));
+    });
+
+    test('a hand-written fixture file wins over the spec', () async {
+      final loader = InMemoryAssetLoader({
+        'assets/fixtures/GET_users_42.json': _emptyCollection,
+        'assets/fixtures/openapi.json': spec,
+      });
+      final query = DioDataQuery(
+        assetLoader: loader,
+        openApiSpecPath: 'assets/fixtures/openapi.json',
+      );
+
+      final result = await query.find(
+        RequestOptions(path: '/users/42', method: 'GET'),
+      );
+
+      expect((result as Map)['description'], equals('found'));
+      expect(
+        loader.requestedPaths,
+        isNot(contains('assets/fixtures/openapi.json')),
+      );
+    });
+
+    test('still returns null when neither files nor spec match', () async {
+      final loader = InMemoryAssetLoader({
+        'assets/fixtures/openapi.json': spec,
+      });
+      final query = DioDataQuery(
+        assetLoader: loader,
+        openApiSpecPath: 'assets/fixtures/openapi.json',
+      );
+
+      expect(
+        await query.find(RequestOptions(path: '/orders', method: 'GET')),
+        isNull,
+      );
+    });
+  });
+
   group('DioDataQuery.data', () {
     test('loads external data relative to the mock folder', () async {
       final loader = InMemoryAssetLoader({

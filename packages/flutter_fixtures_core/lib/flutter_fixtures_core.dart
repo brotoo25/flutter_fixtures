@@ -11,3 +11,4 @@ export 'src/fixture_selector.dart';
 export 'src/fixture_document.dart';
 export 'src/fixture_collection.dart';
 export 'src/fixture_selection_memory.dart';
+export 'src/openapi_fixture_source.dart';

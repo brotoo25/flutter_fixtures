@@ -34,6 +34,16 @@ adapters only build candidate names for their domain and delegate here.
 A missing candidate is skipped; a matched candidate with malformed JSON
 fails loudly.
 
+## OpenAPI Source
+
+The core module deriving fixtures from an OpenAPI 3.x JSON document
+(`OpenApiFixtureSource`): matches a request's method and path against the
+spec's `paths` (templates and server base paths included) and synthesizes a
+Fixture Collection in the standard wire format. The operation's summary
+names the collection; each response — status, description, and payload
+examples (or a schema-generated sample) — becomes a Fixture Document. Used
+by adapters as a fallback: hand-written fixture files always win.
+
 ## Asset Loader
 
 The IO seam under Fixture Source (`FixtureAssetLoader`): how fixture file

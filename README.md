@@ -226,6 +226,30 @@ Example fixture file (`assets/fixtures/GET_users.json`):
 }
 ```
 
+### OpenAPI Fixtures
+
+If your API ships an OpenAPI 3.x spec, you can skip hand-writing fixture
+files: paste the spec's JSON into your assets and point `DioDataQuery` at it.
+
+```dart
+dio.interceptors.add(
+  FixturesInterceptor(
+    dataQuery: DioDataQuery(
+      openApiSpecPath: 'assets/fixtures/openapi.json',
+    ),
+    dataSelector: DataSelectorType.pick,
+  ),
+);
+```
+
+Requests with no matching fixture file are looked up in the spec (including
+`{param}` path templates and server base paths), and each documented
+response becomes a selectable fixture: the status code and response
+description label it, and the payload comes from the spec's examples — or,
+when an operation has none, from sample data generated from its schema.
+Hand-written fixture files always take precedence, so you can override any
+endpoint with a custom fixture whenever you need more control.
+
 ## Extensibility
 
 Flutter Fixtures is designed to be highly extensible. You can create your own implementations for different data providers, UI components, or storage mechanisms.
@@ -323,6 +347,7 @@ The following implementations are planned for future releases:
 - [ ] Sidebar panel
 
 ### Other Features
+- [x] OpenAPI-driven fixtures (build fixtures from a spec's docs and examples)
 - [ ] Fixture recording mode
 - [ ] Fixture validation
 - [x] Response delay simulation

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+* New `DioDataQuery.openApiSpecPath` falls back to an OpenAPI 3.x JSON
+  document for requests with no matching fixture file; hand-written fixture
+  files still win.
+
 ## 0.2.0
 
 * **BREAKING**: a selected fixture whose description does not start with a 3-digit status code now rejects with a clear error instead of throwing `FormatException`.
