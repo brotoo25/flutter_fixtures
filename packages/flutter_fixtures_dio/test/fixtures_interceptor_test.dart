@@ -33,24 +33,24 @@ void main() {
       test('creates interceptor with required parameters', () {
         final interceptor = FixturesInterceptor(
           dataQuery: mockDataQuery,
-          dataSelector: DataSelectorType.random(),
+          dataSelector: DataSelectorType.random,
         );
 
         expect(interceptor.dataQuery, equals(mockDataQuery));
         expect(interceptor.dataSelectorView, isNull);
-        expect(interceptor.dataSelector, isA<Random>());
+        expect(interceptor.dataSelector, equals(DataSelectorType.random));
       });
 
       test('creates interceptor with all parameters', () {
         final interceptor = FixturesInterceptor(
           dataQuery: mockDataQuery,
           dataSelectorView: mockDataSelectorView,
-          dataSelector: DataSelectorType.pick(),
+          dataSelector: DataSelectorType.pick,
         );
 
         expect(interceptor.dataQuery, equals(mockDataQuery));
         expect(interceptor.dataSelectorView, equals(mockDataSelectorView));
-        expect(interceptor.dataSelector, isA<Pick>());
+        expect(interceptor.dataSelector, equals(DataSelectorType.pick));
       });
     });
 
@@ -59,7 +59,7 @@ void main() {
         interceptor = FixturesInterceptor(
           dataQuery: mockDataQuery,
           dataSelectorView: mockDataSelectorView,
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         );
       });
 
@@ -459,12 +459,12 @@ void main() {
         // without mocking, ensuring the interfaces are compatible
         final interceptor = FixturesInterceptor(
           dataQuery: DioDataQuery(),
-          dataSelector: DataSelectorType.random(),
+          dataSelector: DataSelectorType.random,
         );
 
         expect(interceptor, isNotNull);
         expect(interceptor.dataQuery, isA<DioDataQuery>());
-        expect(interceptor.dataSelector, isA<Random>());
+        expect(interceptor.dataSelector, equals(DataSelectorType.random));
         expect(interceptor.dataSelectorView, isNull);
       });
     });

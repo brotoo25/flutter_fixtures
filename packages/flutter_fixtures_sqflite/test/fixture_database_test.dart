@@ -43,7 +43,7 @@ void main() {
       test('creates database with required parameters', () {
         final db = FixtureDatabase(
           dataQuery: SqfliteDataQuery(),
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         );
 
         expect(db.dataQuery, isNotNull);
@@ -55,7 +55,7 @@ void main() {
       test('creates database with all parameters', () {
         final db = FixtureDatabase(
           dataQuery: SqfliteDataQuery(),
-          dataSelector: DataSelectorType.random(),
+          dataSelector: DataSelectorType.random,
           dataSelectorView: null,
           delay: DataSelectorDelay.fast,
         );
@@ -71,7 +71,7 @@ void main() {
 
         final db = FixtureDatabase(
           dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         );
 
         final result = await db.query('users');
@@ -86,7 +86,7 @@ void main() {
 
         final db = FixtureDatabase(
           dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         );
 
         final result = await db.query('users');
@@ -107,7 +107,7 @@ void main() {
 
         final db = FixtureDatabase(
           dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         );
 
         final result = await db.query('users');
@@ -124,7 +124,7 @@ void main() {
 
         final db = FixtureDatabase(
           dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         );
 
         final result = await db.query('users');
@@ -141,7 +141,7 @@ void main() {
 
         final db = FixtureDatabase(
           dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         );
 
         final result = await db.insert('users', {'name': 'John'});
@@ -157,7 +157,7 @@ void main() {
 
         final db = FixtureDatabase(
           dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         );
 
         final result = await db.insert('users', {'name': 'John'});
@@ -174,7 +174,7 @@ void main() {
 
         final db = FixtureDatabase(
           dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         );
 
         final result = await db.update(
@@ -194,7 +194,7 @@ void main() {
 
         final db = FixtureDatabase(
           dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         );
 
         final result =
@@ -212,7 +212,7 @@ void main() {
 
         final db = FixtureDatabase(
           dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         );
 
         final result = await db.delete('users', where: 'id = ?');
@@ -228,7 +228,7 @@ void main() {
 
         final db = FixtureDatabase(
           dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue(),
+          dataSelector: DataSelectorType.defaultValue,
         );
 
         final result = await db.rawQuery('SELECT * FROM users');

@@ -28,7 +28,7 @@ import 'sqflite_query.dart';
 /// // In development/testing:
 /// final db = FixtureDatabaseAdapter(
 ///   dataQuery: SqfliteDataQuery(),
-///   dataSelector: DataSelectorType.pick(),
+///   dataSelector: DataSelectorType.pick,
 /// );
 ///
 /// final repo = UserRepository(db); // Same code, different data source!

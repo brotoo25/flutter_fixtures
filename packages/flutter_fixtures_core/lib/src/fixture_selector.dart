@@ -52,7 +52,7 @@ mixin FixtureSelector {
       return fixture.items.first;
     }
 
-    if (selector is Pick) {
+    if (selector == DataSelectorType.pick) {
       final remembered = FixtureSelectionMemory.getRemembered(fixture);
       if (remembered != null) {
         await delay.apply();
@@ -77,10 +77,11 @@ mixin FixtureSelector {
     }
 
     final selectedOption = switch (selector) {
-      Default() =>
+      DataSelectorType.defaultValue =>
         fixture.items.firstWhere((option) => option.defaultOption ?? false),
-      Random() => fixture.items[math.Random().nextInt(fixture.items.length)],
-      Pick() => throw StateError('handled above'),
+      DataSelectorType.random =>
+        fixture.items[math.Random().nextInt(fixture.items.length)],
+      DataSelectorType.pick => throw StateError('handled above'),
     };
 
     await delay.apply();

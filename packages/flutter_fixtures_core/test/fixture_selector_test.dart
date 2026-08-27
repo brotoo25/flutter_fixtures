@@ -48,7 +48,7 @@ void main() {
       FixtureSelectionMemory.remember(fixture, fixture.items[1]);
 
       final selected =
-          await selector.select(fixture, null, DataSelectorType.pick());
+          await selector.select(fixture, null, DataSelectorType.pick);
       expect(selected, isNotNull);
       expect(selected!.identifier, equals('not_found'));
     });
@@ -67,11 +67,11 @@ void main() {
       );
 
       final pickSel =
-          await selector.select(single, null, DataSelectorType.pick());
+          await selector.select(single, null, DataSelectorType.pick);
       final defSel =
-          await selector.select(single, null, DataSelectorType.defaultValue());
+          await selector.select(single, null, DataSelectorType.defaultValue);
       final rndSel =
-          await selector.select(single, null, DataSelectorType.random());
+          await selector.select(single, null, DataSelectorType.random);
 
       expect(pickSel!.identifier, equals('only'));
       expect(defSel!.identifier, equals('only'));
@@ -81,7 +81,7 @@ void main() {
     test('falls back to first item when Pick has no view', () async {
       final selector = _Selector();
       final selected =
-          await selector.select(_twoOptions(), null, DataSelectorType.pick());
+          await selector.select(_twoOptions(), null, DataSelectorType.pick);
       expect(selected!.identifier, equals('ok'));
     });
 
@@ -93,7 +93,7 @@ void main() {
       );
 
       final selected =
-          await selector.select(fixture, view, DataSelectorType.pick());
+          await selector.select(fixture, view, DataSelectorType.pick);
       expect(selected!.identifier, equals('not_found'));
       expect(FixtureSelectionMemory.getRemembered(fixture), isNull);
     });
@@ -105,7 +105,7 @@ void main() {
         (f) async => FixtureChoice(document: f.items[1], remember: true),
       );
 
-      await selector.select(fixture, view, DataSelectorType.pick());
+      await selector.select(fixture, view, DataSelectorType.pick);
 
       final remembered = FixtureSelectionMemory.getRemembered(fixture);
       expect(remembered, isNotNull);
@@ -113,7 +113,7 @@ void main() {
 
       // A later select must not consult the view again.
       final second =
-          await selector.select(fixture, view, DataSelectorType.pick());
+          await selector.select(fixture, view, DataSelectorType.pick);
       expect(second!.identifier, equals('not_found'));
       expect(view.pickCount, equals(1));
     });
@@ -123,7 +123,7 @@ void main() {
       final view = _FakeView((_) async => null);
 
       final selected =
-          await selector.select(_twoOptions(), view, DataSelectorType.pick());
+          await selector.select(_twoOptions(), view, DataSelectorType.pick);
       expect(selected, isNull);
     });
 
@@ -133,8 +133,8 @@ void main() {
       final completer = Completer<FixtureChoice?>();
       final view = _FakeView((_) => completer.future);
 
-      final first = selector.select(fixture, view, DataSelectorType.pick());
-      final second = selector.select(fixture, view, DataSelectorType.pick());
+      final first = selector.select(fixture, view, DataSelectorType.pick);
+      final second = selector.select(fixture, view, DataSelectorType.pick);
 
       // Let both selects reach the view.
       await Future<void>.delayed(Duration.zero);
@@ -153,15 +153,15 @@ void main() {
         (f) async => FixtureChoice(document: f.items.first),
       );
 
-      await selector.select(fixture, view, DataSelectorType.pick());
-      await selector.select(fixture, view, DataSelectorType.pick());
+      await selector.select(fixture, view, DataSelectorType.pick);
+      await selector.select(fixture, view, DataSelectorType.pick);
       expect(view.pickCount, equals(2));
     });
 
     test('Default selector returns the document marked as default', () async {
       final selector = _Selector();
       final selected = await selector.select(
-          _twoOptions(), null, DataSelectorType.defaultValue());
+          _twoOptions(), null, DataSelectorType.defaultValue);
       expect(selected!.identifier, equals('ok'));
     });
 
@@ -184,7 +184,7 @@ void main() {
       );
 
       expect(
-        () => selector.select(fixture, null, DataSelectorType.defaultValue()),
+        () => selector.select(fixture, null, DataSelectorType.defaultValue),
         throwsA(isA<StateError>()),
       );
     });
