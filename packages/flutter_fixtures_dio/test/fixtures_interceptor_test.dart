@@ -315,6 +315,41 @@ void main() {
               capturedError.error, equals('No fixture selected for request.'));
         });
 
+        test('rejects when the description carries no status code', () async {
+          // Arrange
+          final fixtureData = {'description': 'Test', 'values': []};
+          final proseDocument = FixtureDocument(
+            identifier: 'list',
+            description: 'Returns list of all users',
+            defaultOption: true,
+            data: {'result': []},
+          );
+          final fixtureCollection = FixtureCollection(
+            description: 'Test Collection',
+            items: [proseDocument],
+          );
+
+          when(mockDataQuery.find(requestOptions))
+              .thenAnswer((_) async => fixtureData);
+          when(mockDataQuery.parse(fixtureData))
+              .thenAnswer((_) async => fixtureCollection);
+          when(mockDataQuery.select(any, any, any, delay: anyNamed('delay')))
+              .thenAnswer((_) async => proseDocument);
+
+          // Act
+          interceptor.onRequest(requestOptions, mockHandler);
+          await Future.delayed(Duration.zero);
+
+          // Assert
+          final capturedError = verify(mockHandler.reject(captureAny))
+              .captured
+              .single as DioException;
+          expect(
+            capturedError.error,
+            contains('must start with a 3-digit HTTP status code'),
+          );
+        });
+
         test('rejects when exception occurs during processing', () async {
           // Arrange
           when(mockDataQuery.find(requestOptions))

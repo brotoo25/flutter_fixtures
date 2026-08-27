@@ -155,16 +155,17 @@ void main() {
         expect(result!['insertId'], 42);
       });
 
-      test('throws when both data and dataPath are provided', () async {
-        final document = FixtureDocument(
-          identifier: 'test',
-          description: 'Test',
-          defaultOption: false,
-          data: {'key': 'value'},
-          dataPath: 'some/path.json',
+      test('a document cannot be built with both data and dataPath', () {
+        expect(
+          () => FixtureDocument(
+            identifier: 'test',
+            description: 'Test',
+            defaultOption: false,
+            data: {'key': 'value'},
+            dataPath: 'some/path.json',
+          ),
+          throwsA(isA<ArgumentError>()),
         );
-
-        expect(() => dataQuery.data(document), throwsA(isA<AssertionError>()));
       });
     });
   });

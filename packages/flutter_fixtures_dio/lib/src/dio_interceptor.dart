@@ -77,6 +77,18 @@ class FixturesInterceptor extends Interceptor {
         );
       }
 
+      // HTTP fixtures encode the response status in the document description.
+      final statusCode = selectedDocument.statusCode;
+      if (statusCode == null) {
+        return handler.reject(
+          DioException(
+            requestOptions: options,
+            error: 'Fixture description "${selectedDocument.description}" '
+                'must start with a 3-digit HTTP status code.',
+          ),
+        );
+      }
+
       // Get the data for the selected document
       final responseData = await dataQuery.data(selectedDocument);
 
@@ -84,7 +96,7 @@ class FixturesInterceptor extends Interceptor {
       final response = Response(
         requestOptions: options,
         data: responseData,
-        statusCode: int.parse(selectedDocument.description.substring(0, 3)),
+        statusCode: statusCode,
         headers: Headers(),
       );
 

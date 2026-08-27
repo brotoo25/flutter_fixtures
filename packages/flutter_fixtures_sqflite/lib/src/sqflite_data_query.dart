@@ -89,30 +89,13 @@ class SqfliteDataQuery
 
   @override
   Future<FixtureCollection?> parse(Map<String, dynamic> source) async {
-    return FixtureCollection(
-      description: source['description'] as String? ?? '',
-      items: (source['values'] as List)
-          .map((option) => FixtureDocument(
-                identifier: option['identifier'] as String,
-                description: option['description'] as String,
-                defaultOption: option['default'] as bool? ?? false,
-                data: option['data'],
-                dataPath: option['dataPath'] as String?,
-              ))
-          .toList(),
-    );
+    return FixtureCollection.fromJson(source);
   }
 
   @override
   Future<Map<String, dynamic>?> data(FixtureDocument document) async {
     if (document.data == null && document.dataPath == null) {
       return null;
-    }
-
-    if (document.data != null && document.dataPath != null) {
-      throw AssertionError(
-        'Either data or dataPath must be provided by fixture document but not both.',
-      );
     }
 
     // Return inline data (wrap in result key for consistency)

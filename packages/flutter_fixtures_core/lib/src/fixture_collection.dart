@@ -1,4 +1,4 @@
-import 'package:flutter_fixtures_core/src/fixture_document.dart';
+import 'fixture_document.dart';
 
 /// Represents a collection of fixture documents
 ///
@@ -12,4 +12,18 @@ class FixtureCollection {
   final List<FixtureDocument> items;
 
   FixtureCollection({required this.description, required this.items});
+
+  /// Creates a collection from its fixture-file JSON representation.
+  ///
+  /// The wire format is `{"description": ..., "values": [...]}`; each entry
+  /// of `values` is parsed by [FixtureDocument.fromJson].
+  factory FixtureCollection.fromJson(Map<String, dynamic> json) {
+    return FixtureCollection(
+      description: json['description'] as String? ?? '',
+      items: (json['values'] as List)
+          .map((option) =>
+              FixtureDocument.fromJson((option as Map).cast<String, dynamic>()))
+          .toList(),
+    );
+  }
 }

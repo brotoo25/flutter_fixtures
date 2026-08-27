@@ -76,31 +76,13 @@ class DioDataQuery
 
   @override
   Future<FixtureCollection?> parse(Object source) async {
-    final sourceMap = source as Map<String, dynamic>;
-    return FixtureCollection(
-      description: sourceMap['description'],
-      items: (sourceMap['values'] as List)
-          .map((option) => FixtureDocument(
-                identifier: option['identifier'] as String,
-                description: option['description'] as String,
-                defaultOption: option['default'] as bool? ?? false,
-                data: option['data'],
-                dataPath: option['dataPath'],
-              ))
-          .toList(),
-    );
+    return FixtureCollection.fromJson(source as Map<String, dynamic>);
   }
 
   @override
   Future<Object?> data(FixtureDocument document) async {
     if (document.data == null && document.dataPath == null) {
       return null;
-    }
-
-    if (document.data != null && document.dataPath != null) {
-      throw AssertionError(
-        'Either data or dataPath must be provided by fixture document but not both.',
-      );
     }
 
     // Return inline data
