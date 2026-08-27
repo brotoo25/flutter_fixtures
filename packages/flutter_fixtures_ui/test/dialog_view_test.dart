@@ -103,5 +103,58 @@ void main() {
       // Verify the dialog is dismissed
       expect(find.text('Test Collection'), findsNothing);
     });
+
+    testWidgets(
+      'reuses the active dialog for identical concurrent pick calls',
+      (tester) async {
+        final fixture = FixtureCollection(
+          description: 'Test Collection',
+          items: [
+            FixtureDocument(
+              identifier: 'Success',
+              description: '200',
+              defaultOption: true,
+              data: {'result': 'success'},
+            ),
+            FixtureDocument(
+              identifier: 'Error',
+              description: '400',
+              defaultOption: false,
+              data: {'error': 'Bad request'},
+            ),
+          ],
+        );
+
+        late BuildContext rootContext;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) {
+                rootContext = context;
+                return const Scaffold(body: SizedBox.shrink());
+              },
+            ),
+          ),
+        );
+
+        final dialogView = FixturesDialogView(context: rootContext);
+        final firstPick = dialogView.pick(fixture);
+        final secondPick = dialogView.pick(fixture);
+
+        expect(identical(firstPick, secondPick), isTrue);
+
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.text('Test Collection'), findsOneWidget);
+
+        await tester.tap(find.text('Select'));
+        await tester.pumpAndSettle();
+
+        final firstResult = await firstPick;
+        final secondResult = await secondPick;
+        expect(firstResult?.identifier, equals('Success'));
+        expect(secondResult?.identifier, equals('Success'));
+      },
+    );
   });
 }
