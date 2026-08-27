@@ -1,5 +1,5 @@
-name: flutter_fixtures_recorder
-description: "Record and replay real request/response traffic for demos and offline use"
+name: flutter_fixtures_recorder_dio
+description: "Dio adapter for the Flutter Fixtures record & replay module"
 version: 0.1.0
 homepage: https://github.com/brotoo25/flutter_fixtures
 repository: https://github.com/brotoo25/flutter_fixtures
@@ -15,6 +15,8 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
+  flutter_fixtures_recorder: ^0.1.0
+  dio: ^5.9.0
 
 dev_dependencies:
   flutter_test:

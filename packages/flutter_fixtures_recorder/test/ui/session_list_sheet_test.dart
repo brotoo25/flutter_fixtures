@@ -9,9 +9,11 @@ RecordingSession session(String id, String name) {
     recordedAt: DateTime(2026, 8, 28),
     interactions: [
       RecordedInteraction(
-        method: 'GET',
-        uri: Uri.parse('/users'),
-        statusCode: 200,
+        request: RecordedRequest(
+          source: 'http',
+          operation: 'GET',
+          target: '/users',
+        ),
         recordedAt: DateTime(2026, 8, 28),
       ),
     ],

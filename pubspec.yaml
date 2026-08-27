@@ -10,6 +10,8 @@ workspace:
   - packages/flutter_fixtures_core
   - packages/flutter_fixtures_dio
   - packages/flutter_fixtures_recorder
+  - packages/flutter_fixtures_recorder_dio
+  - packages/flutter_fixtures_recorder_sqflite
   - packages/flutter_fixtures_sqflite
   - packages/flutter_fixtures_ui
   - packages/flutter_fixtures

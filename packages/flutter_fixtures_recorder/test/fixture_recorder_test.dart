@@ -1,12 +1,15 @@
 import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-RecordedInteraction interaction(String method, String url, {Object? body}) {
+RecordedRequest request(String operation, String target) {
+  return RecordedRequest(source: 'http', operation: operation, target: target);
+}
+
+RecordedInteraction interaction(String operation, String target,
+    {Object? body}) {
   return RecordedInteraction(
-    method: method,
-    uri: Uri.parse(url),
-    statusCode: 200,
-    responseBody: body,
+    request: request(operation, target),
+    response: body,
     recordedAt: DateTime(2026, 8, 28),
   );
 }
@@ -98,7 +101,7 @@ void main() {
       expect(recorder.isReplaying, isTrue);
       expect(recorder.replaySession?.id, saved.id);
       expect(
-        recorder.replayResponseFor('GET', Uri.parse('/users'))?.responseBody,
+        recorder.replayResponseFor(request('GET', '/users'))?.response,
         'recorded',
       );
     });
@@ -108,7 +111,7 @@ void main() {
     });
 
     test('replayResponseFor returns null while idle', () {
-      expect(recorder.replayResponseFor('GET', Uri.parse('/users')), isNull);
+      expect(recorder.replayResponseFor(request('GET', '/users')), isNull);
     });
 
     test('stopReplay returns to idle and is idempotent', () async {

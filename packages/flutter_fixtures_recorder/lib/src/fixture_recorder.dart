@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'recorded_interaction.dart';
+import 'recorded_request.dart';
 import 'recording_session.dart';
 import 'session_replay.dart';
 import 'session_store.dart';
@@ -19,10 +20,14 @@ enum RecorderMode {
 
 /// The record-and-replay controller.
 ///
-/// This is the module's single entry point: transport adapters (such as the
-/// Dio `RecorderInterceptor`) feed captured traffic in through [record] and
-/// ask for replayed responses through [replayResponseFor]; UI — the built-in
-/// widgets or your own — drives the mode transitions and session management.
+/// This is the module's single entry point: source adapters — the Dio
+/// interceptor, the sqflite recording adapter, or any custom code talking
+/// to any data source — feed captured traffic in through [record] and ask
+/// for replayed responses through [replayResponseFor]; UI — the built-in
+/// widgets or your own — drives the mode transitions and session
+/// management. One recorder serves every source at once: interactions are
+/// namespaced by their request's `source`, so a session can hold HTTP and
+/// database traffic side by side.
 ///
 /// The recorder is a [ChangeNotifier]: it notifies on every mode change and
 /// on every captured interaction, so any widget can observe it (the built-in
@@ -104,8 +109,8 @@ class FixtureRecorder extends ChangeNotifier {
 
   /// Captures one interaction into the in-progress recording.
   ///
-  /// Called by transport adapters. Does nothing unless recording, so
-  /// adapters can call it unconditionally.
+  /// Called by source adapters. Does nothing unless recording, so adapters
+  /// can call it unconditionally.
   void record(RecordedInteraction interaction) {
     if (!isRecording) return;
     _buffer.add(interaction);
@@ -147,8 +152,8 @@ class FixtureRecorder extends ChangeNotifier {
   /// replaying or when the active session holds no recording for it.
   ///
   /// See [SessionReplay] for the ordering semantics.
-  RecordedInteraction? replayResponseFor(String method, Uri uri) {
-    return _replay?.next(method, uri);
+  RecordedInteraction? replayResponseFor(RecordedRequest request) {
+    return _replay?.next(request);
   }
 
   /// Rewinds the active replay to the beginning of its session.

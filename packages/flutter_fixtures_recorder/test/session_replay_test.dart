@@ -1,17 +1,23 @@
 import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+RecordedRequest request(
+  String target, {
+  String source = 'http',
+  String operation = 'GET',
+}) {
+  return RecordedRequest(source: source, operation: operation, target: target);
+}
+
 RecordedInteraction interaction(
-  String method,
-  String url, {
-  int statusCode = 200,
-  Object? body,
+  String target, {
+  String source = 'http',
+  String operation = 'GET',
+  Object? response,
 }) {
   return RecordedInteraction(
-    method: method,
-    uri: Uri.parse(url),
-    statusCode: statusCode,
-    responseBody: body,
+    request: request(target, source: source, operation: operation),
+    response: response,
     recordedAt: DateTime(2026, 8, 28),
   );
 }
@@ -26,45 +32,51 @@ RecordingSession session(List<RecordedInteraction> interactions) {
 }
 
 void main() {
-  group('RecordedInteraction.defaultKey', () {
-    test('combines method, path and sorted query', () {
+  group('RecordedRequest.defaultKey', () {
+    test('combines source, operation and target', () {
       expect(
-        RecordedInteraction.defaultKey(
-            'get', Uri.parse('https://api.test/users?b=2&a=1')),
-        'GET /users?a=1&b=2',
+        RecordedRequest.defaultKey(
+            request('/users', source: 'http', operation: 'GET')),
+        'http GET /users',
       );
     });
 
-    test('ignores the host so environments can differ', () {
-      final recorded = RecordedInteraction.defaultKey(
-          'GET', Uri.parse('https://staging.test/users'));
-      final live = RecordedInteraction.defaultKey(
-          'GET', Uri.parse('https://prod.test/users'));
-      expect(recorded, live);
+    test('distinguishes sources, operations and targets', () {
+      expect(
+        request('/users', source: 'http').requestKey,
+        isNot(request('/users', source: 'sqlite').requestKey),
+      );
+      expect(
+        request('/users', operation: 'GET').requestKey,
+        isNot(request('/users', operation: 'POST').requestKey),
+      );
+      expect(
+        request('/users').requestKey,
+        isNot(request('/orders').requestKey),
+      );
     });
 
-    test('distinguishes methods and query values', () {
-      expect(
-        RecordedInteraction.defaultKey('GET', Uri.parse('/users?page=1')),
-        isNot(
-            RecordedInteraction.defaultKey('GET', Uri.parse('/users?page=2'))),
+    test('the payload does not participate in matching', () {
+      final withPayload = RecordedRequest(
+        source: 'http',
+        operation: 'POST',
+        target: '/login',
+        payload: {'user': 'ada'},
       );
-      expect(
-        RecordedInteraction.defaultKey('GET', Uri.parse('/users')),
-        isNot(RecordedInteraction.defaultKey('POST', Uri.parse('/users'))),
-      );
+      expect(withPayload.requestKey,
+          request('/login', operation: 'POST').requestKey);
     });
   });
 
   group('SessionReplay', () {
     test('serves repeated requests in recorded order', () {
       final replay = SessionReplay(session([
-        interaction('GET', '/status', body: 'pending'),
-        interaction('GET', '/status', body: 'pending'),
-        interaction('GET', '/status', body: 'done'),
+        interaction('/status', response: 'pending'),
+        interaction('/status', response: 'pending'),
+        interaction('/status', response: 'done'),
       ]));
 
-      Object? next() => replay.next('GET', Uri.parse('/status'))?.responseBody;
+      Object? next() => replay.next(request('/status'))?.response;
       expect(next(), 'pending');
       expect(next(), 'pending');
       expect(next(), 'done');
@@ -72,56 +84,67 @@ void main() {
 
     test('repeats the last recording once a key is exhausted', () {
       final replay = SessionReplay(session([
-        interaction('GET', '/status', body: 'pending'),
-        interaction('GET', '/status', body: 'done'),
+        interaction('/status', response: 'pending'),
+        interaction('/status', response: 'done'),
       ]));
 
-      replay.next('GET', Uri.parse('/status'));
-      replay.next('GET', Uri.parse('/status'));
-      expect(
-        replay.next('GET', Uri.parse('/status'))?.responseBody,
-        'done',
-      );
+      replay.next(request('/status'));
+      replay.next(request('/status'));
+      expect(replay.next(request('/status'))?.response, 'done');
     });
 
     test('keeps an independent cursor per request key', () {
       final replay = SessionReplay(session([
-        interaction('GET', '/a', body: 'a1'),
-        interaction('GET', '/b', body: 'b1'),
-        interaction('GET', '/a', body: 'a2'),
+        interaction('/a', response: 'a1'),
+        interaction('/b', response: 'b1'),
+        interaction('/a', response: 'a2'),
       ]));
 
-      expect(replay.next('GET', Uri.parse('/a'))?.responseBody, 'a1');
-      expect(replay.next('GET', Uri.parse('/a'))?.responseBody, 'a2');
-      expect(replay.next('GET', Uri.parse('/b'))?.responseBody, 'b1');
+      expect(replay.next(request('/a'))?.response, 'a1');
+      expect(replay.next(request('/a'))?.response, 'a2');
+      expect(replay.next(request('/b'))?.response, 'b1');
+    });
+
+    test('sources with the same target do not collide', () {
+      final replay = SessionReplay(session([
+        interaction('users', source: 'http', response: 'from http'),
+        interaction('users', source: 'sqlite', response: 'from sqlite'),
+      ]));
+
+      expect(
+        replay.next(request('users', source: 'sqlite'))?.response,
+        'from sqlite',
+      );
+      expect(
+        replay.next(request('users', source: 'http'))?.response,
+        'from http',
+      );
     });
 
     test('returns null for requests that were never recorded', () {
-      final replay = SessionReplay(session([interaction('GET', '/a')]));
-      expect(replay.next('GET', Uri.parse('/unknown')), isNull);
+      final replay = SessionReplay(session([interaction('/a')]));
+      expect(replay.next(request('/unknown')), isNull);
     });
 
     test('restart rewinds every cursor', () {
       final replay = SessionReplay(session([
-        interaction('GET', '/status', body: 'first'),
-        interaction('GET', '/status', body: 'second'),
+        interaction('/status', response: 'first'),
+        interaction('/status', response: 'second'),
       ]));
 
-      replay.next('GET', Uri.parse('/status'));
+      replay.next(request('/status'));
       replay.restart();
-      expect(replay.next('GET', Uri.parse('/status'))?.responseBody, 'first');
+      expect(replay.next(request('/status'))?.response, 'first');
     });
 
     test('honors a custom request key builder', () {
       final replay = SessionReplay(
-        session([interaction('GET', '/users?ts=1', body: 'ok')]),
-        keyOf: (method, uri) => '$method ${uri.path}',
+        session([interaction('/users?ts=1', response: 'ok')]),
+        keyOf: (request) =>
+            '${request.source} ${request.operation} ${request.target.split('?').first}',
       );
 
-      expect(
-        replay.next('GET', Uri.parse('/users?ts=999'))?.responseBody,
-        'ok',
-      );
+      expect(replay.next(request('/users?ts=999'))?.response, 'ok');
     });
   });
 }

@@ -35,8 +35,8 @@ dependencies:
   dio: ^5.4.3+1
   flutter_fixtures:
     path: ../packages/flutter_fixtures
-  flutter_fixtures_recorder:
-    path: ../packages/flutter_fixtures_recorder
+  flutter_fixtures_recorder_dio:
+    path: ../packages/flutter_fixtures_recorder_dio
   flutter_fixtures_sqflite:
     path: ../packages/flutter_fixtures_sqflite
   path_provider: ^2.1.4

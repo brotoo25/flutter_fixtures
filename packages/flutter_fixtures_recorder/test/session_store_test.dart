@@ -11,14 +11,20 @@ RecordingSession session(String id, {DateTime? recordedAt, Object? body}) {
     recordedAt: recordedAt ?? DateTime(2026, 8, 28),
     interactions: [
       RecordedInteraction(
-        method: 'GET',
-        uri: Uri.parse('https://api.test/users?page=1'),
-        requestBody: {'filter': 'active'},
-        statusCode: 200,
-        responseHeaders: {
-          'content-type': ['application/json'],
-        },
-        responseBody: body ?? {'users': []},
+        request: RecordedRequest(
+          source: 'http',
+          operation: 'GET',
+          target: '/users?page=1',
+          payload: {'filter': 'active'},
+        ),
+        response: body ??
+            {
+              'statusCode': 200,
+              'headers': {
+                'content-type': ['application/json'],
+              },
+              'body': {'users': []},
+            },
         recordedAt: DateTime(2026, 8, 28, 10, 30),
       ),
     ],
@@ -40,20 +46,19 @@ void main() {
 
       final interaction = restored.interactions.single;
       final source = original.interactions.single;
-      expect(interaction.method, source.method);
-      expect(interaction.uri, source.uri);
-      expect(interaction.requestBody, source.requestBody);
-      expect(interaction.statusCode, source.statusCode);
-      expect(interaction.responseHeaders, source.responseHeaders);
-      expect(interaction.responseBody, source.responseBody);
+      expect(interaction.request.source, source.request.source);
+      expect(interaction.request.operation, source.request.operation);
+      expect(interaction.request.target, source.request.target);
+      expect(interaction.request.payload, source.request.payload);
+      expect(interaction.response, source.response);
       expect(interaction.recordedAt, source.recordedAt);
     });
 
-    test('a payload that cannot be JSON-encoded is stored as a string', () {
+    test('a response that cannot be JSON-encoded is stored as a string', () {
       final json = session('s1', body: Object()).toJson();
       expect(jsonEncode(json), isA<String>());
       final interaction = (json['interactions'] as List).single as Map;
-      expect(interaction['responseBody'], isA<String>());
+      expect(interaction['response'], isA<String>());
     });
   });
 
@@ -88,7 +93,8 @@ void main() {
       await store.save(session('new', recordedAt: DateTime(2026, 6, 1)));
 
       final loaded = await store.load('old');
-      expect(loaded?.interactions.single.responseBody, {'users': []});
+      final response = loaded?.interactions.single.response as Map?;
+      expect(response?['body'], {'users': []});
       expect((await store.list()).map((s) => s.id), ['new', 'old']);
 
       await store.delete('old');

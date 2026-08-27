@@ -4,9 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 RecordedInteraction interaction() {
   return RecordedInteraction(
-    method: 'GET',
-    uri: Uri.parse('/users'),
-    statusCode: 200,
+    request: RecordedRequest(
+      source: 'http',
+      operation: 'GET',
+      target: '/users',
+    ),
     recordedAt: DateTime(2026, 8, 28),
   );
 }

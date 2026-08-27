@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
+import 'package:flutter_fixtures_recorder_dio/flutter_fixtures_recorder_dio.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// Demonstrates the recorder module: capture real traffic from

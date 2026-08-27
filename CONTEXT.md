@@ -120,10 +120,13 @@ be remembered; cleared via `clearRememberedSelectionFor` /
 
 The record-and-replay controller (`FixtureRecorder`,
 flutter_fixtures_recorder), the module's single entry point. A strict
-mode machine — idle / recording / replaying — that transport adapters feed
-captured traffic into and ask for replayed responses from. The module is
-self-contained: no other package depends on it, and idle traffic passes
-through untouched.
+mode machine — idle / recording / replaying — that source adapters feed
+captured traffic into and ask for replayed responses from. Source-agnostic:
+one recorder serves HTTP, database, and custom sources at once, and a
+session can hold them side by side. The module is self-contained: no other
+package depends on it, and idle traffic passes through untouched. Adapters
+ship separately: `flutter_fixtures_recorder_dio` (Dio interceptor) and
+`flutter_fixtures_recorder_sqflite` (a `DatabaseAdapter` decorator).
 
 ## Recording Session
 
@@ -132,11 +135,22 @@ A named, ordered capture of request/response traffic
 Interactions** in capture order. The artifact that is saved, listed,
 selected, and replayed.
 
+## Recorded Request
+
+The source-agnostic description of one request (`RecordedRequest`):
+a **source** name (`http`, `sqlite`, custom), an **operation** (HTTP
+method, `query`, `insert`, ...), and a normalized **target** (path with
+sorted query, SQL with arguments), plus an informational payload that never
+participates in matching. Adapters own target normalization — the same
+logical request must always produce the same target.
+
 ## Recorded Interaction
 
-One captured request/response pair (`RecordedInteraction`): method, URI,
-request body, status code, response headers and body, capture time.
-Transport-agnostic; adapters translate their native types into this shape.
+One captured request/response pair (`RecordedInteraction`): a Recorded
+Request plus the response and capture time. The response is opaque to the
+recorder — it is whatever the capturing adapter needs to reconstruct its
+native response later, and the adapter that wrote it is the one that reads
+it back.
 
 ## Session Store
 
@@ -147,11 +161,11 @@ on disk, not on web) and `MemoryRecordingSessionStore` (runtime-only).
 ## Session Replay
 
 The playback engine (`SessionReplay`): interactions grouped by request key
-(method + path + sorted query by default, customizable via a
+(`source operation target` by default, customizable via a
 `RequestKeyBuilder`), one cursor per key, responses served in recorded
 order, repeating the last once exhausted. A request with no recording
 returns `null` — the miss policy (`ReplayMissBehavior`: forward / reject)
-belongs to the transport adapter, not the engine.
+belongs to the source adapter, not the engine.
 
 ## Recorder Toolbar
 

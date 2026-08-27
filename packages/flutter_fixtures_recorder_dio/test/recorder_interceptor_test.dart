@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
+import 'package:flutter_fixtures_recorder_dio/flutter_fixtures_recorder_dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Hand-rolled handler fakes: they capture the outcome instead of driving
@@ -80,6 +80,25 @@ void main() {
     return (await recorder.stopRecording())!;
   }
 
+  group('describe', () {
+    test('uses the http source, method and path with sorted query', () {
+      final request = RecorderInterceptor.describe(
+        RequestOptions(path: 'https://api.test/users?b=2&a=1', method: 'get'),
+      );
+      expect(request.source, 'http');
+      expect(request.operation, 'GET');
+      expect(request.target, '/users?a=1&b=2');
+    });
+
+    test('drops the host so environments can differ', () {
+      final staging = RecorderInterceptor.describe(
+          RequestOptions(path: 'https://staging.test/users'));
+      final prod = RecorderInterceptor.describe(
+          RequestOptions(path: 'https://prod.test/users'));
+      expect(staging.requestKey, prod.requestKey);
+    });
+  });
+
   group('while idle', () {
     test('requests, responses and errors pass through untouched', () {
       final options = RequestOptions(path: 'https://api.test/users');
@@ -110,11 +129,13 @@ void main() {
 
       final session = (await recorder.stopRecording())!;
       final interaction = session.interactions.single;
-      expect(interaction.method, 'POST');
-      expect(interaction.uri, Uri.parse('https://api.test/users'));
-      expect(interaction.requestBody, {'name': 'Ada'});
-      expect(interaction.statusCode, 201);
-      expect(interaction.responseBody, {'id': 1});
+      expect(interaction.request.source, 'http');
+      expect(interaction.request.operation, 'POST');
+      expect(interaction.request.target, '/users');
+      expect(interaction.request.payload, {'name': 'Ada'});
+      final response = interaction.response as Map;
+      expect(response['statusCode'], 201);
+      expect(response['body'], {'id': 1});
     });
 
     test('captures error-status responses surfaced through onError', () async {
@@ -129,7 +150,8 @@ void main() {
 
       expect(handler.forwarded, error);
       final session = (await recorder.stopRecording())!;
-      expect(session.interactions.single.statusCode, 404);
+      final response = session.interactions.single.response as Map;
+      expect(response['statusCode'], 404);
     });
 
     test('ignores transport errors without a response', () {
@@ -158,6 +180,23 @@ void main() {
       expect(handler.resolved!.statusCode, 200);
       expect(handler.resolved!.data, {'users': []});
       expect(handler.forwarded, isNull);
+    });
+
+    test('replays a session that went through JSON persistence', () async {
+      // A file-backed store hands back plain JSON maps, not the original
+      // Dart objects; the interceptor must reconstruct responses from them.
+      final session = await recordOneInteraction();
+      final restored = RecordingSession.fromJson(session.toJson());
+      recorder.startReplayOf(restored);
+
+      final handler = FakeRequestHandler();
+      interceptor.onRequest(
+        RequestOptions(path: 'https://api.test/users'),
+        handler,
+      );
+
+      expect(handler.resolved!.statusCode, 200);
+      expect(handler.resolved!.data, {'users': []});
     });
 
     test('does not replay the stale content-length header', () async {
