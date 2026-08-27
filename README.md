@@ -235,7 +235,9 @@ files: paste the spec's JSON into your assets and point `DioDataQuery` at it.
 dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(
-      openApiSpecPath: 'assets/fixtures/openapi.json',
+      fallback: OpenApiFixtureSource(
+        specPath: 'assets/fixtures/openapi.json',
+      ),
     ),
     dataSelector: DataSelectorType.pick,
   ),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'fixture_asset_loader.dart';
+import 'http_fixture_source.dart';
 
 /// Builds fixture collections from an OpenAPI 3.x JSON document.
 ///
@@ -16,7 +17,7 @@ import 'fixture_asset_loader.dart';
 /// A spec that cannot be loaded or holds malformed JSON fails loudly: the
 /// spec was explicitly configured, so a broken spec reports as broken
 /// instead of as "no fixture found".
-class OpenApiFixtureSource {
+class OpenApiFixtureSource implements HttpFixtureSource {
   /// The asset path of the OpenAPI JSON document.
   final String specPath;
 
@@ -30,8 +31,7 @@ class OpenApiFixtureSource {
     this.assetLoader = const BundleAssetLoader(),
   });
 
-  /// Returns the fixture collection for [method] and [path], in fixture
-  /// wire format, or `null` when the spec describes no such operation.
+  @override
   Future<Map<String, dynamic>?> resolve(String method, String path) async {
     final spec = await _loadSpec();
     final paths = spec['paths'];

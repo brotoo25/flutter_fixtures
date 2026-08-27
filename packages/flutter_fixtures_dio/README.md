@@ -248,7 +248,9 @@ file per endpoint. Drop the spec's JSON in your assets and point
 dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(
-      openApiSpecPath: 'assets/fixtures/openapi.json',
+      fallback: OpenApiFixtureSource(
+        specPath: 'assets/fixtures/openapi.json',
+      ),
     ),
     dataSelector: DataSelectorType.pick,
   ),
@@ -274,6 +276,10 @@ handled) and its documentation becomes the collection:
 Hand-written fixture files always win over spec-derived ones, so you can
 start from the spec and override individual endpoints with richer fixtures
 as you need them.
+
+`fallback` accepts any `HttpFixtureSource` implementation — OpenAPI is the
+built-in one, and you can plug in your own for other API description
+formats.
 
 ## Advanced Usage
 
@@ -377,11 +383,11 @@ Data provider that loads and parses fixture files from app assets.
 
 **Constructor Parameters:**
 - `mockFolder` (optional): Asset directory containing fixture files (default: `'assets/fixtures'`)
-- `openApiSpecPath` (optional): Asset path of an OpenAPI 3.x JSON document used as a fallback for requests with no fixture file
+- `fallback` (optional): `HttpFixtureSource` consulted for requests with no fixture file (e.g. `OpenApiFixtureSource`)
 - `assetLoader` (optional): Seam for reading fixture assets (default: root asset bundle)
 
 **Methods:**
-- `find(RequestOptions)`: Locates fixture file for the request, falling back to the OpenAPI spec when configured
+- `find(RequestOptions)`: Locates fixture file for the request, falling back to the configured `HttpFixtureSource`
 - `parse(Map<String, dynamic>)`: Parses fixture file into collection
 - `select(...)`: Selects specific fixture based on strategy
 - `data(FixtureDocument)`: Retrieves response data for selected fixture

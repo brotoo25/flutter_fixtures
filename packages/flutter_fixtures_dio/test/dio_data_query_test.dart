@@ -160,7 +160,10 @@ void main() {
       });
       final query = DioDataQuery(
         assetLoader: loader,
-        openApiSpecPath: 'assets/fixtures/openapi.json',
+        fallback: OpenApiFixtureSource(
+          specPath: 'assets/fixtures/openapi.json',
+          assetLoader: loader,
+        ),
       );
 
       final result = await query.find(
@@ -179,7 +182,10 @@ void main() {
       });
       final query = DioDataQuery(
         assetLoader: loader,
-        openApiSpecPath: 'assets/fixtures/openapi.json',
+        fallback: OpenApiFixtureSource(
+          specPath: 'assets/fixtures/openapi.json',
+          assetLoader: loader,
+        ),
       );
 
       final result = await query.find(
@@ -199,7 +205,10 @@ void main() {
       });
       final query = DioDataQuery(
         assetLoader: loader,
-        openApiSpecPath: 'assets/fixtures/openapi.json',
+        fallback: OpenApiFixtureSource(
+          specPath: 'assets/fixtures/openapi.json',
+          assetLoader: loader,
+        ),
       );
 
       expect(

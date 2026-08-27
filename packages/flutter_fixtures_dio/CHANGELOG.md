@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-* New `DioDataQuery.openApiSpecPath` falls back to an OpenAPI 3.x JSON
-  document for requests with no matching fixture file; hand-written fixture
-  files still win.
+* New `DioDataQuery.fallback` resolves requests with no matching fixture
+  file through an `HttpFixtureSource` (e.g. `OpenApiFixtureSource` for an
+  OpenAPI 3.x spec); hand-written fixture files still win.
 
 ## 0.2.0
 

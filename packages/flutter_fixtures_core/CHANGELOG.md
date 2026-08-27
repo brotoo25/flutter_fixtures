@@ -2,10 +2,13 @@
 
 ## Unreleased
 
-* New `OpenApiFixtureSource` derives fixture collections from an OpenAPI 3.x
-  JSON document: operation docs name the collection, and each response's
-  status, description, and payload examples (or a schema-generated sample)
-  become selectable documents.
+* New `HttpFixtureSource` seam for deriving HTTP fixtures from an API
+  description; adapters use one as a fallback for requests with no
+  hand-written fixture file.
+* New `OpenApiFixtureSource` (the built-in `HttpFixtureSource`) derives
+  fixture collections from an OpenAPI 3.x JSON document: operation docs name
+  the collection, and each response's status, description, and payload
+  examples (or a schema-generated sample) become selectable documents.
 
 ## 0.2.0
 
