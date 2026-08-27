@@ -116,6 +116,49 @@ and scoped to a selector instance. Written when a Fixture Choice asks to
 be remembered; cleared via `clearRememberedSelectionFor` /
 `clearRememberedSelections` on the selector.
 
+## Fixture Recorder
+
+The record-and-replay controller (`FixtureRecorder`,
+flutter_fixtures_recorder), the module's single entry point. A strict
+mode machine — idle / recording / replaying — that transport adapters feed
+captured traffic into and ask for replayed responses from. The module is
+self-contained: no other package depends on it, and idle traffic passes
+through untouched.
+
+## Recording Session
+
+A named, ordered capture of request/response traffic
+(`RecordingSession`): id, name, recorded-at, and the list of **Recorded
+Interactions** in capture order. The artifact that is saved, listed,
+selected, and replayed.
+
+## Recorded Interaction
+
+One captured request/response pair (`RecordedInteraction`): method, URI,
+request body, status code, response headers and body, capture time.
+Transport-agnostic; adapters translate their native types into this shape.
+
+## Session Store
+
+The recorder's persistence seam (`RecordingSessionStore`): save, load,
+list, delete sessions. Built-ins: `FileRecordingSessionStore` (JSON files
+on disk, not on web) and `MemoryRecordingSessionStore` (runtime-only).
+
+## Session Replay
+
+The playback engine (`SessionReplay`): interactions grouped by request key
+(method + path + sorted query by default, customizable via a
+`RequestKeyBuilder`), one cursor per key, responses served in recorded
+order, repeating the last once exhausted. A request with no recording
+returns `null` — the miss policy (`ReplayMissBehavior`: forward / reject)
+belongs to the transport adapter, not the engine.
+
+## Recorder Toolbar
+
+The built-in recorder UI (`RecorderToolbar` plus the sessions sheet).
+Plain listeners on `FixtureRecorder` with no private hooks — a custom
+control surface uses the same public API.
+
 ## Database Adapter
 
 The sqflite-shaped consumer seam (`DatabaseAdapter`), mirroring sqflite's

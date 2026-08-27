@@ -1,0 +1,98 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+RecordedInteraction interaction() {
+  return RecordedInteraction(
+    method: 'GET',
+    uri: Uri.parse('/users'),
+    statusCode: 200,
+    recordedAt: DateTime(2026, 8, 28),
+  );
+}
+
+Widget app(FixtureRecorder recorder) {
+  return MaterialApp(
+    home: Scaffold(body: RecorderToolbar(recorder: recorder)),
+  );
+}
+
+void main() {
+  late FixtureRecorder recorder;
+
+  setUp(() {
+    recorder = FixtureRecorder(store: MemoryRecordingSessionStore());
+  });
+
+  testWidgets('idle: shows start-recording and sessions actions',
+      (tester) async {
+    await tester.pumpWidget(app(recorder));
+
+    expect(find.text('Recorder idle'), findsOneWidget);
+    await tester.tap(find.byTooltip('Start recording'));
+    await tester.pump();
+
+    expect(recorder.isRecording, isTrue);
+    expect(find.text('Recording · 0'), findsOneWidget);
+  });
+
+  testWidgets('recording: count updates as traffic is captured',
+      (tester) async {
+    recorder.startRecording();
+    await tester.pumpWidget(app(recorder));
+
+    recorder.record(interaction());
+    await tester.pump();
+
+    expect(find.text('Recording · 1'), findsOneWidget);
+  });
+
+  testWidgets('stopping with traffic prompts for a name and saves',
+      (tester) async {
+    recorder.startRecording();
+    recorder.record(interaction());
+    await tester.pumpWidget(app(recorder));
+
+    await tester.tap(find.byTooltip('Stop recording'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Save recording'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'My demo');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(recorder.mode, RecorderMode.idle);
+    final sessions = await recorder.sessions();
+    expect(sessions.single.name, 'My demo');
+  });
+
+  testWidgets('discarding from the stop dialog saves nothing', (tester) async {
+    recorder.startRecording();
+    recorder.record(interaction());
+    await tester.pumpWidget(app(recorder));
+
+    await tester.tap(find.byTooltip('Stop recording'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
+
+    expect(recorder.mode, RecorderMode.idle);
+    expect(await recorder.sessions(), isEmpty);
+  });
+
+  testWidgets('replaying: shows the session name and stop action',
+      (tester) async {
+    recorder.startReplayOf(RecordingSession(
+      id: 's1',
+      name: 'Checkout demo',
+      recordedAt: DateTime(2026, 8, 28),
+      interactions: [interaction()],
+    ));
+    await tester.pumpWidget(app(recorder));
+
+    expect(find.text('Replaying "Checkout demo"'), findsOneWidget);
+    await tester.tap(find.byTooltip('Stop replay'));
+    await tester.pump();
+    expect(recorder.mode, RecorderMode.idle);
+  });
+}
