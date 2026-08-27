@@ -94,7 +94,7 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 // Create a fixture database (same API as sqflite's Database)
 final db = FixtureDatabase(
   dataQuery: SqfliteDataQuery(),
-  dataSelector: DataSelectorType.defaultValue(),
+  dataSelector: DataSelectorType.defaultValue,
 );
 
 // Query just like a real sqflite database!
@@ -109,11 +109,15 @@ await db.delete('users', where: 'id = ?');
 
 ### With Interactive Fixture Selection
 
+`FixturesDialogView` comes from the
+[flutter_fixtures_ui](https://pub.dev/packages/flutter_fixtures_ui) package —
+add it to your dev dependencies alongside this one.
+
 ```dart
 final db = FixtureDatabase(
   dataQuery: SqfliteDataQuery(),
-  dataSelector: DataSelectorType.pick(),
-  dataSelectorView: FixturesDialogView(context: context),
+  dataSelector: DataSelectorType.pick,
+  dataSelectorView: FixturesDialogView.of(context),
   delay: DataSelectorDelay.fast,
 );
 
@@ -141,7 +145,7 @@ if (fixtureData != null) {
   final selected = await dataQuery.select(
     collection!,
     null,
-    DataSelectorType.defaultValue(),
+    DataSelectorType.defaultValue,
   );
   final result = await dataQuery.data(selected!);
   print(result);

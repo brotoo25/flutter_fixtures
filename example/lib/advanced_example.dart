@@ -37,7 +37,7 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
       FixturesInterceptor(
         dataQuery: DioDataQuery(),
         dataSelectorView: FixturesDialogView(
-          context: widget.navigatorKey.currentContext!,
+          contextProvider: () => widget.navigatorKey.currentContext!,
         ),
         dataSelector: _getDataSelectorType(),
       ),
@@ -47,13 +47,13 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
   DataSelectorType _getDataSelectorType() {
     switch (_selectedSelectorType) {
       case 'Random':
-        return DataSelectorType.random();
+        return DataSelectorType.random;
       case 'Default':
-        return DataSelectorType.defaultValue();
+        return DataSelectorType.defaultValue;
       case 'Pick':
-        return DataSelectorType.pick();
+        return DataSelectorType.pick;
       default:
-        return DataSelectorType.random();
+        return DataSelectorType.random;
     }
   }
 

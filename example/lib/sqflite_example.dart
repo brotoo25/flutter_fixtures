@@ -33,7 +33,7 @@ class _SqfliteExamplePageState extends State<SqfliteExamplePage> {
       dataQuery: SqfliteDataQuery(),
       dataSelector: _getDataSelectorType(),
       dataSelectorView: FixturesDialogView(
-        context: widget.navigatorKey.currentContext!,
+        contextProvider: () => widget.navigatorKey.currentContext!,
       ),
       delay: DataSelectorDelay.fast,
     );
@@ -45,13 +45,13 @@ class _SqfliteExamplePageState extends State<SqfliteExamplePage> {
   DataSelectorType _getDataSelectorType() {
     switch (_selectedSelectorType) {
       case 'Random':
-        return DataSelectorType.random();
+        return DataSelectorType.random;
       case 'Default':
-        return DataSelectorType.defaultValue();
+        return DataSelectorType.defaultValue;
       case 'Pick':
-        return DataSelectorType.pick();
+        return DataSelectorType.pick;
       default:
-        return DataSelectorType.random();
+        return DataSelectorType.random;
     }
   }
 

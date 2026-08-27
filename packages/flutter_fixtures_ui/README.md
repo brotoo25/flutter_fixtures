@@ -40,6 +40,7 @@ The `FixturesDialogView` provides:
 - **Clean Material Design**: Follows Flutter's design guidelines
 - **Fixture Information**: Shows identifier and description for each option
 - **Default Selection**: Automatically selects the default fixture
+- **Remember**: Lets the user remember a choice for subsequent requests
 - **Cancellation**: Users can cancel without selecting
 - **Scrollable**: Handles long lists of fixtures gracefully
 
@@ -48,114 +49,60 @@ The `FixturesDialogView` provides:
   <p><em>Clean Material Design fixture selection dialog</em></p>
 </div>
 
-## 🛠️ Customization
+## 🛠️ Usage
 
-### Dialog Styling
-
-The dialog uses your app's theme automatically, but you can customize it by wrapping in a `Theme`:
+`FixturesDialogView` is a plain adapter — construct it with a context
+provider so it never holds a stale `BuildContext`:
 
 ```dart
-Theme(
-  data: Theme.of(context).copyWith(
-    dialogTheme: DialogTheme(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-    ),
-  ),
-  child: FixturesDialogView(context: context),
+// With a navigator key held by your app:
+FixturesDialogView(
+  contextProvider: () => navigatorKey.currentContext!,
 )
+
+// Or bound to a fixed context (fine for short-lived views):
+FixturesDialogView.of(context)
 ```
 
-### Custom Dialog Content
-
-For more control, you can extend `FixturesDialogView` or create your own implementation:
-
-```dart
-class CustomFixturesDialog extends FixturesDialogView {
-  CustomFixturesDialog({required BuildContext context}) : super(context: context);
-
-  @override
-  Future<FixtureDocument?> pick(FixtureCollection fixture) async {
-    return showDialog<FixtureDocument>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(fixture.description),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: fixture.items.map((item) =>
-            Card(
-              child: ListTile(
-                leading: Icon(item.defaultOption ? Icons.star : Icons.circle_outlined),
-                title: Text(item.identifier),
-                subtitle: Text(item.description),
-                onTap: () => Navigator.of(context).pop(item),
-              ),
-            )
-          ).toList(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-```
+The dialog uses your app's theme automatically.
 
 ## 🔧 Creating Custom UI Components
 
-Implement the `DataSelectorView` interface to create completely custom UI:
+Implement the `DataSelectorView` interface to create completely custom UI.
+A view only presents options and reports the user's answer as a
+`FixtureChoice` (or `null` for cancel) — remembering choices, deduplicating
+concurrent requests, and applying delays are handled by the core selection
+logic, so custom views inherit those behaviors for free:
 
 ```dart
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
 class BottomSheetSelector implements DataSelectorView {
-  final BuildContext context;
+  final BuildContext Function() contextProvider;
 
-  BottomSheetSelector({required this.context});
+  BottomSheetSelector({required this.contextProvider});
 
   @override
-  Future<FixtureDocument?> pick(FixtureCollection fixture) async {
-    return showModalBottomSheet<FixtureDocument>(
-      context: context,
+  Future<FixtureChoice?> pick(FixtureCollection fixture) async {
+    return showModalBottomSheet<FixtureChoice>(
+      context: contextProvider(),
       isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
-        builder: (context, scrollController) => Container(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Text(
-                fixture.description,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              SizedBox(height: 16),
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  itemCount: fixture.items.length,
-                  itemBuilder: (context, index) {
-                    final item = fixture.items[index];
-                    return Card(
-                      child: ListTile(
-                        title: Text(item.identifier),
-                        subtitle: Text(item.description),
-                        trailing: item.defaultOption
-                          ? Icon(Icons.star, color: Colors.amber)
-                          : null,
-                        onTap: () => Navigator.of(context).pop(item),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
+      builder: (context) => ListView.builder(
+        itemCount: fixture.items.length,
+        itemBuilder: (context, index) {
+          final item = fixture.items[index];
+          return Card(
+            child: ListTile(
+              title: Text(item.identifier),
+              subtitle: Text(item.description),
+              trailing: item.defaultOption == true
+                  ? Icon(Icons.star, color: Colors.amber)
+                  : null,
+              onTap: () => Navigator.of(context)
+                  .pop(FixtureChoice(document: item)),
+            ),
+          );
+        },
       ),
     );
   }
@@ -166,19 +113,21 @@ class BottomSheetSelector implements DataSelectorView {
 
 ### FixturesDialogView
 
-The main dialog component for fixture selection.
+The main dialog adapter for fixture selection.
 
-**Constructor:**
+**Constructors:**
 ```dart
-FixturesDialogView({required BuildContext context})
+FixturesDialogView({required BuildContext Function() contextProvider})
+FixturesDialogView.of(BuildContext context)
 ```
 
 **Methods:**
 ```dart
-Future<FixtureDocument?> pick(FixtureCollection fixture)
+Future<FixtureChoice?> pick(FixtureCollection fixture)
 ```
 
-Shows a dialog with the fixture options and returns the selected fixture, or `null` if cancelled.
+Shows a dialog with the fixture options and returns the user's choice
+(the selected document plus the Remember flag), or `null` if cancelled.
 
 ## 🔗 Integration
 

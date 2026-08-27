@@ -1,29 +1,53 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
 /// Implementation of DataQuery for Dio HTTP client
 ///
-/// This class provides functionality for finding and parsing fixture data
-/// for Dio HTTP requests.
+/// This class maps a Dio request to fixture file candidates and delegates
+/// loading to [FixtureSource].
+///
+/// ## File Naming Convention
+///
+/// The base name is `{METHOD}{PATH}` with `/` replaced by `_`
+/// (e.g. `GET_users.json` for `GET /users`). For requests with query
+/// parameters, candidates are tried in this order (query values are ordered
+/// by sorted key name, not URL order):
+///
+/// 1. Exact, ignoring query params: `GET_search.json`
+/// 2. Values appended: `GET_search_2_foo.json`
+/// 3. Literal `*` per value: `GET_search_*_*.json`
+/// 4. `{{key}}` per sorted key: `GET_search_{{page}}_{{q}}.json`
+///
+/// The `*` and `{{key}}` forms are literal file names, not globs — they
+/// match any values with the same arity.
 class DioDataQuery
     with FixtureSelector
     implements DataQuery<RequestOptions, Object> {
   /// The folder where mock data is stored
   final String mockFolder;
 
+  final FixtureSource _source;
+
   /// Creates a new DioDataQuery with the specified mock folder
+  ///
+  /// [assetLoader] substitutes how fixture files are read; it defaults to
+  /// the root asset bundle.
   DioDataQuery({
     this.mockFolder = 'assets/fixtures',
-  });
+    FixtureAssetLoader assetLoader = const BundleAssetLoader(),
+  }) : _source =
+            FixtureSource(mockFolder: mockFolder, assetLoader: assetLoader);
 
   /// Gets the mock folder path
   String get mockFolderPath => mockFolder;
 
   @override
-  Future<Object?> find(RequestOptions input) async {
+  Future<Object?> find(RequestOptions input) {
+    return _source.resolve(_candidateNames(input));
+  }
+
+  /// Builds the ordered fixture-file candidates for a request.
+  List<String> _candidateNames(RequestOptions input) {
     // Base file name from method and path (slashes replaced by underscores)
     final base = '${input.method}${input.path.replaceAll('/', '_')}';
 
@@ -43,76 +67,28 @@ class DioDataQuery
       for (final k in sortedKeys) normalizeSegment(queryParams[k]),
     ].where((s) => s.isNotEmpty).toList();
 
-    // Build a list of candidate file paths to try, in order
-    final List<String> candidates = [
+    return [
       // 1) Exact (no query params)
-      '$mockFolder/$base.json',
+      '$base.json',
       if (valueSegments.isNotEmpty) ...[
         // 2) Values appended (e.g., GET_search_foo_2.json)
-        '$mockFolder/${base}_${valueSegments.join('_')}.json',
-        // 3) Wildcards for each query value (e.g., GET_search_*.json or GET_search_*_*.json)
-        '$mockFolder/${base}_${List.filled(valueSegments.length, '*').join('_')}.json',
-        // 4) Mustache named by key order (e.g., GET_search_{{q}}_{{page}}.json)
+        '${base}_${valueSegments.join('_')}.json',
+        // 3) Wildcards for each query value (e.g., GET_search_*.json)
+        '${base}_${List.filled(valueSegments.length, '*').join('_')}.json',
+        // 4) Mustache named by key order (e.g., GET_search_{{page}}_{{q}}.json)
         if (sortedKeys.isNotEmpty)
-          '$mockFolder/${base}_${sortedKeys.map((k) => '{{$k}}').join('_')}.json',
+          '${base}_${sortedKeys.map((k) => '{{$k}}').join('_')}.json',
       ],
     ];
-
-    // Try exact matches first, then look for mustache pattern matches
-    for (final path in candidates) {
-      try {
-        final response = await rootBundle.loadString(path);
-        final data = jsonDecode(response);
-        return data as Map<String, dynamic>;
-      } catch (_) {
-        // Try next candidate
-        continue;
-      }
-    }
-
-    // No candidates matched
-    return null;
   }
 
   @override
   Future<FixtureCollection?> parse(Object source) async {
-    final sourceMap = source as Map<String, dynamic>;
-    return FixtureCollection(
-      description: sourceMap['description'],
-      items: (sourceMap['values'] as List)
-          .map((option) => FixtureDocument(
-                identifier: option['identifier'] as String,
-                description: option['description'] as String,
-                defaultOption: option['default'] as bool? ?? false,
-                data: option['data'],
-                dataPath: option['dataPath'],
-              ))
-          .toList(),
-    );
+    return FixtureCollection.fromJson(source as Map<String, dynamic>);
   }
 
   @override
-  Future<Object?> data(FixtureDocument document) async {
-    if (document.data == null && document.dataPath == null) {
-      return null;
-    }
-
-    if (document.data != null && document.dataPath != null) {
-      throw AssertionError(
-        'Either data or dataPath must be provided by fixture document but not both.',
-      );
-    }
-
-    // Return inline data
-    if (document.data != null) {
-      return document.data;
-    }
-
-    // Load data from file
-    final response =
-        await rootBundle.loadString('$mockFolder/${document.dataPath}');
-    final data = jsonDecode(response);
-
-    return data;
+  Future<Object?> data(FixtureDocument document) {
+    return _source.data(document);
   }
 }

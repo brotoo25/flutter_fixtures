@@ -7,9 +7,14 @@ void main() {
   group('Flutter Fixtures Meta-Package', () {
     test('exports all necessary components', () {
       // Core components
-      expect(DataSelectorType.random(), isA<Random>());
-      expect(DataSelectorType.defaultValue(), isA<Default>());
-      expect(DataSelectorType.pick(), isA<Pick>());
+      expect(
+        DataSelectorType.values,
+        containsAll([
+          DataSelectorType.pick,
+          DataSelectorType.defaultValue,
+          DataSelectorType.random,
+        ]),
+      );
 
       // Verify that the Fixture mixin is available
       expect(FixtureSelector, isNotNull);

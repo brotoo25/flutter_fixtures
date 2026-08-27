@@ -90,9 +90,9 @@ dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(),
     dataSelectorView: FixturesDialogView(
-      context: navigatorKey.currentContext!,
+      contextProvider: () => navigatorKey.currentContext!,
     ),
-    dataSelector: DataSelectorType.random(),
+    dataSelector: DataSelectorType.random,
     dataSelectorDelay: DataSelectorDelay.moderate, // Optional: simulate network delay
   ),
 );
@@ -125,8 +125,8 @@ class UserRepository {
 // In development/testing - use fixtures:
 final db = FixtureDatabaseAdapter(
   dataQuery: SqfliteDataQuery(),
-  dataSelector: DataSelectorType.pick(),
-  dataSelectorView: FixturesDialogView(context: context),
+  dataSelector: DataSelectorType.pick,
+  dataSelectorView: FixturesDialogView.of(context),
 );
 
 // In production - use real sqflite:
@@ -176,17 +176,17 @@ The library supports three fixture selection modes:
 
 1. **Random**: Randomly selects a fixture response
    ```dart
-   dataSelector: DataSelectorType.random()
+   dataSelector: DataSelectorType.random
    ```
 
 2. **Default**: Always selects the fixture marked as default
    ```dart
-   dataSelector: DataSelectorType.defaultValue()
+   dataSelector: DataSelectorType.defaultValue
    ```
 
 3. **Pick**: Shows a dialog for the user to pick the response
    ```dart
-   dataSelector: DataSelectorType.pick()
+   dataSelector: DataSelectorType.pick
    ```
 
 ### Fixture Files
@@ -290,8 +290,9 @@ To create a custom UI for fixture selection, implement the `DataSelectorView` in
 ```dart
 class MyCustomSelectorView implements DataSelectorView {
   @override
-  Future<FixtureDocument?> pick(FixtureCollection fixture) async {
-    // Your custom UI implementation
+  Future<FixtureChoice?> pick(FixtureCollection fixture) async {
+    // Your custom UI implementation: return the user's choice,
+    // or null if they cancelled
   }
 }
 ```

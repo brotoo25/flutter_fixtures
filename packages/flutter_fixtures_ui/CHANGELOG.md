@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0
+
+* **BREAKING**: `FixturesDialogView` is now a plain adapter constructed with a `contextProvider` (or `FixturesDialogView.of(context)`); the dialog widget is a private implementation detail.
+* The dialog returns a `FixtureChoice`; remembering selections and deduplicating concurrent dialogs are handled by core, so custom views inherit them.
+
 ## 0.1.2 Dialog dynamic height
 
 * Fix dialog height to be dynamic based on content.

@@ -1,6 +1,3 @@
-import 'dart:convert';
-
-import 'package:flutter/services.dart';
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
 import 'sqflite_query.dart';
@@ -49,58 +46,34 @@ class SqfliteDataQuery
   /// The folder where mock data is stored
   final String mockFolder;
 
+  final FixtureSource _source;
+
   /// Creates a new SqfliteDataQuery with the specified mock folder
+  ///
+  /// [assetLoader] substitutes how fixture files are read; it defaults to
+  /// the root asset bundle.
   SqfliteDataQuery({
     this.mockFolder = 'assets/fixtures/database',
-  });
+    FixtureAssetLoader assetLoader = const BundleAssetLoader(),
+  }) : _source =
+            FixtureSource(mockFolder: mockFolder, assetLoader: assetLoader);
 
   /// Gets the mock folder path
   String get mockFolderPath => mockFolder;
 
   @override
-  Future<Map<String, dynamic>?> find(SqfliteQuery input) async {
-    final identifier = input.fixtureIdentifier;
-
-    // Build candidate file paths to try
-    final List<String> candidates = [
-      '$mockFolder/$identifier.json',
-    ];
-
-    // For table queries with where clause, also try without the where clause
-    if (input.table != null && input.where != null) {
-      candidates.add('$mockFolder/${input.operation.name}_${input.table}.json');
-    }
-
-    // Try each candidate path
-    for (final path in candidates) {
-      try {
-        final response = await rootBundle.loadString(path);
-        final data = jsonDecode(response);
-        return data as Map<String, dynamic>;
-      } catch (_) {
-        // Try next candidate
-        continue;
-      }
-    }
-
-    // No candidates matched
-    return null;
+  Future<Map<String, dynamic>?> find(SqfliteQuery input) {
+    return _source.resolve([
+      '${input.fixtureIdentifier}.json',
+      // For table queries with a where clause, also try without it.
+      if (input.table != null && input.where != null)
+        '${input.operation.name}_${input.table}.json',
+    ]);
   }
 
   @override
   Future<FixtureCollection?> parse(Map<String, dynamic> source) async {
-    return FixtureCollection(
-      description: source['description'] as String? ?? '',
-      items: (source['values'] as List)
-          .map((option) => FixtureDocument(
-                identifier: option['identifier'] as String,
-                description: option['description'] as String,
-                defaultOption: option['default'] as bool? ?? false,
-                data: option['data'],
-                dataPath: option['dataPath'] as String?,
-              ))
-          .toList(),
-    );
+    return FixtureCollection.fromJson(source);
   }
 
   @override
@@ -109,29 +82,12 @@ class SqfliteDataQuery
       return null;
     }
 
-    if (document.data != null && document.dataPath != null) {
-      throw AssertionError(
-        'Either data or dataPath must be provided by fixture document but not both.',
-      );
-    }
+    final data = await _source.data(document);
 
-    // Return inline data (wrap in result key for consistency)
-    if (document.data != null) {
-      // If data is a List, wrap it; if Map, return as-is
-      if (document.data is List) {
-        return {'result': document.data};
-      }
-      return document.data as Map<String, dynamic>;
-    }
-
-    // Load data from file
-    final response =
-        await rootBundle.loadString('$mockFolder/${document.dataPath}');
-    final data = jsonDecode(response);
-
+    // Wrap list payloads in a result key for a consistent map shape.
     if (data is List) {
       return {'result': data};
     }
-    return data as Map<String, dynamic>;
+    return (data as Map).cast<String, dynamic>();
   }
 }

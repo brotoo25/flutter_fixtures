@@ -29,7 +29,7 @@ final dio = Dio();
 dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(),
-    dataSelector: DataSelectorType.random(),
+    dataSelector: DataSelectorType.random,
   ),
 );
 ```
@@ -89,7 +89,7 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
 dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(),
-    dataSelector: DataSelectorType.random(), // Randomly select fixtures
+    dataSelector: DataSelectorType.random, // Randomly select fixtures
     dataSelectorDelay: DataSelectorDelay.instant, // Optional: simulate network delay
   ),
 );
@@ -105,13 +105,13 @@ Choose how fixtures are selected:
 
 ```dart
 // Always use the default fixture (marked with "default": true)
-dataSelector: DataSelectorType.defaultValue()
+dataSelector: DataSelectorType.defaultValue
 
 // Randomly select from available fixtures
-dataSelector: DataSelectorType.random()
+dataSelector: DataSelectorType.random
 
 // Let user pick through UI (requires flutter_fixtures_ui package)
-dataSelector: DataSelectorType.pick()
+dataSelector: DataSelectorType.pick
 ```
 
 <div align="center">
@@ -137,7 +137,7 @@ By default, fixtures are loaded from `assets/fixtures/`. You can customize this:
 dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(mockFolder: 'assets/my_mocks'),
-    dataSelector: DataSelectorType.random(),
+    dataSelector: DataSelectorType.random,
   ),
 );
 ```
@@ -155,6 +155,20 @@ Examples:
 - `PUT_users_profile.json` → matches `PUT /users/profile`
 
 **Note**: Forward slashes (`/`) in paths are replaced with underscores (`_`) in filenames.
+
+### Query Parameter Matching
+
+For requests with query parameters, candidates are tried in this priority
+order (query values are ordered by **sorted key name**, not URL order):
+
+1. **Exact, ignoring query params**: `GET_search.json`
+2. **Values appended**: `GET_search_2_test.json` for `GET /search?q=test&page=2`
+3. **Literal `*` per value**: `GET_search_*_*.json`
+4. **`{{key}}` per sorted key**: `GET_search_{{page}}_{{q}}.json`
+
+The `*` and `{{key}}` forms are literal file names, not globs — they match
+any request with the same number of non-empty query values. The first
+candidate that exists wins.
 
 ### Fixture File Structure
 
@@ -257,8 +271,8 @@ import 'package:flutter_fixtures_ui/flutter_fixtures_ui.dart';
 dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(),
-    dataSelectorView: FixturesDialogView(context: context),
-    dataSelector: DataSelectorType.pick(), // Enables UI selection
+    dataSelectorView: FixturesDialogView.of(context),
+    dataSelector: DataSelectorType.pick, // Enables UI selection
   ),
 );
 ```
@@ -289,7 +303,7 @@ class ApiService {
     _dio.interceptors.add(
       FixturesInterceptor(
         dataQuery: DioDataQuery(),
-        dataSelector: DataSelectorType.defaultValue(),
+        dataSelector: DataSelectorType.defaultValue,
       ),
     );
   }

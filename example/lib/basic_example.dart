@@ -35,7 +35,7 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
       FixturesInterceptor(
         dataQuery: DioDataQuery(),
         dataSelectorView: FixturesDialogView(
-          context: widget.navigatorKey.currentContext!,
+          contextProvider: () => widget.navigatorKey.currentContext!,
         ),
         dataSelector: _getDataSelectorType(),
         dataSelectorDelay: DataSelectorDelay.moderate,
@@ -67,13 +67,13 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
   DataSelectorType _getDataSelectorType() {
     switch (_selectedSelectorType) {
       case 'Random':
-        return DataSelectorType.random();
+        return DataSelectorType.random;
       case 'Default':
-        return DataSelectorType.defaultValue();
+        return DataSelectorType.defaultValue;
       case 'Pick':
-        return DataSelectorType.pick();
+        return DataSelectorType.pick;
       default:
-        return DataSelectorType.random();
+        return DataSelectorType.random;
     }
   }
 

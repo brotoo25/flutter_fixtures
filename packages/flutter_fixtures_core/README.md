@@ -146,7 +146,7 @@ Use `DataSelectorDelay` to simulate network latency or other delays:
 await dataQuery.select(
   fixture,
   view,
-  DataSelectorType.random(),
+  DataSelectorType.random,
   delay: DataSelectorDelay.moderate, // 500ms delay
 );
 
@@ -154,7 +154,7 @@ await dataQuery.select(
 await dataQuery.select(
   fixture,
   view,
-  DataSelectorType.random(),
+  DataSelectorType.random,
   delay: DataSelectorDelay.custom(1500), // 1.5 second delay
 );
 
@@ -162,7 +162,7 @@ await dataQuery.select(
 await dataQuery.select(
   fixture,
   view,
-  DataSelectorType.random(),
+  DataSelectorType.random,
   // delay defaults to DataSelectorDelay.instant
 );
 ```
@@ -216,13 +216,13 @@ Fixture selection strategies:
 
 ```dart
 // Always use default fixture
-final defaultSelector = DataSelectorType.defaultValue();
+final defaultSelector = DataSelectorType.defaultValue;
 
 // Randomly select fixture
-final randomSelector = DataSelectorType.random();
+final randomSelector = DataSelectorType.random;
 
 // Let user choose via UI (requires DataSelectorView implementation)
-final pickSelector = DataSelectorType.pick();
+final pickSelector = DataSelectorType.pick;
 ```
 
 ### DataSelectorView
@@ -231,7 +231,8 @@ Interface for implementing fixture selection mechanisms:
 
 ```dart
 abstract class DataSelectorView {
-  Future<FixtureDocument?> pick(FixtureCollection fixture);
+  /// Returns the user's choice, or null if cancelled.
+  Future<FixtureChoice?> pick(FixtureCollection fixture);
 }
 ```
 
