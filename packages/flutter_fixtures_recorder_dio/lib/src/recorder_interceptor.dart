@@ -11,13 +11,17 @@ import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
 /// exists.
 ///
 /// Add it before other interceptors that produce responses (such as
-/// `FixturesInterceptor`), so replayed sessions win and recording sees the
-/// final response:
+/// `FixturesInterceptor`), so replayed sessions win:
 ///
 /// ```dart
 /// final dio = Dio();
 /// dio.interceptors.add(RecorderInterceptor(recorder: recorder));
 /// ```
+///
+/// Recording captures network traffic only. A response produced by a later
+/// interceptor via `handler.resolve` (as `FixturesInterceptor` does) never
+/// reaches this interceptor's response stage — Dio unwinds a plain resolve
+/// straight to the caller — so fixture-served responses are not recorded.
 ///
 /// HTTP requests are described to the recorder with source `'http'`, the
 /// method as operation, and the path with sorted query as target — the host
@@ -62,22 +66,16 @@ class RecorderInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    final request = describe(options);
-    final recorded = recorder.replayResponseFor(request);
-    if (recorded != null) {
-      return handler.resolve(_toResponse(recorded, options));
+    switch (recorder.decide(describe(options), onMiss: onReplayMiss)) {
+      case Replayed(:final interaction):
+        handler.resolve(_toResponse(interaction, options));
+      case RejectRequest(:final message):
+        handler.reject(
+          DioException(requestOptions: options, error: message),
+        );
+      case ForwardToSource():
+        handler.next(options);
     }
-    if (recorder.isReplaying && onReplayMiss == ReplayMissBehavior.reject) {
-      return handler.reject(
-        DioException(
-          requestOptions: options,
-          error: 'No recorded response for '
-              '"${request.operation} ${request.target}" in session '
-              '"${recorder.replaySession?.name}".',
-        ),
-      );
-    }
-    handler.next(options);
   }
 
   @override

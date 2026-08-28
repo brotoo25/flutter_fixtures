@@ -140,8 +140,9 @@ class RecorderToolbar extends StatelessWidget {
     );
     // Dismissing the dialog (barrier tap / back) keeps the recording running.
     if (choice == null) return;
+    // A blank name means "use the default" — the recorder owns that rule.
     final session = await recorder.stopRecording(
-      name: choice.name?.isEmpty ?? true ? null : choice.name,
+      name: choice.name,
       discard: choice.discard,
     );
     if (session != null && context.mounted) {

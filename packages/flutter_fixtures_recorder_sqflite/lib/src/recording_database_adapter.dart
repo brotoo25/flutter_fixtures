@@ -45,29 +45,28 @@ class RecordingDatabaseAdapter implements DatabaseAdapter {
     this.onReplayMiss = ReplayMissBehavior.forward,
   });
 
-  /// Replay-or-live core shared by every operation: answer from the active
-  /// session when possible, otherwise run the real operation and capture
-  /// its result while recording.
+  /// Renders the recorder's decision for one operation: serve the recorded
+  /// response, fail, or run the real operation and capture its result while
+  /// recording.
   Future<T> _run<T>(
     RecordedRequest request,
     Future<T> Function() live,
     T Function(Object? recorded) decode,
   ) async {
-    final recorded = recorder.replayResponseFor(request);
-    if (recorded != null) return decode(recorded.response);
-    if (recorder.isReplaying && onReplayMiss == ReplayMissBehavior.reject) {
-      throw StateError(
-        'No recorded response for "${request.operation} ${request.target}" '
-        'in session "${recorder.replaySession?.name}".',
-      );
+    switch (recorder.decide(request, onMiss: onReplayMiss)) {
+      case Replayed(:final interaction):
+        return decode(interaction.response);
+      case RejectRequest(:final message):
+        throw StateError(message);
+      case ForwardToSource():
+        final result = await live();
+        recorder.record(RecordedInteraction(
+          request: request,
+          response: result,
+          recordedAt: DateTime.now(),
+        ));
+        return result;
     }
-    final result = await live();
-    recorder.record(RecordedInteraction(
-      request: request,
-      response: result,
-      recordedAt: DateTime.now(),
-    ));
-    return result;
   }
 
   /// Canonical target: JSON with a fixed field order, nulls omitted, so the

@@ -39,7 +39,12 @@ network. Idle, the interceptor is a transparent passthrough.
 - The captured `content-length` header is not replayed (the re-encoded body
   may differ).
 - Add the interceptor **before** other interceptors that produce responses
-  (such as `FixturesInterceptor`), so replayed sessions win and recording
-  sees the final response.
+  (such as `FixturesInterceptor`), so replayed sessions win.
+- Recording captures **network traffic only**. A response produced by a
+  later interceptor via `handler.resolve` (as `FixturesInterceptor` does)
+  never reaches this interceptor's response stage — Dio unwinds a plain
+  resolve straight to the caller — so fixture-served responses are not
+  recorded. This composition is pinned by an integration test running a
+  real `Dio` with both interceptors installed.
 
 This package re-exports the recorder core, so a single import covers both.

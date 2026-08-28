@@ -52,6 +52,13 @@ void main() {
       expect(session!.name, startsWith('Session '));
     });
 
+    test('a blank name counts as absent', () async {
+      recorder.startRecording(name: '  ');
+      recorder.record(interaction('GET', '/users'));
+      final session = await recorder.stopRecording(name: '');
+      expect(session!.name, startsWith('Session '));
+    });
+
     test('discard saves nothing', () async {
       recorder.startRecording();
       recorder.record(interaction('GET', '/users'));
@@ -100,18 +107,29 @@ void main() {
 
       expect(recorder.isReplaying, isTrue);
       expect(recorder.replaySession?.id, saved.id);
-      expect(
-        recorder.replayResponseFor(request('GET', '/users'))?.response,
-        'recorded',
-      );
+      final decision = recorder.decide(request('GET', '/users'));
+      expect(decision, isA<Replayed>());
+      expect((decision as Replayed).interaction.response, 'recorded');
     });
 
     test('startReplay with an unknown id throws', () {
       expect(() => recorder.startReplay('nope'), throwsStateError);
     });
 
-    test('replayResponseFor returns null while idle', () {
-      expect(recorder.replayResponseFor(request('GET', '/users')), isNull);
+    test('starting a replay while replaying switches sessions', () async {
+      await recorder.startReplay(saved.id);
+      final other = RecordingSession(
+        id: 'other',
+        name: 'Other',
+        recordedAt: DateTime(2026, 8, 28),
+        interactions: [interaction('GET', '/users', body: 'other')],
+      );
+
+      recorder.startReplayOf(other);
+
+      expect(recorder.replaySession?.id, 'other');
+      final decision = recorder.decide(request('GET', '/users'));
+      expect((decision as Replayed).interaction.response, 'other');
     });
 
     test('stopReplay returns to idle and is idempotent', () async {
@@ -120,6 +138,82 @@ void main() {
       recorder.stopReplay();
       expect(recorder.mode, RecorderMode.idle);
       expect(recorder.replaySession, isNull);
+    });
+
+    test('restartReplay rewinds the session to the beginning', () async {
+      recorder.startReplayOf(RecordingSession(
+        id: 'seq',
+        name: 'Sequence',
+        recordedAt: DateTime(2026, 8, 28),
+        interactions: [
+          interaction('GET', '/status', body: 'first'),
+          interaction('GET', '/status', body: 'second'),
+        ],
+      ));
+
+      recorder.decide(request('GET', '/status'));
+      recorder.restartReplay();
+      final decision = recorder.decide(request('GET', '/status'));
+      expect((decision as Replayed).interaction.response, 'first');
+    });
+
+    test('a custom key builder threads through to replay matching', () {
+      recorder = FixtureRecorder(
+        store: store,
+        keyOf: (request) =>
+            '${request.source} ${request.operation} ${request.target.split('?').first}',
+      );
+      recorder.startReplayOf(RecordingSession(
+        id: 'k',
+        name: 'Keyed',
+        recordedAt: DateTime(2026, 8, 28),
+        interactions: [interaction('GET', '/users?ts=1', body: 'ok')],
+      ));
+
+      final decision = recorder.decide(request('GET', '/users?ts=999'));
+      expect((decision as Replayed).interaction.response, 'ok');
+    });
+  });
+
+  group('decide', () {
+    late RecordingSession saved;
+
+    setUp(() async {
+      recorder.startRecording();
+      recorder.record(interaction('GET', '/users', body: 'recorded'));
+      saved = (await recorder.stopRecording())!;
+    });
+
+    test('forwards while idle, whatever the miss policy says', () {
+      expect(recorder.decide(request('GET', '/users')), isA<ForwardToSource>());
+      expect(
+        recorder.decide(request('GET', '/users'),
+            onMiss: ReplayMissBehavior.reject),
+        isA<ForwardToSource>(),
+      );
+    });
+
+    test('replays a recorded request', () async {
+      await recorder.startReplay(saved.id);
+      expect(recorder.decide(request('GET', '/users')), isA<Replayed>());
+    });
+
+    test('forwards a miss by default', () async {
+      await recorder.startReplay(saved.id);
+      expect(
+          recorder.decide(request('GET', '/unknown')), isA<ForwardToSource>());
+    });
+
+    test('rejects a miss with the session named in the message', () async {
+      await recorder.startReplay(saved.id);
+      final decision = recorder.decide(
+        request('GET', '/unknown'),
+        onMiss: ReplayMissBehavior.reject,
+      );
+      expect(decision, isA<RejectRequest>());
+      final message = (decision as RejectRequest).message;
+      expect(message, contains('GET /unknown'));
+      expect(message, contains(saved.name));
     });
   });
 

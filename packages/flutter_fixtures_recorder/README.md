@@ -67,9 +67,10 @@ source receives the same responses in the same order.
   polling endpoint captured as `pending → pending → done` replays exactly
   that progression. After the recordings run out, the last response
   repeats, which keeps long demos alive.
-- Requests with no recording follow the adapter's `ReplayMissBehavior`:
-  **forward** to the real source (default) or **reject/fail** to guarantee
-  the real source is never touched.
+- Requests with no recording follow the `ReplayMissBehavior` the adapter
+  passes in: **forward** to the real source (default) or **reject/fail** to
+  guarantee the real source is never touched. The recorder interprets the
+  policy — adapters only render the resulting `ReplayDecision`.
 
 ## The pieces
 
@@ -80,15 +81,16 @@ source receives the same responses in the same order.
 | `RecordingSession` / `RecordedInteraction` | The saved artifact: a named, ordered capture of traffic, JSON-serializable. The response inside an interaction is opaque to the recorder — the adapter that wrote it reads it back. |
 | `RecordingSessionStore` | The persistence seam. Built-ins: `FileRecordingSessionStore` (JSON files, survives restarts) and `MemoryRecordingSessionStore` (runtime-only, web-friendly). |
 | `SessionReplay` | The playback engine: per-request-key cursors over a session. |
-| `ReplayMissBehavior` | The adapters' policy for unrecorded requests during replay. |
+| `ReplayDecision` | The recorder's sealed answer per request: `Replayed`, `ForwardToSource`, or `RejectRequest` — returned by `decide`, rendered by adapters. |
+| `ReplayMissBehavior` | The miss policy adapters pass to `decide`: forward or reject. |
 | `RecorderToolbar` / `showRecordingSessionsSheet` | The built-in UI tools: start/stop recording with a save prompt, list/select/delete sessions, stop or restart replay. |
 
 ## Any source
 
 An adapter is just code that (1) describes its requests as
-`RecordedRequest`s, (2) offers recorded responses back before doing real
-work, and (3) captures real results while recording. That works for an
-in-memory cache, a platform channel, a GraphQL client — anything:
+`RecordedRequest`s, (2) asks `decide` how each one should be handled, and
+(3) renders the decision in its own types. That works for an in-memory
+cache, a platform channel, a GraphQL client — anything:
 
 ```dart
 Future<Object?> loadPreferences(FixtureRecorder recorder) async {
@@ -98,18 +100,25 @@ Future<Object?> loadPreferences(FixtureRecorder recorder) async {
     target: 'user_preferences',
   );
 
-  final replayed = recorder.replayResponseFor(request);
-  if (replayed != null) return replayed.response;
-
-  final value = await realPreferenceLookup();
-  recorder.record(RecordedInteraction(
-    request: request,
-    response: value,
-    recordedAt: DateTime.now(),
-  )); // no-op unless recording
-  return value;
+  switch (recorder.decide(request)) {
+    case Replayed(:final interaction):
+      return interaction.response;
+    case RejectRequest(:final message):
+      throw StateError(message);
+    case ForwardToSource():
+      final value = await realPreferenceLookup();
+      recorder.record(RecordedInteraction(
+        request: request,
+        response: value,
+        recordedAt: DateTime.now(),
+      )); // no-op unless recording
+      return value;
+  }
 }
 ```
+
+Mode checks, ordered replay, and the miss policy all live behind `decide` —
+an adapter never needs to ask the recorder what mode it is in.
 
 Keep the target **normalized** (the same logical request must always
 produce the same target) and the response **JSON-encodable** if sessions

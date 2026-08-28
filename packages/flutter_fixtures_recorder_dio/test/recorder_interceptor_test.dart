@@ -95,7 +95,8 @@ void main() {
           RequestOptions(path: 'https://staging.test/users'));
       final prod = RecorderInterceptor.describe(
           RequestOptions(path: 'https://prod.test/users'));
-      expect(staging.requestKey, prod.requestKey);
+      expect(RecordedRequest.defaultKey(staging),
+          RecordedRequest.defaultKey(prod));
     });
   });
 

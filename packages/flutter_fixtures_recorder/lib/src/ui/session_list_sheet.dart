@@ -116,7 +116,6 @@ class _SessionListSheetState extends State<_SessionListSheet> {
       );
       return;
     }
-    widget.recorder.stopReplay();
     widget.recorder.startReplayOf(session);
     Navigator.pop(context);
   }

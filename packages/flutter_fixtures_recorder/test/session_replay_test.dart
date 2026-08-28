@@ -42,17 +42,18 @@ void main() {
     });
 
     test('distinguishes sources, operations and targets', () {
+      String key(RecordedRequest r) => RecordedRequest.defaultKey(r);
       expect(
-        request('/users', source: 'http').requestKey,
-        isNot(request('/users', source: 'sqlite').requestKey),
+        key(request('/users', source: 'http')),
+        isNot(key(request('/users', source: 'sqlite'))),
       );
       expect(
-        request('/users', operation: 'GET').requestKey,
-        isNot(request('/users', operation: 'POST').requestKey),
+        key(request('/users', operation: 'GET')),
+        isNot(key(request('/users', operation: 'POST'))),
       );
       expect(
-        request('/users').requestKey,
-        isNot(request('/orders').requestKey),
+        key(request('/users')),
+        isNot(key(request('/orders'))),
       );
     });
 
@@ -63,8 +64,10 @@ void main() {
         target: '/login',
         payload: {'user': 'ada'},
       );
-      expect(withPayload.requestKey,
-          request('/login', operation: 'POST').requestKey);
+      expect(
+        RecordedRequest.defaultKey(withPayload),
+        RecordedRequest.defaultKey(request('/login', operation: 'POST')),
+      );
     });
   });
 

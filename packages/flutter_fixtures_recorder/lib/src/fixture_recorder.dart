@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'recorded_interaction.dart';
 import 'recorded_request.dart';
 import 'recording_session.dart';
+import 'replay_decision.dart';
+import 'replay_miss_behavior.dart';
 import 'session_replay.dart';
 import 'session_store.dart';
 
@@ -23,22 +25,22 @@ enum RecorderMode {
 /// This is the module's single entry point: source adapters — the Dio
 /// interceptor, the sqflite recording adapter, or any custom code talking
 /// to any data source — feed captured traffic in through [record] and ask
-/// for replayed responses through [replayResponseFor]; UI — the built-in
-/// widgets or your own — drives the mode transitions and session
-/// management. One recorder serves every source at once: interactions are
-/// namespaced by their request's `source`, so a session can hold HTTP and
-/// database traffic side by side.
+/// [decide] how each request should be handled; UI — the built-in widgets
+/// or your own — drives the mode transitions and session management. One
+/// recorder serves every source at once: interactions are namespaced by
+/// their request's `source`, so a session can hold HTTP and database
+/// traffic side by side.
 ///
 /// The recorder is a [ChangeNotifier]: it notifies on every mode change and
 /// on every captured interaction, so any widget can observe it (the built-in
 /// toolbar is nothing more than a listener on this class).
 ///
-/// Mode transitions are strict: recording and replaying can only start from
-/// [RecorderMode.idle] (a [StateError] is thrown otherwise), while the stop
-/// methods are safe to call in any mode.
+/// Mode transitions: recording can only start from [RecorderMode.idle];
+/// replaying can start from idle or replaying (starting a replay while one
+/// is active switches sessions). Starting either while recording throws a
+/// [StateError]. The stop methods are safe to call in any mode.
 class FixtureRecorder extends ChangeNotifier {
-  /// Where sessions are saved and loaded. See [RecordingSessionStore].
-  final RecordingSessionStore store;
+  final RecordingSessionStore _store;
 
   /// Optional custom request-key builder applied during replay.
   final RequestKeyBuilder? keyOf;
@@ -48,7 +50,8 @@ class FixtureRecorder extends ChangeNotifier {
   String? _pendingName;
   SessionReplay? _replay;
 
-  FixtureRecorder({required this.store, this.keyOf});
+  FixtureRecorder({required RecordingSessionStore store, this.keyOf})
+      : _store = store;
 
   /// The current mode.
   RecorderMode get mode => _mode;
@@ -67,21 +70,27 @@ class FixtureRecorder extends ChangeNotifier {
 
   /// Starts capturing traffic into a new session.
   ///
-  /// The [name] can also be given (or overridden) at [stopRecording] time.
-  /// Throws a [StateError] unless the recorder is idle.
+  /// The [name] can also be given (or overridden) at [stopRecording] time;
+  /// a blank name means "use the default timestamped name". Throws a
+  /// [StateError] unless the recorder is idle.
   void startRecording({String? name}) {
-    _requireIdle('start recording');
-    _pendingName = name;
+    _requireNotRecording('start recording');
+    if (isReplaying) {
+      throw StateError(
+          'Cannot start recording while replaying. Stop the replay first.');
+    }
+    _pendingName = _normalizeName(name);
     _buffer.clear();
     _mode = RecorderMode.recording;
     notifyListeners();
   }
 
-  /// Stops capturing and saves the session to the [store].
+  /// Stops capturing and saves the session to the store.
   ///
-  /// Returns the saved session, or `null` when there was nothing to save:
-  /// the recorder was not recording, [discard] was set, or no traffic was
-  /// captured.
+  /// A blank [name] counts as absent, falling back to the name given at
+  /// [startRecording] and then to a timestamped default. Returns the saved
+  /// session, or `null` when there was nothing to save: the recorder was
+  /// not recording, [discard] was set, or no traffic was captured.
   Future<RecordingSession?> stopRecording({
     String? name,
     bool discard = false,
@@ -99,11 +108,13 @@ class FixtureRecorder extends ChangeNotifier {
     final recordedAt = DateTime.now();
     final session = RecordingSession(
       id: recordedAt.millisecondsSinceEpoch.toString(),
-      name: name ?? pendingName ?? 'Session ${_formatTimestamp(recordedAt)}',
+      name: _normalizeName(name) ??
+          pendingName ??
+          'Session ${_formatTimestamp(recordedAt)}',
       recordedAt: recordedAt,
       interactions: interactions,
     );
-    await store.save(session);
+    await _store.save(session);
     return session;
   }
 
@@ -117,13 +128,13 @@ class FixtureRecorder extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Loads the session with this id from the [store] and starts replaying it.
+  /// Loads the session with this id from the store and starts replaying it.
   ///
-  /// Throws a [StateError] unless the recorder is idle, or if the id is
-  /// unknown to the store.
+  /// Starting a replay while another is active switches sessions. Throws a
+  /// [StateError] while recording, or if the id is unknown to the store.
   Future<RecordingSession> startReplay(String sessionId) async {
-    _requireIdle('start replay');
-    final session = await store.load(sessionId);
+    _requireNotRecording('start replay');
+    final session = await _store.load(sessionId);
     if (session == null) {
       throw StateError('Unknown recording session "$sessionId".');
     }
@@ -132,9 +143,12 @@ class FixtureRecorder extends ChangeNotifier {
   }
 
   /// Starts replaying a session obtained elsewhere (built in code, imported,
-  /// bundled as an asset). Throws a [StateError] unless the recorder is idle.
+  /// bundled as an asset).
+  ///
+  /// Starting a replay while another is active switches sessions. Throws a
+  /// [StateError] while recording.
   void startReplayOf(RecordingSession session) {
-    _requireIdle('start replay');
+    _requireNotRecording('start replay');
     _replay = SessionReplay(session, keyOf: keyOf);
     _mode = RecorderMode.replaying;
     notifyListeners();
@@ -148,28 +162,49 @@ class FixtureRecorder extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The next recorded response for this request, or `null` when not
-  /// replaying or when the active session holds no recording for it.
+  /// Decides how a request should be handled, owning the whole replay
+  /// choreography: mode check, ordered lookup (see [SessionReplay]), and
+  /// the [onMiss] policy — including the phrasing of the miss message.
   ///
-  /// See [SessionReplay] for the ordering semantics.
-  RecordedInteraction? replayResponseFor(RecordedRequest request) {
-    return _replay?.next(request);
+  /// Adapters translate the returned [ReplayDecision] into their native
+  /// transport and nothing else.
+  ReplayDecision decide(
+    RecordedRequest request, {
+    ReplayMissBehavior onMiss = ReplayMissBehavior.forward,
+  }) {
+    final replay = _replay;
+    if (replay == null) return ForwardToSource();
+    final interaction = replay.next(request);
+    if (interaction != null) return Replayed(interaction);
+    if (onMiss == ReplayMissBehavior.reject) {
+      return RejectRequest(
+        'No recorded response for "${request.operation} ${request.target}" '
+        'in session "${replay.session.name}".',
+      );
+    }
+    return ForwardToSource();
   }
 
   /// Rewinds the active replay to the beginning of its session.
   void restartReplay() => _replay?.restart();
 
   /// All saved sessions, most recently recorded first.
-  Future<List<RecordingSession>> sessions() => store.list();
+  Future<List<RecordingSession>> sessions() => _store.list();
 
   /// Deletes a saved session.
-  Future<void> deleteSession(String id) => store.delete(id);
+  Future<void> deleteSession(String id) => _store.delete(id);
 
-  void _requireIdle(String action) {
-    if (_mode != RecorderMode.idle) {
-      throw StateError('Cannot $action while ${_mode.name}. '
-          'Stop the current ${_mode.name} first.');
+  void _requireNotRecording(String action) {
+    if (isRecording) {
+      throw StateError(
+          'Cannot $action while recording. Stop the recording first.');
     }
+  }
+
+  static String? _normalizeName(String? name) {
+    if (name == null) return null;
+    final trimmed = name.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   static String _formatTimestamp(DateTime time) {

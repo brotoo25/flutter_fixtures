@@ -48,9 +48,6 @@ class RecordedRequest {
     return '${request.source} ${request.operation} ${request.target}';
   }
 
-  /// This request's [defaultKey].
-  String get requestKey => defaultKey(this);
-
   /// Creates a request from its session-file JSON representation.
   factory RecordedRequest.fromJson(Map<String, dynamic> json) {
     return RecordedRequest(

@@ -121,12 +121,25 @@ be remembered; cleared via `clearRememberedSelectionFor` /
 The record-and-replay controller (`FixtureRecorder`,
 flutter_fixtures_recorder), the module's single entry point. A strict
 mode machine — idle / recording / replaying — that source adapters feed
-captured traffic into and ask for replayed responses from. Source-agnostic:
+captured traffic into (`record`) and ask how to handle each request
+(`decide`, which answers with a **Replay Decision**). Source-agnostic:
 one recorder serves HTTP, database, and custom sources at once, and a
-session can hold them side by side. The module is self-contained: no other
-package depends on it, and idle traffic passes through untouched. Adapters
-ship separately: `flutter_fixtures_recorder_dio` (Dio interceptor) and
+session can hold them side by side. Persistence is owned outright — the
+Session Store is private, reached only through `sessions`/`deleteSession`
+and the save on stop. The module is self-contained: no other package
+depends on it, and idle traffic passes through untouched. Adapters ship
+separately: `flutter_fixtures_recorder_dio` (Dio interceptor) and
 `flutter_fixtures_recorder_sqflite` (a `DatabaseAdapter` decorator).
+
+## Replay Decision
+
+The recorder's sealed answer for one request (`ReplayDecision`): serve
+this recorded interaction (`Replayed`), let the request continue to the
+real source (`ForwardToSource`), or fail it (`RejectRequest`, message
+phrased by the recorder). Returned by `FixtureRecorder.decide`, which owns
+the whole choreography — mode check, ordered lookup, miss policy — so an
+adapter only renders the decision in its native types and never inspects
+the recorder's mode.
 
 ## Recording Session
 
@@ -165,7 +178,8 @@ The playback engine (`SessionReplay`): interactions grouped by request key
 `RequestKeyBuilder`), one cursor per key, responses served in recorded
 order, repeating the last once exhausted. A request with no recording
 returns `null` — the miss policy (`ReplayMissBehavior`: forward / reject)
-belongs to the source adapter, not the engine.
+is chosen by the source adapter but interpreted by the Fixture Recorder's
+`decide`, which turns it into a Replay Decision.
 
 ## Recorder Toolbar
 

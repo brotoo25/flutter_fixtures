@@ -224,6 +224,31 @@ void main() {
     });
   });
 
+  group('raw operations and execute', () {
+    test('record and replay like every other operation', () async {
+      recorder.startRecording();
+      final insertId =
+          await db.rawInsert('INSERT INTO users (name) VALUES (?)', ['Grace']);
+      final updated = await db.rawUpdate('UPDATE users SET name = ?', ['Ada']);
+      final deleted = await db.rawDelete('DELETE FROM users WHERE id = ?', [1]);
+      await db.execute('VACUUM');
+      final session = (await recorder.stopRecording())!;
+      expect(session.interactions.map((i) => i.request.operation),
+          ['rawInsert', 'rawUpdate', 'rawDelete', 'execute']);
+
+      await recorder.startReplay(session.id);
+      final baseline = inner.calls;
+      expect(
+          await db.rawInsert('INSERT INTO users (name) VALUES (?)', ['Grace']),
+          insertId);
+      expect(await db.rawUpdate('UPDATE users SET name = ?', ['Ada']), updated);
+      expect(
+          await db.rawDelete('DELETE FROM users WHERE id = ?', [1]), deleted);
+      await db.execute('VACUUM');
+      expect(inner.calls, baseline);
+    });
+  });
+
   group('mixed sources', () {
     test('database traffic coexists with other sources in one session',
         () async {
@@ -245,16 +270,12 @@ void main() {
       expect(rows, [
         {'id': 1, 'name': 'Ada'}
       ]);
-      expect(
-        recorder
-            .replayResponseFor(RecordedRequest(
-              source: 'http',
-              operation: 'GET',
-              target: '/users',
-            ))
-            ?.response,
-        'http response',
-      );
+      final decision = recorder.decide(RecordedRequest(
+        source: 'http',
+        operation: 'GET',
+        target: '/users',
+      ));
+      expect((decision as Replayed).interaction.response, 'http response');
     });
   });
 }
