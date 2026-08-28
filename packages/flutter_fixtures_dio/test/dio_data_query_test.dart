@@ -132,7 +132,7 @@ void main() {
     });
   });
 
-  group('DioDataQuery OpenAPI fallback', () {
+  group('DioDataQuery source ordering', () {
     const spec = '''
     {
       "openapi": "3.0.0",
@@ -159,11 +159,13 @@ void main() {
         'assets/fixtures/openapi.json': spec,
       });
       final query = DioDataQuery(
-        assetLoader: loader,
-        fallback: OpenApiFixtureSource(
-          specPath: 'assets/fixtures/openapi.json',
-          assetLoader: loader,
-        ),
+        sources: [
+          HttpFileFixtureSource(assetLoader: loader),
+          OpenApiFixtureSource(
+            specPath: 'assets/fixtures/openapi.json',
+            assetLoader: loader,
+          ),
+        ],
       );
 
       final result = await query.find(
@@ -181,11 +183,13 @@ void main() {
         'assets/fixtures/openapi.json': spec,
       });
       final query = DioDataQuery(
-        assetLoader: loader,
-        fallback: OpenApiFixtureSource(
-          specPath: 'assets/fixtures/openapi.json',
-          assetLoader: loader,
-        ),
+        sources: [
+          HttpFileFixtureSource(assetLoader: loader),
+          OpenApiFixtureSource(
+            specPath: 'assets/fixtures/openapi.json',
+            assetLoader: loader,
+          ),
+        ],
       );
 
       final result = await query.find(
@@ -204,11 +208,13 @@ void main() {
         'assets/fixtures/openapi.json': spec,
       });
       final query = DioDataQuery(
-        assetLoader: loader,
-        fallback: OpenApiFixtureSource(
-          specPath: 'assets/fixtures/openapi.json',
-          assetLoader: loader,
-        ),
+        sources: [
+          HttpFileFixtureSource(assetLoader: loader),
+          OpenApiFixtureSource(
+            specPath: 'assets/fixtures/openapi.json',
+            assetLoader: loader,
+          ),
+        ],
       );
 
       expect(

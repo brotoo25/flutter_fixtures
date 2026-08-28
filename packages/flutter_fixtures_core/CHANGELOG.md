@@ -2,13 +2,15 @@
 
 ## Unreleased
 
-* New `HttpFixtureSource` seam for deriving HTTP fixtures from an API
-  description; adapters use one as a fallback for requests with no
-  hand-written fixture file.
-* New `OpenApiFixtureSource` (the built-in `HttpFixtureSource`) derives
-  fixture collections from an OpenAPI 3.x JSON document: operation docs name
-  the collection, and each response's status, description, and payload
-  examples (or a schema-generated sample) become selectable documents.
+* New `HttpFixtureSource` seam: resolves an `HttpFixtureRequest` (method,
+  path, query parameters) to a fixture collection. HTTP adapters consult an
+  ordered list of sources; the first that resolves wins.
+* New `HttpFileFixtureSource` implements the seam over fixture files,
+  owning the HTTP file naming convention (moved from `DioDataQuery`).
+* New `OpenApiFixtureSource` implements the seam over an OpenAPI 3.x JSON
+  document: operation docs name the collection, and each response's status,
+  description, and payload examples (or a schema-generated sample) become
+  selectable documents.
 
 ## 0.2.0
 

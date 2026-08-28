@@ -2,9 +2,12 @@
 
 ## Unreleased
 
-* New `DioDataQuery.fallback` resolves requests with no matching fixture
-  file through an `HttpFixtureSource` (e.g. `OpenApiFixtureSource` for an
-  OpenAPI 3.x spec); hand-written fixture files still win.
+* New `DioDataQuery.sources` takes an ordered `HttpFixtureSource` list;
+  the first source that resolves a request wins. Defaults to fixture files
+  (`HttpFileFixtureSource`); add `OpenApiFixtureSource` to derive fixtures
+  from an OpenAPI 3.x spec for requests no fixture file covers.
+* **BREAKING**: `DioDataQuery.mockFolderPath` was removed; the file naming
+  convention now lives in `HttpFileFixtureSource` in core.
 
 ## 0.2.0
 

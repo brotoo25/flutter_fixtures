@@ -1,11 +1,12 @@
 import 'dart:convert';
 
 import 'fixture_asset_loader.dart';
+import 'fixture_document.dart';
 import 'http_fixture_source.dart';
 
 /// Builds fixture collections from an OpenAPI 3.x JSON document.
 ///
-/// [resolve] matches a request's method and path against the spec's `paths`
+/// [resolve] matches the request's method and path against the spec's `paths`
 /// (handling `{param}` templates and `servers` base paths) and returns the
 /// collection in the standard fixture wire format
 /// (`{"description": ..., "values": [...]}`): the operation's documentation
@@ -32,13 +33,14 @@ class OpenApiFixtureSource implements HttpFixtureSource {
   });
 
   @override
-  Future<Map<String, dynamic>?> resolve(String method, String path) async {
+  Future<Map<String, dynamic>?> resolve(HttpFixtureRequest request) async {
+    final method = request.method;
     final spec = await _loadSpec();
     final paths = spec['paths'];
     if (paths is! Map) {
       return null;
     }
-    for (final requestPath in _candidatePaths(spec, path)) {
+    for (final requestPath in _candidatePaths(spec, request.path)) {
       // Concrete paths win over templated ones (e.g. /users/me over
       // /users/{id}), regardless of their order in the spec.
       for (final exactOnly in [true, false]) {
@@ -64,6 +66,12 @@ class OpenApiFixtureSource implements HttpFixtureSource {
       }
     }
     return null;
+  }
+
+  @override
+  Future<Object?> data(FixtureDocument document) async {
+    // Spec-derived documents always carry their payload inline.
+    return document.data;
   }
 
   Future<Map<String, dynamic>> _loadSpec() async {

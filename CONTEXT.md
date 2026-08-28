@@ -29,23 +29,26 @@ Adapters: `DioDataQuery` (HTTP via Dio), `SqfliteDataQuery` (sqflite).
 ## Fixture Source
 
 The core module owning fixture-file IO (`FixtureSource`): tries candidate
-file names in order, decodes JSON, loads document payloads. Data Query
-adapters only build candidate names for their domain and delegate here.
+file names in order, decodes JSON, loads document payloads. Consumers only
+build candidate names for their domain and delegate here — the HTTP File
+Source for HTTP requests, the sqflite Data Query for database queries.
 A missing candidate is skipped; a matched candidate with malformed JSON
 fails loudly.
 
 ## HTTP Fixture Source
 
-The seam for deriving HTTP fixtures from an API description
-(`HttpFixtureSource`): `resolve(method, path)` returns a Fixture Collection
-in the standard wire format, or `null` when the source describes no such
-operation. HTTP adapters consult one as a fallback for requests with no
-hand-written fixture file — hand-written fixtures always win.
+The seam for providing HTTP fixtures (`HttpFixtureSource`): `resolve` takes
+an `HttpFixtureRequest` (method, path, query parameters) and returns a
+Fixture Collection in the standard wire format, or `null` when the source
+has none; `data` materializes a document's payload. HTTP adapters consult
+an ordered list of sources — the first that resolves wins, so list order
+decides precedence. Built-ins: `HttpFileFixtureSource` (fixture files,
+owning the HTTP file naming convention) and `OpenApiFixtureSource`.
 
 ## OpenAPI Source
 
-The built-in HTTP Fixture Source for OpenAPI 3.x JSON documents
-(`OpenApiFixtureSource`): matches a request's method and path against the
+The HTTP Fixture Source for OpenAPI 3.x JSON documents
+(`OpenApiFixtureSource`): matches the request's method and path against the
 spec's `paths` (templates and server base paths included). The operation's
 summary names the collection; each response — status, description, and
 payload examples (or a schema-generated sample) — becomes a Fixture

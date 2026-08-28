@@ -248,9 +248,10 @@ file per endpoint. Drop the spec's JSON in your assets and point
 dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(
-      fallback: OpenApiFixtureSource(
-        specPath: 'assets/fixtures/openapi.json',
-      ),
+      sources: [
+        HttpFileFixtureSource(),
+        OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
+      ],
     ),
     dataSelector: DataSelectorType.pick,
   ),
@@ -273,13 +274,12 @@ handled) and its documentation becomes the collection:
   (`$ref`, `allOf`, `oneOf`/`anyOf`, `enum`, and string `format`s are honoured).
 - Status ranges like `2XX` map to their first code, and `default` maps to `500`.
 
-Hand-written fixture files always win over spec-derived ones, so you can
-start from the spec and override individual endpoints with richer fixtures
-as you need them.
-
-`fallback` accepts any `HttpFixtureSource` implementation — OpenAPI is the
-built-in one, and you can plug in your own for other API description
-formats.
+Sources are consulted in list order and the first one that resolves wins:
+with the list above, hand-written fixture files beat spec-derived ones, so
+you can start from the spec and override individual endpoints with richer
+fixtures as you need them. Any `HttpFixtureSource` implementation can join
+the list — files and OpenAPI are the built-in ones, and you can plug in
+your own for other API description formats.
 
 ## Advanced Usage
 
@@ -382,12 +382,12 @@ The main interceptor class that handles request interception.
 Data provider that loads and parses fixture files from app assets.
 
 **Constructor Parameters:**
-- `mockFolder` (optional): Asset directory containing fixture files (default: `'assets/fixtures'`)
-- `fallback` (optional): `HttpFixtureSource` consulted for requests with no fixture file (e.g. `OpenApiFixtureSource`)
-- `assetLoader` (optional): Seam for reading fixture assets (default: root asset bundle)
+- `sources` (optional): Ordered `HttpFixtureSource` list consulted per request; the first that resolves wins (default: a single `HttpFileFixtureSource`)
+- `mockFolder` (optional): Asset directory for the default file source (default: `'assets/fixtures'`); ignored when `sources` is given
+- `assetLoader` (optional): Seam for reading fixture assets used by the default file source (default: root asset bundle); ignored when `sources` is given
 
 **Methods:**
-- `find(RequestOptions)`: Locates fixture file for the request, falling back to the configured `HttpFixtureSource`
+- `find(RequestOptions)`: Resolves the request through `sources`, in order
 - `parse(Map<String, dynamic>)`: Parses fixture file into collection
 - `select(...)`: Selects specific fixture based on strategy
 - `data(FixtureDocument)`: Retrieves response data for selected fixture

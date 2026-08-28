@@ -20,6 +20,10 @@ class InMemoryAssetLoader implements FixtureAssetLoader {
   }
 }
 
+HttpFixtureRequest req(String method, String path) {
+  return HttpFixtureRequest(method: method, path: path);
+}
+
 OpenApiFixtureSource sourceFor(Map<String, dynamic> spec) {
   return OpenApiFixtureSource(
     specPath: 'assets/openapi.json',
@@ -68,7 +72,7 @@ void main() {
         },
       });
 
-      final result = await source.resolve('GET', '/users');
+      final result = await source.resolve(req('GET', '/users'));
       final collection = FixtureCollection.fromJson(result!);
 
       expect(collection.description, equals('List users'));
@@ -123,12 +127,12 @@ void main() {
       });
 
       for (final path in ['/users/42', '/v1/users/42', 'users/42?full=true']) {
-        final result = await source.resolve('GET', path);
+        final result = await source.resolve(req('GET', path));
         expect(result, isNotNull, reason: 'expected a match for $path');
         expect(result!['description'], equals('getUser'));
       }
-      expect(await source.resolve('GET', '/users'), isNull);
-      expect(await source.resolve('DELETE', '/users/42'), isNull);
+      expect(await source.resolve(req('GET', '/users')), isNull);
+      expect(await source.resolve(req('DELETE', '/users/42')), isNull);
     });
 
     test('prefers concrete paths over templated ones, in any spec order',
@@ -155,8 +159,8 @@ void main() {
         },
       });
 
-      final me = await source.resolve('GET', '/users/me');
-      final other = await source.resolve('GET', '/users/42');
+      final me = await source.resolve(req('GET', '/users/me'));
+      final other = await source.resolve(req('GET', '/users/42'));
 
       expect(me!['description'], equals('getCurrentUser'));
       expect(other!['description'], equals('getUser'));
@@ -178,7 +182,7 @@ void main() {
       });
 
       final result =
-          await source.resolve('GET', 'https://api.example.com/users');
+          await source.resolve(req('GET', 'https://api.example.com/users'));
 
       expect(result!['description'], equals('listUsers'));
     });
@@ -230,7 +234,7 @@ void main() {
         },
       });
 
-      final result = await source.resolve('POST', '/orders');
+      final result = await source.resolve(req('POST', '/orders'));
       final collection = FixtureCollection.fromJson(result!);
       final document = collection.items.single;
 
@@ -294,7 +298,7 @@ void main() {
         },
       });
 
-      final result = await source.resolve('GET', '/nodes');
+      final result = await source.resolve(req('GET', '/nodes'));
       final data = FixtureCollection.fromJson(result!).items.single.data;
 
       expect(data, equals({'id': 0, 'parent': null, 'name': 'string'}));
@@ -317,8 +321,8 @@ void main() {
         },
       });
 
-      final collection =
-          FixtureCollection.fromJson((await source.resolve('GET', '/health'))!);
+      final collection = FixtureCollection.fromJson(
+          (await source.resolve(req('GET', '/health')))!);
 
       expect(collection.items, hasLength(3));
       expect(collection.items[0].description, equals('400 Client error'));
@@ -346,8 +350,8 @@ void main() {
         },
       });
 
-      final collection =
-          FixtureCollection.fromJson((await source.resolve('GET', '/things'))!);
+      final collection = FixtureCollection.fromJson(
+          (await source.resolve(req('GET', '/things')))!);
 
       expect(
         collection.items.map((d) => d.identifier),
@@ -369,8 +373,8 @@ void main() {
         },
       });
 
-      expect(await source.resolve('POST', '/users'), isNull);
-      expect(await source.resolve('GET', '/missing'), isNull);
+      expect(await source.resolve(req('POST', '/users')), isNull);
+      expect(await source.resolve(req('GET', '/missing')), isNull);
     });
 
     test('caches the spec across resolves', () async {
@@ -393,8 +397,8 @@ void main() {
         assetLoader: loader,
       );
 
-      await source.resolve('GET', '/a');
-      await source.resolve('GET', '/a');
+      await source.resolve(req('GET', '/a'));
+      await source.resolve(req('GET', '/a'));
 
       expect(loader.loadCount, equals(1));
     });
@@ -406,7 +410,7 @@ void main() {
       );
 
       expect(
-        () => source.resolve('GET', '/users'),
+        () => source.resolve(req('GET', '/users')),
         throwsA(isA<StateError>()),
       );
     });
@@ -418,7 +422,7 @@ void main() {
       );
 
       expect(
-        () => source.resolve('GET', '/users'),
+        () => source.resolve(req('GET', '/users')),
         throwsA(isA<FormatException>()),
       );
     });

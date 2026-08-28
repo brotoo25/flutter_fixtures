@@ -3,95 +3,48 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
 /// Implementation of DataQuery for Dio HTTP client
 ///
-/// This class maps a Dio request to fixture file candidates and delegates
-/// loading to [FixtureSource].
-///
-/// ## File Naming Convention
-///
-/// The base name is `{METHOD}{PATH}` with `/` replaced by `_`
-/// (e.g. `GET_users.json` for `GET /users`). For requests with query
-/// parameters, candidates are tried in this order (query values are ordered
-/// by sorted key name, not URL order):
-///
-/// 1. Exact, ignoring query params: `GET_search.json`
-/// 2. Values appended: `GET_search_2_foo.json`
-/// 3. Literal `*` per value: `GET_search_*_*.json`
-/// 4. `{{key}}` per sorted key: `GET_search_{{page}}_{{q}}.json`
-///
-/// The `*` and `{{key}}` forms are literal file names, not globs — they
-/// match any values with the same arity.
-///
-/// When [fallback] is set, a request with no matching fixture file is
-/// resolved through that [HttpFixtureSource] (e.g. [OpenApiFixtureSource]);
-/// hand-written fixture files always win.
+/// Maps a Dio request to an [HttpFixtureRequest] and consults [sources] in
+/// order; the first source that resolves wins. By default requests are
+/// served from fixture files (see [HttpFileFixtureSource] for the file
+/// naming convention). Add an [OpenApiFixtureSource] (or any custom
+/// [HttpFixtureSource]) to derive fixtures for requests no earlier source
+/// covers.
 class DioDataQuery
     with FixtureSelector
     implements DataQuery<RequestOptions, Object> {
-  /// The folder where mock data is stored
-  final String mockFolder;
+  /// The fixture sources consulted for each request, in order.
+  final List<HttpFixtureSource> sources;
 
-  /// The source consulted for requests with no fixture file, if any.
-  final HttpFixtureSource? fallback;
-
-  final FixtureSource _source;
-
-  /// Creates a new DioDataQuery with the specified mock folder
+  /// Creates a new DioDataQuery.
   ///
-  /// [assetLoader] substitutes how fixture files are read; it defaults to
-  /// the root asset bundle.
+  /// [mockFolder] and [assetLoader] configure the default
+  /// [HttpFileFixtureSource] and are ignored when [sources] is given.
   DioDataQuery({
-    this.mockFolder = 'assets/fixtures',
+    String mockFolder = 'assets/fixtures',
     FixtureAssetLoader assetLoader = const BundleAssetLoader(),
-    this.fallback,
-  }) : _source =
-            FixtureSource(mockFolder: mockFolder, assetLoader: assetLoader);
-
-  /// Gets the mock folder path
-  String get mockFolderPath => mockFolder;
+    List<HttpFixtureSource>? sources,
+  }) : sources = sources ??
+            [
+              HttpFileFixtureSource(
+                mockFolder: mockFolder,
+                assetLoader: assetLoader,
+              ),
+            ];
 
   @override
   Future<Object?> find(RequestOptions input) async {
-    final fromFiles = await _source.resolve(_candidateNames(input));
-    if (fromFiles != null) {
-      return fromFiles;
+    final request = HttpFixtureRequest(
+      method: input.method,
+      path: input.path,
+      queryParameters: input.queryParameters,
+    );
+    for (final source in sources) {
+      final result = await source.resolve(request);
+      if (result != null) {
+        return result;
+      }
     }
-    return fallback?.resolve(input.method, input.path);
-  }
-
-  /// Builds the ordered fixture-file candidates for a request.
-  List<String> _candidateNames(RequestOptions input) {
-    // Base file name from method and path (slashes replaced by underscores)
-    final base = '${input.method}${input.path.replaceAll('/', '_')}';
-
-    // Prepare query parameter segments (deterministic order by key)
-    final queryParams = input.queryParameters;
-    final sortedKeys = queryParams.keys.toList()
-      ..sort((a, b) => a.compareTo(b));
-
-    String normalizeSegment(dynamic value) {
-      final str = value is List
-          ? value.map((v) => (v ?? '').toString()).join('-')
-          : (value ?? '').toString();
-      return str.replaceAll('/', '_').replaceAll(' ', '_');
-    }
-
-    final valueSegments = [
-      for (final k in sortedKeys) normalizeSegment(queryParams[k]),
-    ].where((s) => s.isNotEmpty).toList();
-
-    return [
-      // 1) Exact (no query params)
-      '$base.json',
-      if (valueSegments.isNotEmpty) ...[
-        // 2) Values appended (e.g., GET_search_foo_2.json)
-        '${base}_${valueSegments.join('_')}.json',
-        // 3) Wildcards for each query value (e.g., GET_search_*.json)
-        '${base}_${List.filled(valueSegments.length, '*').join('_')}.json',
-        // 4) Mustache named by key order (e.g., GET_search_{{page}}_{{q}}.json)
-        if (sortedKeys.isNotEmpty)
-          '${base}_${sortedKeys.map((k) => '{{$k}}').join('_')}.json',
-      ],
-    ];
+    return null;
   }
 
   @override
@@ -100,7 +53,13 @@ class DioDataQuery
   }
 
   @override
-  Future<Object?> data(FixtureDocument document) {
-    return _source.data(document);
+  Future<Object?> data(FixtureDocument document) async {
+    for (final source in sources) {
+      final result = await source.data(document);
+      if (result != null) {
+        return result;
+      }
+    }
+    return null;
   }
 }

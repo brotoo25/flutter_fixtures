@@ -36,9 +36,10 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
     dio.interceptors.add(
       FixturesInterceptor(
         dataQuery: DioDataQuery(
-          fallback: OpenApiFixtureSource(
-            specPath: 'assets/fixtures/openapi.json',
-          ),
+          sources: [
+            HttpFileFixtureSource(),
+            OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
+          ],
         ),
         dataSelectorView: FixturesDialogView(
           contextProvider: () => widget.navigatorKey.currentContext!,

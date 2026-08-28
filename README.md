@@ -235,14 +235,18 @@ files: paste the spec's JSON into your assets and point `DioDataQuery` at it.
 dio.interceptors.add(
   FixturesInterceptor(
     dataQuery: DioDataQuery(
-      fallback: OpenApiFixtureSource(
-        specPath: 'assets/fixtures/openapi.json',
-      ),
+      sources: [
+        HttpFileFixtureSource(),
+        OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
+      ],
     ),
     dataSelector: DataSelectorType.pick,
   ),
 );
 ```
+
+Sources are consulted in order and the first one that resolves wins — here
+hand-written fixture files take precedence and the spec covers the rest.
 
 Requests with no matching fixture file are looked up in the spec (including
 `{param}` path templates and server base paths), and each documented

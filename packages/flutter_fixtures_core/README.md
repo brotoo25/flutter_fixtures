@@ -28,8 +28,9 @@ This package defines the core contracts and data models used by all Flutter Fixt
 ### Fixture Sources
 
 - **`FixtureSource`**: Fixture-file IO — candidate resolution, JSON decoding, payload loading
-- **`HttpFixtureSource`**: Seam for deriving HTTP fixtures from an API description
-- **`OpenApiFixtureSource`**: The built-in `HttpFixtureSource` for OpenAPI 3.x JSON documents — response documentation and payload examples become fixtures
+- **`HttpFixtureSource`**: Seam for providing HTTP fixtures; adapters consult an ordered list of sources per `HttpFixtureRequest`
+- **`HttpFileFixtureSource`**: The file-backed source — maps a request to fixture-file candidates and delegates to `FixtureSource`
+- **`OpenApiFixtureSource`**: The OpenAPI-backed source — a 3.x JSON document's response documentation and payload examples become fixtures
 - **`FixtureAssetLoader`**: Seam for reading fixture assets (`BundleAssetLoader` in production)
 
 ### Selection Strategies
