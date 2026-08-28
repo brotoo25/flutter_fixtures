@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'release/*'
+
+# Superseded runs on the same PR/branch are cancelled; pushes to main are never cancelled.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  checks:
+    name: Format, analyze, test, publish check
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Print toolchain versions
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Cache pub packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: Install Melos
+        run: |
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+          dart pub global activate melos
+
+      - name: Bootstrap workspace
+        run: melos bootstrap --verbose
+
+      - name: Check formatting
+        run: melos run format:check
+
+      - name: Static analysis
+        run: melos run analyze
+
+      - name: Tests with coverage
+        run: melos run test:coverage
+
+      - name: Check for outdated dependencies
+        if: github.event_name == 'push'
+        continue-on-error: true
+        run: melos run deps:outdated
+
+      - name: Verify publish readiness
+        run: melos run publish:check
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-lcov
+          path: packages/*/coverage/lcov.info
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,6 +1,6 @@
 # Flutter Fixtures
 
-[![Codemagic build status](https://api.codemagic.io/apps/6965f1db72574e0ba251c21b/ci/status_badge.svg)](https://codemagic.io/app/6965f1db72574e0ba251c21b/ci/latest_build)
+[![CI](https://github.com/brotoo25/flutter_fixtures/actions/workflows/ci.yml/badge.svg)](https://github.com/brotoo25/flutter_fixtures/actions/workflows/ci.yml)
 
 A Flutter library for mocking HTTP requests and other data sources with fixture files. This library provides a flexible way to intercept requests and return mock responses, making it ideal for development, testing, and demos.
 
