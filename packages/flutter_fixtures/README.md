@@ -81,7 +81,6 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
 // Add fixtures interceptor
 dio.interceptors.add(
   FixturesInterceptor(
-    dataQuery: DioDataQuery(),
     dataSelector: DataSelectorType.random,
     dataSelectorDelay: DataSelectorDelay.moderate, // Optional: simulate network delay
   ),
@@ -150,7 +149,6 @@ import 'package:flutter/material.dart';
 
 dio.interceptors.add(
   FixturesInterceptor(
-    dataQuery: DioDataQuery(),
     dataSelectorView: FixturesDialogView.of(context),
     dataSelector: DataSelectorType.pick, // Enables dialog
   ),
@@ -245,7 +243,7 @@ Organize fixtures in custom directories:
 ```dart
 dio.interceptors.add(
   FixturesInterceptor(
-    dataQuery: DioDataQuery(mockFolder: 'assets/api_mocks'),
+    mockFolder: 'assets/api_mocks',
     dataSelector: DataSelectorType.random,
   ),
 );
@@ -261,8 +259,7 @@ import 'package:flutter/foundation.dart';
 if (kDebugMode) {
   dio.interceptors.add(
     FixturesInterceptor(
-      dataQuery: DioDataQuery(),
-      dataSelector: DataSelectorType.random,
+        dataSelector: DataSelectorType.random,
     ),
   );
 }
@@ -289,8 +286,7 @@ class DataService {
     if (kDebugMode) {
       _dio.interceptors.add(
         FixturesInterceptor(
-          dataQuery: DioDataQuery(),
-          dataSelector: DataSelectorType.defaultValue,
+                dataSelector: DataSelectorType.defaultValue,
         ),
       );
     }
@@ -440,7 +436,6 @@ Test loading states and timeouts by simulating network latency:
 ```dart
 dio.interceptors.add(
   FixturesInterceptor(
-    dataQuery: DioDataQuery(),
     dataSelector: DataSelectorType.random,
     dataSelectorDelay: DataSelectorDelay.moderate, // 500ms delay
   ),
@@ -636,7 +631,6 @@ print('Using fixture: $fixturePath');
 ### Core Classes
 
 - **`FixturesInterceptor`**: Main Dio interceptor for request interception
-- **`DioDataQuery`**: Data provider for loading fixtures from assets
 - **`FixturesDialogView`**: UI dialog for fixture selection
 - **`DataSelectorType`**: Strategies for fixture selection (Random, Default, Pick)
 

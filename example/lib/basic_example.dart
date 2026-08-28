@@ -33,7 +33,6 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
     dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
     dio.interceptors.add(
       FixturesInterceptor(
-        dataQuery: DioDataQuery(),
         dataSelectorView: FixturesDialogView(
           contextProvider: () => widget.navigatorKey.currentContext!,
         ),

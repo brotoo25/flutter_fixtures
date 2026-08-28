@@ -1,13 +1,18 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
-/// Dio interceptor that provides mock responses using fixtures
+/// Dio interceptor that provides mock responses using fixtures.
 ///
-/// This interceptor intercepts Dio HTTP requests and returns mock responses
-/// based on fixture data.
-class FixturesInterceptor extends Interceptor {
-  /// The data query used to find fixture data
-  final DataQuery<RequestOptions, Object> dataQuery;
+/// Maps each request to an [HttpFixtureRequest] and consults [sources] in
+/// order; the first source that resolves wins, and that same source provides
+/// the selected document's payload. By default requests are served from
+/// fixture files (see [HttpFileFixtureSource] for the file naming
+/// convention). Add an [OpenApiFixtureSource] (or any custom
+/// [HttpFixtureSource]) to derive fixtures for requests no earlier source
+/// covers.
+class FixturesInterceptor extends Interceptor with FixtureSelector {
+  /// The fixture sources consulted for each request, in order.
+  final List<HttpFixtureSource> sources;
 
   /// The view used for user selection of fixtures
   final DataSelectorView? dataSelectorView;
@@ -21,13 +26,24 @@ class FixturesInterceptor extends Interceptor {
   /// Can be used to simulate network latency for testing loading states.
   final DataSelectorDelay dataSelectorDelay;
 
-  /// Creates a new FixturesInterceptor with the specified components
+  /// Creates a new FixturesInterceptor.
+  ///
+  /// [mockFolder] and [assetLoader] configure the default
+  /// [HttpFileFixtureSource] and are ignored when [sources] is given.
   FixturesInterceptor({
-    required this.dataQuery,
+    List<HttpFixtureSource>? sources,
+    String mockFolder = 'assets/fixtures',
+    FixtureAssetLoader assetLoader = const BundleAssetLoader(),
     this.dataSelectorView,
     required this.dataSelector,
     this.dataSelectorDelay = DataSelectorDelay.instant,
-  });
+  }) : sources = sources ??
+            [
+              HttpFileFixtureSource(
+                mockFolder: mockFolder,
+                assetLoader: assetLoader,
+              ),
+            ];
 
   @override
   void onRequest(
@@ -35,9 +51,24 @@ class FixturesInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     try {
-      // Find fixture data for the request
-      final fixtureData = await dataQuery.find(options);
-      if (fixtureData == null) {
+      final request = HttpFixtureRequest(
+        method: options.method,
+        path: options.path,
+        queryParameters: options.queryParameters,
+      );
+
+      // The first source that resolves wins — and it alone provides the
+      // payload, so a source can never answer for another's document.
+      HttpFixtureSource? resolvedBy;
+      FixtureCollection? fixtureCollection;
+      for (final source in sources) {
+        fixtureCollection = await source.resolve(request);
+        if (fixtureCollection != null) {
+          resolvedBy = source;
+          break;
+        }
+      }
+      if (fixtureCollection == null || resolvedBy == null) {
         return handler.reject(
           DioException(
             requestOptions: options,
@@ -46,11 +77,7 @@ class FixturesInterceptor extends Interceptor {
         );
       }
 
-      // Parse the fixture data into a collection
-      final fixtureCollection = await dataQuery.parse(fixtureData);
-
-      // If the collection is null or empty, reject the request
-      if (fixtureCollection == null || fixtureCollection.items.isEmpty) {
+      if (fixtureCollection.items.isEmpty) {
         return handler.reject(
           DioException(
             requestOptions: options,
@@ -60,7 +87,7 @@ class FixturesInterceptor extends Interceptor {
       }
 
       // Select a fixture document based on the selector type
-      final selectedDocument = await dataQuery.select(
+      final selectedDocument = await select(
         fixtureCollection,
         dataSelectorView,
         dataSelector,
@@ -89,8 +116,8 @@ class FixturesInterceptor extends Interceptor {
         );
       }
 
-      // Get the data for the selected document
-      final responseData = await dataQuery.data(selectedDocument);
+      // Get the data for the selected document from the resolving source
+      final responseData = await resolvedBy.data(selectedDocument);
 
       // Create a response with the selected data
       final response = Response(

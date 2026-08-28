@@ -24,7 +24,8 @@ conventionally starts with a 3-digit status code, exposed as the typed
 The seam a data source plugs in through (`DataQuery<Input, Output>`):
 `find` maps a domain request to fixture content, `parse` produces a
 Fixture Collection, `select` chooses a document, `data` yields its payload.
-Adapters: `DioDataQuery` (HTTP via Dio), `SqfliteDataQuery` (sqflite).
+Adapter: `SqfliteDataQuery` (sqflite). HTTP adapters plug in through the
+HTTP Fixture Source seam instead.
 
 ## Fixture Source
 

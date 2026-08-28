@@ -2,12 +2,17 @@
 
 ## Unreleased
 
-* New `DioDataQuery.sources` takes an ordered `HttpFixtureSource` list;
-  the first source that resolves a request wins. Defaults to fixture files
-  (`HttpFileFixtureSource`); add `OpenApiFixtureSource` to derive fixtures
-  from an OpenAPI 3.x spec for requests no fixture file covers.
-* **BREAKING**: `DioDataQuery.mockFolderPath` was removed; the file naming
-  convention now lives in `HttpFileFixtureSource` in core.
+* **BREAKING**: `FixturesInterceptor` now owns the HTTP fixture pipeline:
+  it maps each request to an `HttpFixtureRequest` and consults an ordered
+  `HttpFixtureSource` list (`sources`); the first source that resolves wins
+  and provides the selected document's payload. Pass `sources:` (or
+  `mockFolder:`/`assetLoader:` for the default file source) instead of
+  `dataQuery:`. Defaults to fixture files (`HttpFileFixtureSource`); add
+  `OpenApiFixtureSource` to derive fixtures from an OpenAPI 3.x spec for
+  requests no earlier source covers.
+* **BREAKING**: `DioDataQuery` was removed — `HttpFixtureSource` is the
+  extension point for custom HTTP fixture providers. The file naming
+  convention lives in `HttpFileFixtureSource` in core.
 
 ## 0.2.0
 

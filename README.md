@@ -88,7 +88,6 @@ final dio = Dio(BaseOptions(baseUrl: 'https://example.com'));
 // Add the FixturesInterceptor
 dio.interceptors.add(
   FixturesInterceptor(
-    dataQuery: DioDataQuery(),
     dataSelectorView: FixturesDialogView(
       contextProvider: () => navigatorKey.currentContext!,
     ),
@@ -229,17 +228,16 @@ Example fixture file (`assets/fixtures/GET_users.json`):
 ### OpenAPI Fixtures
 
 If your API ships an OpenAPI 3.x spec, you can skip hand-writing fixture
-files: paste the spec's JSON into your assets and point `DioDataQuery` at it.
+files: paste the spec's JSON into your assets and add an
+`OpenApiFixtureSource` to the interceptor's sources.
 
 ```dart
 dio.interceptors.add(
   FixturesInterceptor(
-    dataQuery: DioDataQuery(
-      sources: [
-        HttpFileFixtureSource(),
-        OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
-      ],
-    ),
+    sources: [
+      HttpFileFixtureSource(),
+      OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
+    ],
     dataSelector: DataSelectorType.pick,
   ),
 );

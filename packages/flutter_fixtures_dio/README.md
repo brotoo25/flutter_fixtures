@@ -28,7 +28,6 @@ import 'package:flutter_fixtures_dio/flutter_fixtures_dio.dart';
 final dio = Dio();
 dio.interceptors.add(
   FixturesInterceptor(
-    dataQuery: DioDataQuery(),
     dataSelector: DataSelectorType.random,
   ),
 );
@@ -43,13 +42,10 @@ That's it! Your Dio requests will now return mock responses from fixture files.
 
 ## What's Included
 
-This package provides two main components:
+This package provides one main component:
 
 ### FixturesInterceptor
-A Dio interceptor that automatically intercepts HTTP requests and returns mock responses based on fixture files.
-
-### DioDataQuery
-A data provider that loads fixture files from your app's assets and parses them into structured responses.
+A Dio interceptor that automatically intercepts HTTP requests and returns mock responses. It consults an ordered list of `HttpFixtureSource`s — fixture files by default, an OpenAPI spec or your own source if you add one.
 
 ## Installation
 
@@ -88,7 +84,6 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
 // Add the fixtures interceptor
 dio.interceptors.add(
   FixturesInterceptor(
-    dataQuery: DioDataQuery(),
     dataSelector: DataSelectorType.random, // Randomly select fixtures
     dataSelectorDelay: DataSelectorDelay.instant, // Optional: simulate network delay
   ),
@@ -136,7 +131,7 @@ By default, fixtures are loaded from `assets/fixtures/`. You can customize this:
 ```dart
 dio.interceptors.add(
   FixturesInterceptor(
-    dataQuery: DioDataQuery(mockFolder: 'assets/my_mocks'),
+    mockFolder: 'assets/my_mocks',
     dataSelector: DataSelectorType.random,
   ),
 );
@@ -241,18 +236,16 @@ The `dataPath` is relative to your fixture folder (e.g., `assets/fixtures/data/u
 ## OpenAPI Fixtures
 
 If your API has an OpenAPI 3.x spec, you don't have to hand-write a fixture
-file per endpoint. Drop the spec's JSON in your assets and point
-`DioDataQuery` at it:
+file per endpoint. Drop the spec's JSON in your assets and add an
+`OpenApiFixtureSource` to the interceptor's sources:
 
 ```dart
 dio.interceptors.add(
   FixturesInterceptor(
-    dataQuery: DioDataQuery(
-      sources: [
-        HttpFileFixtureSource(),
-        OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
-      ],
-    ),
+    sources: [
+      HttpFileFixtureSource(),
+      OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
+    ],
     dataSelector: DataSelectorType.pick,
   ),
 );
@@ -313,7 +306,6 @@ import 'package:flutter_fixtures_ui/flutter_fixtures_ui.dart';
 
 dio.interceptors.add(
   FixturesInterceptor(
-    dataQuery: DioDataQuery(),
     dataSelectorView: FixturesDialogView.of(context),
     dataSelector: DataSelectorType.pick, // Enables UI selection
   ),
@@ -345,7 +337,6 @@ class ApiService {
     // Add fixtures interceptor for development/testing
     _dio.interceptors.add(
       FixturesInterceptor(
-        dataQuery: DioDataQuery(),
         dataSelector: DataSelectorType.defaultValue,
       ),
     );
@@ -372,25 +363,12 @@ class ApiService {
 The main interceptor class that handles request interception.
 
 **Constructor Parameters:**
-- `dataQuery` (required): Implementation of `DataQuery` for loading fixtures
+- `sources` (optional): Ordered `HttpFixtureSource` list consulted per request; the first that resolves wins and provides the response payload (default: a single `HttpFileFixtureSource`)
+- `mockFolder` (optional): Asset directory for the default file source (default: `'assets/fixtures'`); ignored when `sources` is given
+- `assetLoader` (optional): Seam for reading fixture assets used by the default file source (default: root asset bundle); ignored when `sources` is given
 - `dataSelector` (required): Strategy for selecting which fixture to return
 - `dataSelectorView` (optional): UI component for user-driven fixture selection
 - `dataSelectorDelay` (optional): Delay to apply when selecting fixtures (default: `DataSelectorDelay.instant`)
-
-### DioDataQuery
-
-Data provider that loads and parses fixture files from app assets.
-
-**Constructor Parameters:**
-- `sources` (optional): Ordered `HttpFixtureSource` list consulted per request; the first that resolves wins (default: a single `HttpFileFixtureSource`)
-- `mockFolder` (optional): Asset directory for the default file source (default: `'assets/fixtures'`); ignored when `sources` is given
-- `assetLoader` (optional): Seam for reading fixture assets used by the default file source (default: root asset bundle); ignored when `sources` is given
-
-**Methods:**
-- `find(RequestOptions)`: Resolves the request through `sources`, in order
-- `parse(Map<String, dynamic>)`: Parses fixture file into collection
-- `select(...)`: Selects specific fixture based on strategy
-- `data(FixtureDocument)`: Retrieves response data for selected fixture
 
 ## Related Packages
 
