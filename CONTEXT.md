@@ -73,9 +73,10 @@ in-memory fakes in tests.
 
 The behavior behind `FixtureSelector.select`, owned entirely by core:
 strategy dispatch (`DataSelectorType`: pick / defaultValue / random),
-auto-selecting single-option collections, remembered choices (read and
+auto-selecting single-option collections, Selection Memory (read and
 write), single-flight deduplication of concurrent interactive picks, and
-response delays (`DataSelectorDelay`).
+response delays (`DataSelectorDelay`). Its state is scoped to the
+mixing-in instance and keyed by one collection signature.
 
 ## Selector View
 
@@ -93,9 +94,10 @@ it is never silently converted into a selection.
 
 ## Selection Memory
 
-The runtime-only store of remembered choices (`FixtureSelectionMemory`),
-keyed by collection description. Written by the selection flow when a
-Fixture Choice asks to be remembered; cleared via `clearFor`/`clearAll`.
+The runtime-only store of remembered choices, owned by the Selection Flow
+and scoped to a selector instance. Written when a Fixture Choice asks to
+be remembered; cleared via `clearRememberedSelectionFor` /
+`clearRememberedSelections` on the selector.
 
 ## Database Adapter
 

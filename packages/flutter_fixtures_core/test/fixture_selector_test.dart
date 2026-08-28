@@ -36,17 +36,16 @@ FixtureCollection _twoOptions() => FixtureCollection(
 
 void main() {
   group('FixtureSelector', () {
-    setUp(() {
-      FixtureSelectionMemory.clearAll();
-      FixtureSelector.clearPendingPicks();
-    });
-
     test('returns remembered document when selector is Pick', () async {
       final selector = _Selector();
       final fixture = _twoOptions();
+      final view = _FakeView(
+        (f) async => FixtureChoice(document: f.items[1], remember: true),
+      );
 
-      FixtureSelectionMemory.remember(fixture, fixture.items[1]);
+      await selector.select(fixture, view, DataSelectorType.pick);
 
+      // A later select — even without a view — returns the remembered pick.
       final selected =
           await selector.select(fixture, null, DataSelectorType.pick);
       expect(selected, isNotNull);
@@ -95,7 +94,10 @@ void main() {
       final selected =
           await selector.select(fixture, view, DataSelectorType.pick);
       expect(selected!.identifier, equals('not_found'));
-      expect(FixtureSelectionMemory.getRemembered(fixture), isNull);
+
+      // Not remembered: a later select consults the view again.
+      await selector.select(fixture, view, DataSelectorType.pick);
+      expect(view.pickCount, equals(2));
     });
 
     test('writes memory when the choice asks to be remembered', () async {
@@ -107,15 +109,37 @@ void main() {
 
       await selector.select(fixture, view, DataSelectorType.pick);
 
-      final remembered = FixtureSelectionMemory.getRemembered(fixture);
-      expect(remembered, isNotNull);
-      expect(remembered!.identifier, equals('not_found'));
-
       // A later select must not consult the view again.
       final second =
           await selector.select(fixture, view, DataSelectorType.pick);
       expect(second!.identifier, equals('not_found'));
       expect(view.pickCount, equals(1));
+    });
+
+    test('clearing memory makes the next pick interactive again', () async {
+      final selector = _Selector();
+      final fixture = _twoOptions();
+      final view = _FakeView(
+        (f) async => FixtureChoice(document: f.items[1], remember: true),
+      );
+
+      await selector.select(fixture, view, DataSelectorType.pick);
+      selector.clearRememberedSelectionFor(fixture);
+
+      await selector.select(fixture, view, DataSelectorType.pick);
+      expect(view.pickCount, equals(2));
+    });
+
+    test('remembered choices are scoped to the selector instance', () async {
+      final fixture = _twoOptions();
+      final view = _FakeView(
+        (f) async => FixtureChoice(document: f.items[1], remember: true),
+      );
+
+      await _Selector().select(fixture, view, DataSelectorType.pick);
+      await _Selector().select(fixture, view, DataSelectorType.pick);
+
+      expect(view.pickCount, equals(2));
     });
 
     test('propagates cancel as null instead of picking an item', () async {

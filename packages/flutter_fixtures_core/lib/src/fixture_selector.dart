@@ -1,14 +1,11 @@
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
-
 import 'data_selector_delay.dart';
 import 'data_selector_type.dart';
 import 'data_selector_view.dart';
 import 'fixture_choice.dart';
 import 'fixture_collection.dart';
 import 'fixture_document.dart';
-import 'fixture_selection_memory.dart';
 
 /// Mixin that provides the fixture selection flow for data sources.
 ///
@@ -17,18 +14,21 @@ import 'fixture_selection_memory.dart';
 /// read and the write), deduplication of concurrent interactive picks, and
 /// response delays. Views ([DataSelectorView]) only present options and
 /// report the user's answer.
+///
+/// Remembered choices and in-flight picks are scoped to the mixing-in
+/// instance and keyed by one collection signature, so the two stores can
+/// never disagree about what "the same collection" means.
 mixin FixtureSelector {
+  /// Remembered document identifiers, keyed by collection signature.
+  ///
+  /// Runtime-only by design, to avoid persistence dependencies.
+  final Map<String, String> _remembered = {};
+
   /// In-flight interactive picks, keyed by collection signature.
   ///
-  /// Concurrent [select] calls for the same collection (e.g. several
-  /// interceptors handling the same request) share one view interaction
-  /// instead of stacking UIs. Static so the guarantee holds across
-  /// data-source instances, mirroring [FixtureSelectionMemory].
-  static final Map<String, Future<FixtureChoice?>> _pendingPicks = {};
-
-  /// Clears in-flight pick tracking. Intended for test isolation.
-  @visibleForTesting
-  static void clearPendingPicks() => _pendingPicks.clear();
+  /// Concurrent [select] calls for the same collection share one view
+  /// interaction instead of stacking UIs.
+  final Map<String, Future<FixtureChoice?>> _pendingPicks = {};
 
   /// Select a fixture document from a collection based on the selector type
   ///
@@ -53,7 +53,7 @@ mixin FixtureSelector {
     }
 
     if (selector == DataSelectorType.pick) {
-      final remembered = FixtureSelectionMemory.getRemembered(fixture);
+      final remembered = _getRemembered(fixture);
       if (remembered != null) {
         await delay.apply();
         return remembered;
@@ -70,7 +70,7 @@ mixin FixtureSelector {
         return null;
       }
       if (choice.remember) {
-        FixtureSelectionMemory.remember(fixture, choice.document);
+        _remembered[_signature(fixture)] = choice.document.identifier;
       }
       await delay.apply();
       return choice.document;
@@ -86,6 +86,24 @@ mixin FixtureSelector {
 
     await delay.apply();
     return selectedOption;
+  }
+
+  /// Clears the remembered choice for [fixture] on this selector.
+  void clearRememberedSelectionFor(FixtureCollection fixture) {
+    _remembered.remove(_signature(fixture));
+  }
+
+  /// Clears all remembered choices on this selector.
+  void clearRememberedSelections() => _remembered.clear();
+
+  /// The remembered document for this collection, if it still exists in it.
+  FixtureDocument? _getRemembered(FixtureCollection fixture) {
+    final id = _remembered[_signature(fixture)];
+    if (id == null) return null;
+    for (final doc in fixture.items) {
+      if (doc.identifier == id) return doc;
+    }
+    return null;
   }
 
   /// Runs [view.pick], sharing one in-flight interaction per collection.

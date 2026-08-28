@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+* **BREAKING**: `FixtureSelectionMemory` was removed; remembered choices
+  live inside `FixtureSelector`, scoped to the mixing-in instance and keyed
+  by the same collection signature as pick deduplication. Clear them with
+  `clearRememberedSelectionFor` / `clearRememberedSelections` on the
+  selector. The `@visibleForTesting FixtureSelector.clearPendingPicks` is
+  gone with the static state that required it.
+
 * New `HttpFixtureSource` seam: resolves an `HttpFixtureRequest` (method,
   path, query parameters) to a `FixtureCollection`. HTTP adapters consult an
   ordered list of sources; the first that resolves wins. Sources build model
