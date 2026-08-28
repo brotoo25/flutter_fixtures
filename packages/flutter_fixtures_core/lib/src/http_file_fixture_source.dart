@@ -1,4 +1,5 @@
 import 'fixture_asset_loader.dart';
+import 'fixture_collection.dart';
 import 'fixture_document.dart';
 import 'fixture_source.dart';
 import 'http_fixture_source.dart';
@@ -37,8 +38,9 @@ class HttpFileFixtureSource implements HttpFixtureSource {
             FixtureSource(mockFolder: mockFolder, assetLoader: assetLoader);
 
   @override
-  Future<Map<String, dynamic>?> resolve(HttpFixtureRequest request) {
-    return _source.resolve(_candidateNames(request));
+  Future<FixtureCollection?> resolve(HttpFixtureRequest request) async {
+    final json = await _source.resolve(_candidateNames(request));
+    return json == null ? null : FixtureCollection.fromJson(json);
   }
 
   @override

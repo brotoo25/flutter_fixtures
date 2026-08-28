@@ -1,19 +1,18 @@
 import 'dart:convert';
 
 import 'fixture_asset_loader.dart';
+import 'fixture_collection.dart';
 import 'fixture_document.dart';
 import 'http_fixture_source.dart';
 
 /// Builds fixture collections from an OpenAPI 3.x JSON document.
 ///
 /// [resolve] matches the request's method and path against the spec's `paths`
-/// (handling `{param}` templates and `servers` base paths) and returns the
-/// collection in the standard fixture wire format
-/// (`{"description": ..., "values": [...]}`): the operation's documentation
-/// names the collection, and each response — status code, description, and
-/// payload examples (or a schema-generated sample) — becomes a selectable
-/// document. Callers should prefer hand-written fixtures; this source is the
-/// generated fallback.
+/// (handling `{param}` templates and `servers` base paths) and returns a
+/// [FixtureCollection]: the operation's documentation names the collection,
+/// and each response — status code, description, and payload examples (or a
+/// schema-generated sample) — becomes a selectable document. Callers should
+/// prefer hand-written fixtures; this source is the generated fallback.
 ///
 /// A spec that cannot be loaded or holds malformed JSON fails loudly: the
 /// spec was explicitly configured, so a broken spec reports as broken
@@ -33,7 +32,7 @@ class OpenApiFixtureSource implements HttpFixtureSource {
   });
 
   @override
-  Future<Map<String, dynamic>?> resolve(HttpFixtureRequest request) async {
+  Future<FixtureCollection?> resolve(HttpFixtureRequest request) async {
     final method = request.method;
     final spec = await _loadSpec();
     final paths = spec['paths'];
@@ -143,7 +142,7 @@ class OpenApiFixtureSource implements HttpFixtureSource {
     return true;
   }
 
-  Map<String, dynamic> _buildCollection(
+  FixtureCollection _buildCollection(
     Map<String, dynamic> spec,
     Map<String, dynamic> operation,
     String method,
@@ -155,8 +154,7 @@ class OpenApiFixtureSource implements HttpFixtureSource {
         : (operation['operationId'] as String?) ??
             '${method.toUpperCase()} $template';
 
-    final codes = <int>[];
-    final values = <Map<String, dynamic>>[];
+    final drafts = <_DocumentDraft>[];
     final responses = operation['responses'];
     if (responses is Map) {
       for (final entry in responses.entries) {
@@ -164,15 +162,18 @@ class OpenApiFixtureSource implements HttpFixtureSource {
         if (code == null || entry.value is! Map) continue;
         final response =
             _deref(spec, (entry.value as Map).cast<String, dynamic>());
-        for (final document in _documentsFor(spec, code, response)) {
-          codes.add(code);
-          values.add(document);
-        }
+        drafts.addAll(_documentsFor(spec, code, response));
       }
     }
-    _uniquifyIdentifiers(values);
-    _markDefault(codes, values);
-    return {'description': description, 'values': values};
+    _uniquifyIdentifiers(drafts);
+    final defaultIndex = _defaultIndex(drafts);
+    return FixtureCollection(
+      description: description,
+      items: [
+        for (var i = 0; i < drafts.length; i++)
+          drafts[i].toDocument(defaultOption: i == defaultIndex),
+      ],
+    );
   }
 
   /// Numeric keys as-is, `2XX`-style ranges as their first code, and
@@ -193,7 +194,7 @@ class OpenApiFixtureSource implements HttpFixtureSource {
 
   /// One document per named example, or a single document from the inline
   /// example, the schema example, or a schema-generated sample.
-  List<Map<String, dynamic>> _documentsFor(
+  List<_DocumentDraft> _documentsFor(
     Map<String, dynamic> spec,
     int code,
     Map<String, dynamic> response,
@@ -206,44 +207,45 @@ class OpenApiFixtureSource implements HttpFixtureSource {
     final fallbackIdentifier =
         hasDescription ? responseDescription : 'Response $code';
 
-    Map<String, dynamic> document(String identifier, Object? data) => {
-          'identifier': identifier,
-          'description': documentDescription,
-          'data': data,
-        };
+    _DocumentDraft draft(String identifier, Object? data) => _DocumentDraft(
+          code: code,
+          identifier: identifier,
+          description: documentDescription,
+          data: data,
+        );
 
     final mediaType = _jsonContent(spec, response['content']);
     if (mediaType == null) {
       // No body documented (e.g. 204) — still a selectable outcome.
-      return [document(fallbackIdentifier, null)];
+      return [draft(fallbackIdentifier, null)];
     }
 
     final namedExamples = mediaType['examples'];
     if (namedExamples is Map && namedExamples.isNotEmpty) {
-      final documents = <Map<String, dynamic>>[];
+      final drafts = <_DocumentDraft>[];
       for (final entry in namedExamples.entries) {
         if (entry.value is! Map) continue;
         final example =
             _deref(spec, (entry.value as Map).cast<String, dynamic>());
         final summary = (example['summary'] as String?)?.trim();
-        documents.add(document(
+        drafts.add(draft(
           (summary != null && summary.isNotEmpty)
               ? summary
               : entry.key.toString(),
           example['value'],
         ));
       }
-      if (documents.isNotEmpty) {
-        return documents;
+      if (drafts.isNotEmpty) {
+        return drafts;
       }
     }
 
     if (mediaType.containsKey('example')) {
-      return [document(fallbackIdentifier, mediaType['example'])];
+      return [draft(fallbackIdentifier, mediaType['example'])];
     }
 
     final sample = _sampleFromSchema(spec, mediaType['schema'], const {});
-    return [document(fallbackIdentifier, sample)];
+    return [draft(fallbackIdentifier, sample)];
   }
 
   /// Picks the JSON media type from a response's `content` map, falling
@@ -465,26 +467,43 @@ class OpenApiFixtureSource implements HttpFixtureSource {
 
   /// Suffixes repeated identifiers (`"Error (2)"`) so every document stays
   /// individually addressable.
-  void _uniquifyIdentifiers(List<Map<String, dynamic>> values) {
+  void _uniquifyIdentifiers(List<_DocumentDraft> drafts) {
     final counts = <String, int>{};
-    for (final value in values) {
-      final identifier = value['identifier'] as String;
+    for (final draft in drafts) {
+      final identifier = draft.identifier;
       final count = counts[identifier] = (counts[identifier] ?? 0) + 1;
       if (count > 1) {
-        value['identifier'] = '$identifier ($count)';
+        draft.identifier = '$identifier ($count)';
       }
     }
   }
 
-  /// Marks the first 2xx document (or the first document) as the default.
-  void _markDefault(List<int> codes, List<Map<String, dynamic>> values) {
-    if (values.isEmpty) {
-      return;
-    }
-    var index = codes.indexWhere((code) => code >= 200 && code < 300);
-    if (index < 0) {
-      index = 0;
-    }
-    values[index]['default'] = true;
+  /// The index of the default document: the first 2xx, or the first overall.
+  int _defaultIndex(List<_DocumentDraft> drafts) {
+    final index = drafts.indexWhere((d) => d.code >= 200 && d.code < 300);
+    return index < 0 ? 0 : index;
   }
+}
+
+/// A document under construction, keeping the response's status [code] bound
+/// to its content so default marking cannot drift to another document.
+class _DocumentDraft {
+  _DocumentDraft({
+    required this.code,
+    required this.identifier,
+    required this.description,
+    required this.data,
+  });
+
+  final int code;
+  String identifier;
+  final String description;
+  final Object? data;
+
+  FixtureDocument toDocument({required bool defaultOption}) => FixtureDocument(
+        identifier: identifier,
+        description: description,
+        defaultOption: defaultOption,
+        data: data,
+      );
 }

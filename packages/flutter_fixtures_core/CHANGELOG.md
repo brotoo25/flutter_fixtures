@@ -3,8 +3,11 @@
 ## Unreleased
 
 * New `HttpFixtureSource` seam: resolves an `HttpFixtureRequest` (method,
-  path, query parameters) to a fixture collection. HTTP adapters consult an
-  ordered list of sources; the first that resolves wins.
+  path, query parameters) to a `FixtureCollection`. HTTP adapters consult an
+  ordered list of sources; the first that resolves wins. Sources build model
+  objects directly, so the fixture wire format lives only in
+  `FixtureCollection.fromJson` / `FixtureDocument.fromJson` and document
+  invariants are enforced at construction.
 * New `HttpFileFixtureSource` implements the seam over fixture files,
   owning the HTTP file naming convention (moved from `DioDataQuery`).
 * New `OpenApiFixtureSource` implements the seam over an OpenAPI 3.x JSON

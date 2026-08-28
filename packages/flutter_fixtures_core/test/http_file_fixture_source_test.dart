@@ -32,7 +32,7 @@ void main() {
         const HttpFixtureRequest(method: 'GET', path: '/users'),
       );
 
-      expect(result!['description'], equals('found'));
+      expect(result!.description, equals('found'));
       expect(loader.requestedPaths, equals(['assets/fixtures/GET_users.json']));
     });
 

@@ -116,22 +116,6 @@ void main() {
     });
   });
 
-  group('DioDataQuery.parse', () {
-    test('parses the wire format into a FixtureCollection', () async {
-      final query = DioDataQuery(assetLoader: InMemoryAssetLoader({}));
-
-      final collection = await query.parse({
-        'description': 'Users API',
-        'values': [
-          {'identifier': 'ok', 'description': '200 OK', 'default': true},
-        ],
-      });
-
-      expect(collection!.description, equals('Users API'));
-      expect(collection.items.single.statusCode, equals(200));
-    });
-  });
-
   group('DioDataQuery source ordering', () {
     const spec = '''
     {
@@ -196,7 +180,7 @@ void main() {
         RequestOptions(path: '/users/42', method: 'GET'),
       );
 
-      expect((result as Map)['description'], equals('found'));
+      expect((result as FixtureCollection).description, equals('found'));
       expect(
         loader.requestedPaths,
         isNot(contains('assets/fixtures/openapi.json')),

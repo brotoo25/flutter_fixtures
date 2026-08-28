@@ -72,8 +72,7 @@ void main() {
         },
       });
 
-      final result = await source.resolve(req('GET', '/users'));
-      final collection = FixtureCollection.fromJson(result!);
+      final collection = (await source.resolve(req('GET', '/users')))!;
 
       expect(collection.description, equals('List users'));
       expect(collection.items, hasLength(3));
@@ -129,7 +128,7 @@ void main() {
       for (final path in ['/users/42', '/v1/users/42', 'users/42?full=true']) {
         final result = await source.resolve(req('GET', path));
         expect(result, isNotNull, reason: 'expected a match for $path');
-        expect(result!['description'], equals('getUser'));
+        expect(result!.description, equals('getUser'));
       }
       expect(await source.resolve(req('GET', '/users')), isNull);
       expect(await source.resolve(req('DELETE', '/users/42')), isNull);
@@ -162,8 +161,8 @@ void main() {
       final me = await source.resolve(req('GET', '/users/me'));
       final other = await source.resolve(req('GET', '/users/42'));
 
-      expect(me!['description'], equals('getCurrentUser'));
-      expect(other!['description'], equals('getUser'));
+      expect(me!.description, equals('getCurrentUser'));
+      expect(other!.description, equals('getUser'));
     });
 
     test('matches absolute request URLs by their path', () async {
@@ -184,7 +183,7 @@ void main() {
       final result =
           await source.resolve(req('GET', 'https://api.example.com/users'));
 
-      expect(result!['description'], equals('listUsers'));
+      expect(result!.description, equals('listUsers'));
     });
 
     test('generates sample data from schemas, resolving refs', () async {
@@ -234,8 +233,7 @@ void main() {
         },
       });
 
-      final result = await source.resolve(req('POST', '/orders'));
-      final collection = FixtureCollection.fromJson(result!);
+      final collection = (await source.resolve(req('POST', '/orders')))!;
       final document = collection.items.single;
 
       expect(collection.description, equals('POST /orders'));
@@ -299,7 +297,7 @@ void main() {
       });
 
       final result = await source.resolve(req('GET', '/nodes'));
-      final data = FixtureCollection.fromJson(result!).items.single.data;
+      final data = result!.items.single.data;
 
       expect(data, equals({'id': 0, 'parent': null, 'name': 'string'}));
     });
@@ -321,8 +319,7 @@ void main() {
         },
       });
 
-      final collection = FixtureCollection.fromJson(
-          (await source.resolve(req('GET', '/health')))!);
+      final collection = (await source.resolve(req('GET', '/health')))!;
 
       expect(collection.items, hasLength(3));
       expect(collection.items[0].description, equals('400 Client error'));
@@ -350,8 +347,7 @@ void main() {
         },
       });
 
-      final collection = FixtureCollection.fromJson(
-          (await source.resolve(req('GET', '/things')))!);
+      final collection = (await source.resolve(req('GET', '/things')))!;
 
       expect(
         collection.items.map((d) => d.identifier),

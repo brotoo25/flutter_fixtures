@@ -39,8 +39,9 @@ fails loudly.
 
 The seam for providing HTTP fixtures (`HttpFixtureSource`): `resolve` takes
 an `HttpFixtureRequest` (method, path, query parameters) and returns a
-Fixture Collection in the standard wire format, or `null` when the source
-has none; `data` materializes a document's payload. HTTP adapters consult
+Fixture Collection, or `null` when the source has none; `data` materializes
+a document's payload. Sources build model objects — the wire format belongs
+to the Fixture Collection and Fixture Document alone. HTTP adapters consult
 an ordered list of sources — the first that resolves wins, so list order
 decides precedence. Built-ins: `HttpFileFixtureSource` (fixture files,
 owning the HTTP file naming convention) and `OpenApiFixtureSource`.

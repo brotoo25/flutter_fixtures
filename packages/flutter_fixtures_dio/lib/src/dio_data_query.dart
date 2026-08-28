@@ -49,7 +49,8 @@ class DioDataQuery
 
   @override
   Future<FixtureCollection?> parse(Object source) async {
-    return FixtureCollection.fromJson(source as Map<String, dynamic>);
+    // Sources already resolve to the model; nothing left to parse.
+    return source as FixtureCollection;
   }
 
   @override
