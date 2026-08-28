@@ -116,30 +116,39 @@ and scoped to a selector instance. Written when a Fixture Choice asks to
 be remembered; cleared via `clearRememberedSelectionFor` /
 `clearRememberedSelections` on the selector.
 
+## Traffic Recorder
+
+The thin record-and-replay seam in core (`TrafficRecorder`): two calls —
+`decide` (how should this request be handled?) and `record` (capture this
+interaction; a no-op unless recording). Transport packages implement
+capture and replay against this contract only (`RecorderInterceptor` in
+flutter_fixtures_dio, `RecordingDatabaseAdapter` in
+flutter_fixtures_sqflite), so they never depend on the recorder engine.
+All heavy lifting sits behind the seam in the **Fixture Recorder**.
+
 ## Fixture Recorder
 
-The record-and-replay controller (`FixtureRecorder`,
-flutter_fixtures_recorder), the module's single entry point. A strict
-mode machine — idle / recording / replaying — that source adapters feed
-captured traffic into (`record`) and ask how to handle each request
-(`decide`, which answers with a **Replay Decision**). Source-agnostic:
-one recorder serves HTTP, database, and custom sources at once, and a
-session can hold them side by side. Persistence is owned outright — the
-Session Store is private, reached only through `sessions`/`deleteSession`
-and the save on stop. The module is self-contained: no other package
-depends on it, and idle traffic passes through untouched. Adapters ship
-separately: `flutter_fixtures_recorder_dio` (Dio interceptor) and
-`flutter_fixtures_recorder_sqflite` (a `DatabaseAdapter` decorator).
+The record-and-replay engine (`FixtureRecorder`,
+flutter_fixtures_recorder) — the one production adapter of core's
+**Traffic Recorder** seam. A strict mode machine — idle / recording /
+replaying — that source adapters feed captured traffic into (`record`)
+and ask how to handle each request (`decide`, which answers with a
+**Replay Decision**). Source-agnostic: one recorder serves HTTP,
+database, and custom sources at once, and a session can hold them side by
+side. Persistence is owned outright — the Session Store is private,
+reached only through `sessions`/`deleteSession` and the save on stop.
+Idle traffic passes through untouched; apps that never record simply
+don't depend on this package.
 
 ## Replay Decision
 
-The recorder's sealed answer for one request (`ReplayDecision`): serve
-this recorded interaction (`Replayed`), let the request continue to the
-real source (`ForwardToSource`), or fail it (`RejectRequest`, message
-phrased by the recorder). Returned by `FixtureRecorder.decide`, which owns
-the whole choreography — mode check, ordered lookup, miss policy — so an
-adapter only renders the decision in its native types and never inspects
-the recorder's mode.
+The recorder's sealed answer for one request (`ReplayDecision`, core):
+serve this recorded interaction (`Replayed`), let the request continue to
+the real source (`ForwardToSource`), or fail it (`RejectRequest`, message
+phrased by the recorder). Returned by `TrafficRecorder.decide`, which
+owns the whole choreography — mode check, ordered lookup, miss policy —
+so an adapter only renders the decision in its native types and never
+inspects the recorder's mode.
 
 ## Recording Session
 

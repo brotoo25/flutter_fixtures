@@ -1,4 +1,4 @@
-import 'package:flutter_fixtures_recorder_sqflite/flutter_fixtures_recorder_sqflite.dart';
+import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
 import 'package:flutter_fixtures_sqflite/flutter_fixtures_sqflite.dart';
 import 'package:flutter_test/flutter_test.dart';
 

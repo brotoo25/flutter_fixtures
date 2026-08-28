@@ -1,4 +1,4 @@
-import 'recorded_interaction.dart';
+import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
 /// A named, ordered capture of request/response traffic.
 ///

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+* New `RecorderInterceptor`: captures real HTTP traffic and replays it
+  through core's `TrafficRecorder` seam (engine:
+  `flutter_fixtures_recorder`). Replay wins over later
+  response-producing interceptors; misses forward to the network or
+  reject (`ReplayMissBehavior`).
+
 * `FixturesInterceptor` builds requests with `HttpFixtureRequest.fromUri`
   over `options.uri`: absolute request URLs and query parameters embedded
   in the URL string now resolve fixtures correctly.

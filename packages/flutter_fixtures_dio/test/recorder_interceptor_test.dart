@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_fixtures_recorder_dio/flutter_fixtures_recorder_dio.dart';
+import 'package:flutter_fixtures_dio/flutter_fixtures_dio.dart';
+import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Hand-rolled handler fakes: they capture the outcome instead of driving

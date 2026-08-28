@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
+import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
-/// The Dio adapter for the recorder module.
+/// The Dio adapter for the record-and-replay seam ([TrafficRecorder]).
 ///
 /// While the recorder is recording, this interceptor captures every response
 /// (including non-2xx responses surfaced as errors) into the in-progress
@@ -11,7 +11,9 @@ import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
 /// exists.
 ///
 /// Add it before other interceptors that produce responses (such as
-/// `FixturesInterceptor`), so replayed sessions win:
+/// `FixturesInterceptor`), so replayed sessions win. The engine —
+/// `FixtureRecorder` from `flutter_fixtures_recorder` — plugs in through
+/// the seam:
 ///
 /// ```dart
 /// final dio = Dio();
@@ -32,7 +34,7 @@ class RecorderInterceptor extends Interceptor {
   static const String source = 'http';
 
   /// The recorder this interceptor feeds and reads.
-  final FixtureRecorder recorder;
+  final TrafficRecorder recorder;
 
   /// Policy for replay requests with no recorded response.
   final ReplayMissBehavior onReplayMiss;
@@ -94,8 +96,9 @@ class RecorderInterceptor extends Interceptor {
     handler.next(err);
   }
 
+  // record() is a no-op unless the recorder is capturing, so this needs
+  // no mode check of its own.
   void _capture(Response response) {
-    if (!recorder.isRecording) return;
     recorder.record(
       RecordedInteraction(
         request: describe(response.requestOptions),

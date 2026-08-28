@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+* New thin record-and-replay seam: `TrafficRecorder` (`decide` + `record`)
+  with its contract types — `RecordedRequest`, `RecordedInteraction`,
+  sealed `ReplayDecision` (`Replayed` / `ForwardToSource` /
+  `RejectRequest`), and `ReplayMissBehavior`. Transport packages implement
+  capture/replay against this seam; the engine ships separately in
+  `flutter_fixtures_recorder`.
+
 * `HttpFixtureRequest.fromUri` is the canonical constructor: it owns HTTP
   request normalization (scheme and host dropped, the URL's query string
   merged into `queryParameters`), so sources see one shape and never

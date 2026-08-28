@@ -383,3 +383,20 @@ Contributions are welcome! Please read our [contributing guide](https://github.c
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/brotoo25/flutter_fixtures/blob/main/LICENSE) file for details.
+
+## Record & replay
+
+This package also ships `RecorderInterceptor`, the Dio adapter for the
+Flutter Fixtures record & replay module: capture real HTTP traffic while
+exercising the app, then replay it later in recorded order — without
+touching the network. The engine and UI tools live in
+[`flutter_fixtures_recorder`](../flutter_fixtures_recorder); this
+interceptor only talks to the thin `TrafficRecorder` seam in core.
+
+```dart
+final recorder = FixtureRecorder(store: MemoryRecordingSessionStore());
+dio.interceptors.add(RecorderInterceptor(recorder: recorder));
+```
+
+See the recorder package README for sessions, storage, ordering
+semantics, and the built-in UI tools.

@@ -1,10 +1,11 @@
 import 'dart:convert';
 
-import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
-import 'package:flutter_fixtures_sqflite/flutter_fixtures_sqflite.dart';
+import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
-/// The sqflite adapter for the recorder module.
+import 'database_adapter.dart';
+
+/// The sqflite adapter for the record-and-replay seam ([TrafficRecorder]).
 ///
 /// A decorator around any [DatabaseAdapter] (the real database, or even the
 /// fixture-backed one): while the recorder is recording, every operation is
@@ -33,8 +34,9 @@ class RecordingDatabaseAdapter implements DatabaseAdapter {
   /// The adapter real traffic is delegated to.
   final DatabaseAdapter inner;
 
-  /// The recorder this adapter feeds and reads.
-  final FixtureRecorder recorder;
+  /// The recorder this adapter feeds and reads. The engine —
+  /// `FixtureRecorder` from `flutter_fixtures_recorder` — plugs in here.
+  final TrafficRecorder recorder;
 
   /// Policy for replay operations with no recorded response.
   final ReplayMissBehavior onReplayMiss;

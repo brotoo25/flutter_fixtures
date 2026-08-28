@@ -9,30 +9,33 @@ record. It ships with built-in UI tools (a toolbar and a sessions sheet),
 but every control they offer is available on the public API, so you can
 build your own UI instead.
 
-This package is the **source-agnostic core**. It knows nothing about HTTP
-or SQL — one recorder captures and replays traffic from any data source,
-and a single session can hold traffic from several sources at once.
-Adapters plug the sources in:
+This package is the **engine**. It knows nothing about HTTP or SQL — one
+recorder captures and replays traffic from any data source, and a single
+session can hold traffic from several sources at once. The contract
+between sources and the engine is the thin `TrafficRecorder` seam in
+`flutter_fixtures_core` (just `decide` + `record`); each transport
+package ships its own implementation of the capture/replay side:
 
-| Package | Source |
-| --- | --- |
-| `flutter_fixtures_recorder_dio` | HTTP via a Dio interceptor |
-| `flutter_fixtures_recorder_sqflite` | sqflite via a `DatabaseAdapter` decorator |
-| (your code) | anything else — see [Any source](#any-source) below |
+| Adapter | Ships in | Source |
+| --- | --- | --- |
+| `RecorderInterceptor` | `flutter_fixtures_dio` | HTTP via a Dio interceptor |
+| `RecordingDatabaseAdapter` | `flutter_fixtures_sqflite` | sqflite via a `DatabaseAdapter` decorator |
+| (your code) | anywhere | anything else — see [Any source](#any-source) below |
 
 ## Quick Start
 
 ```yaml
 dependencies:
-  flutter_fixtures_recorder_dio: ^0.1.0      # HTTP recording
-  flutter_fixtures_recorder_sqflite: ^0.1.0  # database recording (optional)
+  flutter_fixtures_recorder: ^0.1.0  # the engine + UI tools
+  flutter_fixtures_dio: ^0.2.0       # ships RecorderInterceptor
 ```
 
 Create one recorder, hand it to the adapters for the sources you use, and
 drop the toolbar somewhere in your debug/demo UI:
 
 ```dart
-import 'package:flutter_fixtures_recorder_dio/flutter_fixtures_recorder_dio.dart';
+import 'package:flutter_fixtures_dio/flutter_fixtures_dio.dart';
+import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
 
 final recorder = FixtureRecorder(
   store: FileRecordingSessionStore('${documentsDir.path}/fixture_recordings'),
@@ -42,7 +45,7 @@ final recorder = FixtureRecorder(
 final dio = Dio();
 dio.interceptors.add(RecorderInterceptor(recorder: recorder));
 
-// Database (flutter_fixtures_recorder_sqflite):
+// Database (RecordingDatabaseAdapter ships in flutter_fixtures_sqflite):
 final db = RecordingDatabaseAdapter(
   inner: RealDatabaseAdapter(await openDatabase('app.db')),
   recorder: recorder,

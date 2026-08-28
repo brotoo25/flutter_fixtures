@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 import 'package:flutter_fixtures_dio/flutter_fixtures_dio.dart';
-import 'package:flutter_fixtures_recorder_dio/flutter_fixtures_recorder_dio.dart';
+import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A network stand-in: every request that reaches the wire gets this JSON.

@@ -1,5 +1,5 @@
-import 'recorded_interaction.dart';
-import 'recorded_request.dart';
+import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
+
 import 'recording_session.dart';
 
 /// Plays back a Recording Session, serving responses in recorded order.

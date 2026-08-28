@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+* New `RecordingDatabaseAdapter`: a record-and-replay decorator over any
+  `DatabaseAdapter`, capturing reads and mutations through core's
+  `TrafficRecorder` seam (engine: `flutter_fixtures_recorder`). A
+  replayed `insert` returns the recorded row id without writing anywhere.
+
 * **BREAKING**: `SqfliteDataQuery` implements the new `SqfliteFixtureSource`
   seam (`find` returns a `FixtureCollection`, `data` returns the payload
   as-is): `parse` is gone (the wire format lives in core's models), list

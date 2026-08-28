@@ -1,10 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
-import 'recorded_interaction.dart';
-import 'recorded_request.dart';
 import 'recording_session.dart';
-import 'replay_decision.dart';
-import 'replay_miss_behavior.dart';
 import 'session_replay.dart';
 import 'session_store.dart';
 
@@ -20,7 +17,8 @@ enum RecorderMode {
   replaying,
 }
 
-/// The record-and-replay controller.
+/// The record-and-replay controller — the engine behind core's
+/// [TrafficRecorder] seam.
 ///
 /// This is the module's single entry point: source adapters — the Dio
 /// interceptor, the sqflite recording adapter, or any custom code talking
@@ -39,7 +37,7 @@ enum RecorderMode {
 /// replaying can start from idle or replaying (starting a replay while one
 /// is active switches sessions). Starting either while recording throws a
 /// [StateError]. The stop methods are safe to call in any mode.
-class FixtureRecorder extends ChangeNotifier {
+class FixtureRecorder extends ChangeNotifier implements TrafficRecorder {
   final RecordingSessionStore _store;
 
   /// Optional custom request-key builder applied during replay.
@@ -122,6 +120,7 @@ class FixtureRecorder extends ChangeNotifier {
   ///
   /// Called by source adapters. Does nothing unless recording, so adapters
   /// can call it unconditionally.
+  @override
   void record(RecordedInteraction interaction) {
     if (!isRecording) return;
     _buffer.add(interaction);
@@ -168,6 +167,7 @@ class FixtureRecorder extends ChangeNotifier {
   ///
   /// Adapters translate the returned [ReplayDecision] into their native
   /// transport and nothing else.
+  @override
   ReplayDecision decide(
     RecordedRequest request, {
     ReplayMissBehavior onMiss = ReplayMissBehavior.forward,

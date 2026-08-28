@@ -7,4 +7,4 @@
 * `FixtureRecorder` controller with idle / recording / replaying modes; `decide` returns a sealed `ReplayDecision` (`Replayed` / `ForwardToSource` / `RejectRequest`) so adapters only render decisions, never re-implement replay choreography.
 * `RecordingSessionStore` persistence seam with file and in-memory implementations.
 * Built-in UI tools: `RecorderToolbar` and the recorded-sessions sheet.
-* Source adapters ship separately: `flutter_fixtures_recorder_dio` (HTTP) and `flutter_fixtures_recorder_sqflite` (database).
+* Source adapters ship in the transport packages against core's thin `TrafficRecorder` seam: `RecorderInterceptor` (flutter_fixtures_dio) and `RecordingDatabaseAdapter` (flutter_fixtures_sqflite).
