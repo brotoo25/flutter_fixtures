@@ -1,471 +1,401 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
-import 'package:flutter_fixtures_dio/src/dio_interceptor.dart';
-import 'package:flutter_fixtures_dio/src/dio_data_query.dart';
+import 'package:flutter_fixtures_dio/flutter_fixtures_dio.dart';
 
-import 'fixtures_interceptor_test.mocks.dart';
+class InMemoryAssetLoader implements FixtureAssetLoader {
+  InMemoryAssetLoader(this.files);
 
-// Generate mocks for the required classes
-@GenerateMocks([
-  DataQuery,
-  DataSelectorView,
-  RequestInterceptorHandler,
-])
+  final Map<String, String> files;
+  final List<String> requestedPaths = [];
+
+  @override
+  Future<String> load(String path) async {
+    requestedPaths.add(path);
+    final content = files[path];
+    if (content == null) {
+      throw StateError('Asset not found: $path');
+    }
+    return content;
+  }
+}
+
+/// A source with a canned collection and payload.
+class FakeSource implements HttpFixtureSource {
+  FakeSource({this.collection, this.payload});
+
+  final FixtureCollection? collection;
+  final Object? payload;
+  int dataCalls = 0;
+
+  @override
+  Future<FixtureCollection?> resolve(HttpFixtureRequest request) async {
+    return collection;
+  }
+
+  @override
+  Future<Object?> data(FixtureDocument document) async {
+    dataCalls++;
+    return payload;
+  }
+}
+
+class ThrowingSource implements HttpFixtureSource {
+  @override
+  Future<FixtureCollection?> resolve(HttpFixtureRequest request) {
+    throw StateError('broken source');
+  }
+
+  @override
+  Future<Object?> data(FixtureDocument document) async => null;
+}
+
+class CancellingView implements DataSelectorView {
+  @override
+  Future<FixtureChoice?> pick(FixtureCollection fixture) async => null;
+}
+
+/// Records the interceptor's outcome instead of driving a real request.
+class RecordingHandler extends RequestInterceptorHandler {
+  Response? resolved;
+  DioException? rejected;
+
+  @override
+  void resolve(
+    Response response, [
+    bool callFollowingResponseInterceptor = false,
+  ]) {
+    resolved = response;
+  }
+
+  @override
+  void reject(
+    DioException error, [
+    bool callFollowingErrorInterceptor = false,
+  ]) {
+    rejected = error;
+  }
+}
+
+FixtureDocument doc(
+  String identifier,
+  String description, {
+  bool defaultOption = false,
+  Object? data,
+  String? dataPath,
+}) {
+  return FixtureDocument(
+    identifier: identifier,
+    description: description,
+    defaultOption: defaultOption,
+    data: data,
+    dataPath: dataPath,
+  );
+}
+
+Future<RecordingHandler> run(
+  FixturesInterceptor interceptor, {
+  String method = 'GET',
+  String path = '/users',
+  Map<String, dynamic> queryParameters = const {},
+}) async {
+  final handler = RecordingHandler();
+  interceptor.onRequest(
+    RequestOptions(
+      path: path,
+      method: method,
+      queryParameters: queryParameters,
+    ),
+    handler,
+  );
+  for (var i = 0;
+      i < 50 && handler.resolved == null && handler.rejected == null;
+      i++) {
+    await Future.delayed(Duration.zero);
+  }
+  return handler;
+}
+
 void main() {
   group('FixturesInterceptor', () {
-    late MockDataQuery<RequestOptions, Object> mockDataQuery;
-    late MockDataSelectorView mockDataSelectorView;
-    late MockRequestInterceptorHandler mockHandler;
-    late RequestOptions requestOptions;
-    late FixturesInterceptor interceptor;
+    test('serves the resolved document as a response', () async {
+      final interceptor = FixturesInterceptor(
+        sources: [
+          FakeSource(
+            collection: FixtureCollection(
+              description: 'Users',
+              items: [
+                doc('ok', '201 Created', defaultOption: true, data: {'id': 1}),
+              ],
+            ),
+            payload: {'id': 1},
+          ),
+        ],
+        dataSelector: DataSelectorType.defaultValue,
+      );
 
-    setUp(() {
-      mockDataQuery = MockDataQuery<RequestOptions, Object>();
-      mockDataSelectorView = MockDataSelectorView();
-      mockHandler = MockRequestInterceptorHandler();
-      requestOptions = RequestOptions(path: '/users');
+      final handler = await run(interceptor, method: 'POST');
+
+      expect(handler.rejected, isNull);
+      expect(handler.resolved!.statusCode, equals(201));
+      expect(handler.resolved!.data, equals({'id': 1}));
     });
 
-    group('constructor', () {
-      test('creates interceptor with required parameters', () {
+    test('serves fixture files through the default file source', () async {
+      final loader = InMemoryAssetLoader({
+        'assets/fixtures/GET_users.json': '''
+        {
+          "description": "Users",
+          "values": [
+            {
+              "identifier": "list",
+              "description": "200 OK",
+              "default": true,
+              "data": [{"id": 1, "name": "Alice"}]
+            }
+          ]
+        }
+        ''',
+      });
+      final interceptor = FixturesInterceptor(
+        assetLoader: loader,
+        dataSelector: DataSelectorType.defaultValue,
+      );
+
+      final handler = await run(interceptor);
+
+      expect(handler.resolved!.statusCode, equals(200));
+      expect(handler.resolved!.data, isA<List>());
+    });
+
+    test('sets the x-fixture-file-path header for external payloads', () async {
+      final loader = InMemoryAssetLoader({
+        'assets/fixtures/GET_users.json': '''
+        {
+          "description": "Users",
+          "values": [
+            {
+              "identifier": "list",
+              "description": "200 OK",
+              "default": true,
+              "dataPath": "data/users.json"
+            }
+          ]
+        }
+        ''',
+        'assets/fixtures/data/users.json': '[{"id": 1}]',
+      });
+      final interceptor = FixturesInterceptor(
+        assetLoader: loader,
+        dataSelector: DataSelectorType.defaultValue,
+      );
+
+      final handler = await run(interceptor);
+
+      expect(
+          handler.resolved!.data,
+          equals([
+            {'id': 1}
+          ]));
+      expect(
+        handler.resolved!.headers.value('x-fixture-file-path'),
+        equals('data/users.json'),
+      );
+    });
+
+    group('source ordering', () {
+      const spec = '''
+      {
+        "openapi": "3.0.0",
+        "paths": {
+          "/users/{id}": {
+            "get": {
+              "summary": "Get a user",
+              "responses": {
+                "200": {
+                  "description": "Success",
+                  "content": {
+                    "application/json": {"example": {"id": 42}}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      ''';
+
+      List<HttpFixtureSource> sourcesWith(InMemoryAssetLoader loader) => [
+            HttpFileFixtureSource(assetLoader: loader),
+            OpenApiFixtureSource(
+              specPath: 'assets/fixtures/openapi.json',
+              assetLoader: loader,
+            ),
+          ];
+
+      test('falls back to the spec when no fixture file matches', () async {
+        final loader = InMemoryAssetLoader({
+          'assets/fixtures/openapi.json': spec,
+        });
         final interceptor = FixturesInterceptor(
-          dataQuery: mockDataQuery,
-          dataSelector: DataSelectorType.random,
+          sources: sourcesWith(loader),
+          dataSelector: DataSelectorType.defaultValue,
         );
 
-        expect(interceptor.dataQuery, equals(mockDataQuery));
-        expect(interceptor.dataSelectorView, isNull);
-        expect(interceptor.dataSelector, equals(DataSelectorType.random));
+        final handler = await run(interceptor, path: '/users/42');
+
+        expect(handler.resolved!.statusCode, equals(200));
+        expect(handler.resolved!.data, equals({'id': 42}));
       });
 
-      test('creates interceptor with all parameters', () {
+      test('a hand-written fixture file wins over the spec', () async {
+        final loader = InMemoryAssetLoader({
+          'assets/fixtures/GET_users_42.json': '''
+          {
+            "description": "Users",
+            "values": [
+              {
+                "identifier": "handwritten",
+                "description": "200 OK",
+                "default": true,
+                "data": {"source": "file"}
+              }
+            ]
+          }
+          ''',
+          'assets/fixtures/openapi.json': spec,
+        });
         final interceptor = FixturesInterceptor(
-          dataQuery: mockDataQuery,
-          dataSelectorView: mockDataSelectorView,
+          sources: sourcesWith(loader),
+          dataSelector: DataSelectorType.defaultValue,
+        );
+
+        final handler = await run(interceptor, path: '/users/42');
+
+        expect(handler.resolved!.data, equals({'source': 'file'}));
+        expect(
+          loader.requestedPaths,
+          isNot(contains('assets/fixtures/openapi.json')),
+        );
+      });
+
+      test('the resolving source provides the payload, not earlier sources',
+          () async {
+        // The first source has no collection for the request but would
+        // happily answer data() for any document; the winner's payload must
+        // be used even when it is null.
+        final wrongSource = FakeSource(payload: {'from': 'wrong source'});
+        final winningSource = FakeSource(
+          collection: FixtureCollection(
+            description: 'No content',
+            items: [doc('empty', '204 No Content', defaultOption: true)],
+          ),
+          payload: null,
+        );
+        final interceptor = FixturesInterceptor(
+          sources: [wrongSource, winningSource],
+          dataSelector: DataSelectorType.defaultValue,
+        );
+
+        final handler = await run(interceptor);
+
+        expect(handler.resolved!.statusCode, equals(204));
+        expect(handler.resolved!.data, isNull);
+        expect(wrongSource.dataCalls, equals(0));
+      });
+    });
+
+    group('error handling', () {
+      test('rejects when no source resolves', () async {
+        final interceptor = FixturesInterceptor(
+          sources: [FakeSource()],
+          dataSelector: DataSelectorType.defaultValue,
+        );
+
+        final handler = await run(interceptor);
+
+        expect(
+          handler.rejected!.error,
+          equals('No fixture found for request.'),
+        );
+      });
+
+      test('rejects when the collection has no options', () async {
+        final interceptor = FixturesInterceptor(
+          sources: [
+            FakeSource(
+              collection: FixtureCollection(description: 'Empty', items: []),
+            ),
+          ],
+          dataSelector: DataSelectorType.defaultValue,
+        );
+
+        final handler = await run(interceptor);
+
+        expect(
+          handler.rejected!.error,
+          equals('No fixture options found for request.'),
+        );
+      });
+
+      test('rejects when the user cancels an interactive pick', () async {
+        final interceptor = FixturesInterceptor(
+          sources: [
+            FakeSource(
+              collection: FixtureCollection(
+                description: 'Users',
+                items: [
+                  doc('a', '200 OK', defaultOption: true),
+                  doc('b', '404 Not Found'),
+                ],
+              ),
+            ),
+          ],
+          dataSelectorView: CancellingView(),
           dataSelector: DataSelectorType.pick,
         );
 
-        expect(interceptor.dataQuery, equals(mockDataQuery));
-        expect(interceptor.dataSelectorView, equals(mockDataSelectorView));
-        expect(interceptor.dataSelector, equals(DataSelectorType.pick));
-      });
-    });
+        final handler = await run(interceptor);
 
-    group('onRequest', () {
-      setUp(() {
-        interceptor = FixturesInterceptor(
-          dataQuery: mockDataQuery,
-          dataSelectorView: mockDataSelectorView,
-          dataSelector: DataSelectorType.defaultValue,
+        expect(
+          handler.rejected!.error,
+          equals('No fixture selected for request.'),
         );
       });
 
-      group('successful flow', () {
-        test('processes request successfully with inline data', () async {
-          // Arrange
-          final fixtureData = {'description': 'Test', 'values': []};
-          final fixtureCollection = FixtureCollection(
-            description: 'Test Collection',
-            items: [
-              FixtureDocument(
-                identifier: 'success',
-                description: '200 OK',
-                defaultOption: true,
-                data: {'result': 'success'},
-              ),
-            ],
-          );
-          final responseData = {'result': 'success'};
-
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => fixtureCollection);
-          when(mockDataQuery.select(
-            any,
-            any,
-            any,
-            delay: anyNamed('delay'),
-          )).thenAnswer((_) async => fixtureCollection.items.first);
-          when(mockDataQuery.data(fixtureCollection.items.first))
-              .thenAnswer((_) async => responseData);
-
-          // Act
-          interceptor.onRequest(requestOptions, mockHandler);
-
-          // Wait for async operations to complete
-          await Future.delayed(Duration.zero);
-
-          // Assert
-          verify(mockDataQuery.find(requestOptions)).called(1);
-          verify(mockDataQuery.parse(fixtureData)).called(1);
-          verify(mockDataQuery.select(
-            any,
-            any,
-            any,
-            delay: anyNamed('delay'),
-          )).called(1);
-          verify(mockDataQuery.data(fixtureCollection.items.first)).called(1);
-
-          final capturedResponse = verify(mockHandler.resolve(captureAny))
-              .captured
-              .single as Response;
-          expect(capturedResponse.data, equals(responseData));
-          expect(capturedResponse.statusCode, equals(200));
-          expect(capturedResponse.requestOptions, equals(requestOptions));
-        });
-
-        test('processes request successfully with JSON array data', () async {
-          // Arrange
-          final fixtureData = {'description': 'Test', 'values': []};
-          final fixtureCollection = FixtureCollection(
-            description: 'Test Collection',
-            items: [
-              FixtureDocument(
-                identifier: 'users_list',
-                description: '200 OK',
-                defaultOption: true,
-                data: [
-                  {'id': 1, 'name': 'Alice'},
-                  {'id': 2, 'name': 'Bob'},
+      test('rejects when the description carries no status code', () async {
+        final interceptor = FixturesInterceptor(
+          sources: [
+            FakeSource(
+              collection: FixtureCollection(
+                description: 'Users',
+                items: [
+                  doc('list', 'Returns list of all users', defaultOption: true),
                 ],
               ),
-            ],
-          );
-          final responseData = [
-            {'id': 1, 'name': 'Alice'},
-            {'id': 2, 'name': 'Bob'},
-          ];
-
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => fixtureCollection);
-          when(mockDataQuery.select(
-            any,
-            any,
-            any,
-            delay: anyNamed('delay'),
-          )).thenAnswer((_) async => fixtureCollection.items.first);
-          when(mockDataQuery.data(fixtureCollection.items.first))
-              .thenAnswer((_) async => responseData);
-
-          // Act
-          interceptor.onRequest(requestOptions, mockHandler);
-
-          // Wait for async operations to complete
-          await Future.delayed(Duration.zero);
-
-          // Assert
-          final capturedResponse = verify(mockHandler.resolve(captureAny))
-              .captured
-              .single as Response;
-          expect(capturedResponse.data, isA<List>());
-          expect(capturedResponse.data, equals(responseData));
-          expect(capturedResponse.statusCode, equals(200));
-        });
-
-        test('processes request successfully with file path header', () async {
-          // Arrange
-          final fixtureData = {'description': 'Test', 'values': []};
-          final fixtureCollection = FixtureCollection(
-            description: 'Test Collection',
-            items: [
-              FixtureDocument(
-                identifier: 'success',
-                description: '201 Created',
-                defaultOption: true,
-                dataPath: 'success_response.json',
-              ),
-            ],
-          );
-          final responseData = {'id': 123, 'name': 'Alice'};
-
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => fixtureCollection);
-          when(mockDataQuery.select(any, any, any, delay: anyNamed('delay')))
-              .thenAnswer((_) async => fixtureCollection.items.first);
-          when(mockDataQuery.data(fixtureCollection.items.first))
-              .thenAnswer((_) async => responseData);
-
-          // Act
-          interceptor.onRequest(requestOptions, mockHandler);
-
-          // Wait for async operations to complete
-          await Future.delayed(Duration.zero);
-
-          // Assert
-          final capturedResponse = verify(mockHandler.resolve(captureAny))
-              .captured
-              .single as Response;
-          expect(capturedResponse.data, equals(responseData));
-          expect(capturedResponse.statusCode, equals(201));
-          expect(
-            capturedResponse.headers.value('x-fixture-file-path'),
-            equals('success_response.json'),
-          );
-        });
-      });
-
-      group('error handling', () {
-        test('rejects when no fixture found', () async {
-          // Arrange
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => null);
-
-          // Act
-          interceptor.onRequest(requestOptions, mockHandler);
-
-          // Wait for async operations to complete
-          await Future.delayed(Duration.zero);
-
-          // Assert
-          final capturedError = verify(mockHandler.reject(captureAny))
-              .captured
-              .single as DioException;
-          expect(capturedError.error, equals('No fixture found for request.'));
-          expect(capturedError.requestOptions, equals(requestOptions));
-        });
-
-        test('rejects when fixture collection is null', () async {
-          // Arrange
-          final fixtureData = {'description': 'Test', 'values': []};
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData)).thenAnswer((_) async => null);
-
-          // Act
-          interceptor.onRequest(requestOptions, mockHandler);
-
-          // Wait for async operations to complete
-          await Future.delayed(Duration.zero);
-
-          // Assert
-          final capturedError = verify(mockHandler.reject(captureAny))
-              .captured
-              .single as DioException;
-          expect(capturedError.error,
-              equals('No fixture options found for request.'));
-        });
-
-        test('rejects when fixture collection is empty', () async {
-          // Arrange
-          final fixtureData = {'description': 'Test', 'values': []};
-          final emptyCollection = FixtureCollection(
-            description: 'Empty Collection',
-            items: [],
-          );
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => emptyCollection);
-
-          // Act
-          interceptor.onRequest(requestOptions, mockHandler);
-
-          // Wait for async operations to complete
-          await Future.delayed(Duration.zero);
-
-          // Assert
-          final capturedError = verify(mockHandler.reject(captureAny))
-              .captured
-              .single as DioException;
-          expect(capturedError.error,
-              equals('No fixture options found for request.'));
-        });
-
-        test('rejects when no document selected', () async {
-          // Arrange
-          final fixtureData = {'description': 'Test', 'values': []};
-          final fixtureCollection = FixtureCollection(
-            description: 'Test Collection',
-            items: [
-              FixtureDocument(
-                identifier: 'success',
-                description: '200 OK',
-                defaultOption: true,
-                data: {'result': 'success'},
-              ),
-            ],
-          );
-
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => fixtureCollection);
-          when(mockDataQuery.select(any, any, any, delay: anyNamed('delay')))
-              .thenAnswer((_) async => null);
-
-          // Act
-          interceptor.onRequest(requestOptions, mockHandler);
-
-          // Wait for async operations to complete
-          await Future.delayed(Duration.zero);
-
-          // Assert
-          final capturedError = verify(mockHandler.reject(captureAny))
-              .captured
-              .single as DioException;
-          expect(
-              capturedError.error, equals('No fixture selected for request.'));
-        });
-
-        test('rejects when the description carries no status code', () async {
-          // Arrange
-          final fixtureData = {'description': 'Test', 'values': []};
-          final proseDocument = FixtureDocument(
-            identifier: 'list',
-            description: 'Returns list of all users',
-            defaultOption: true,
-            data: {'result': []},
-          );
-          final fixtureCollection = FixtureCollection(
-            description: 'Test Collection',
-            items: [proseDocument],
-          );
-
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => fixtureCollection);
-          when(mockDataQuery.select(any, any, any, delay: anyNamed('delay')))
-              .thenAnswer((_) async => proseDocument);
-
-          // Act
-          interceptor.onRequest(requestOptions, mockHandler);
-          await Future.delayed(Duration.zero);
-
-          // Assert
-          final capturedError = verify(mockHandler.reject(captureAny))
-              .captured
-              .single as DioException;
-          expect(
-            capturedError.error,
-            contains('must start with a 3-digit HTTP status code'),
-          );
-        });
-
-        test('rejects when exception occurs during processing', () async {
-          // Arrange
-          when(mockDataQuery.find(requestOptions))
-              .thenThrow(Exception('Test exception'));
-
-          // Act
-          interceptor.onRequest(requestOptions, mockHandler);
-
-          // Wait for async operations to complete
-          await Future.delayed(Duration.zero);
-
-          // Assert
-          final capturedError = verify(mockHandler.reject(captureAny))
-              .captured
-              .single as DioException;
-          expect(capturedError.error, contains('Error processing fixture:'));
-          expect(capturedError.error, contains('Test exception'));
-        });
-      });
-
-      group('edge cases', () {
-        test('handles empty file path correctly', () async {
-          // Arrange
-          final fixtureData = {'description': 'Test', 'values': []};
-          final fixtureCollection = FixtureCollection(
-            description: 'Test Collection',
-            items: [
-              FixtureDocument(
-                identifier: 'success',
-                description: '200 OK',
-                defaultOption: true,
-                data: {'result': 'success'},
-                dataPath: '', // Empty path
-              ),
-            ],
-          );
-          final responseData = {'result': 'success'};
-
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => fixtureCollection);
-          when(mockDataQuery.select(any, any, any, delay: anyNamed('delay')))
-              .thenAnswer((_) async => fixtureCollection.items.first);
-          when(mockDataQuery.data(fixtureCollection.items.first))
-              .thenAnswer((_) async => responseData);
-
-          // Act
-          interceptor.onRequest(requestOptions, mockHandler);
-
-          // Wait for async operations to complete
-          await Future.delayed(Duration.zero);
-
-          // Assert
-          final capturedResponse = verify(mockHandler.resolve(captureAny))
-              .captured
-              .single as Response;
-          expect(
-            capturedResponse.headers.value('x-fixture-file-path'),
-            isNull,
-          );
-        });
-
-        test('handles status code parsing from description', () async {
-          // Arrange
-          final fixtureData = {'description': 'Test', 'values': []};
-          final fixtureCollection = FixtureCollection(
-            description: 'Test Collection',
-            items: [
-              FixtureDocument(
-                identifier: 'not_found',
-                description: '404 Not Found',
-                defaultOption: true,
-                data: {'error': 'Not found'},
-              ),
-            ],
-          );
-          final responseData = {'error': 'Not found'};
-
-          when(mockDataQuery.find(requestOptions))
-              .thenAnswer((_) async => fixtureData);
-          when(mockDataQuery.parse(fixtureData))
-              .thenAnswer((_) async => fixtureCollection);
-          when(mockDataQuery.select(any, any, any, delay: anyNamed('delay')))
-              .thenAnswer((_) async => fixtureCollection.items.first);
-          when(mockDataQuery.data(fixtureCollection.items.first))
-              .thenAnswer((_) async => responseData);
-
-          // Act
-          interceptor.onRequest(requestOptions, mockHandler);
-
-          // Wait for async operations to complete
-          await Future.delayed(Duration.zero);
-
-          // Assert
-          final capturedResponse = verify(mockHandler.resolve(captureAny))
-              .captured
-              .single as Response;
-          expect(capturedResponse.statusCode, equals(404));
-        });
-      });
-    });
-
-    group('integration', () {
-      test('can be instantiated with DioDataQuery', () {
-        // This test verifies that the interceptor can be created with real implementations
-        // without mocking, ensuring the interfaces are compatible
-        final interceptor = FixturesInterceptor(
-          dataQuery: DioDataQuery(),
-          dataSelector: DataSelectorType.random,
+            ),
+          ],
+          dataSelector: DataSelectorType.defaultValue,
         );
 
-        expect(interceptor, isNotNull);
-        expect(interceptor.dataQuery, isA<DioDataQuery>());
-        expect(interceptor.dataSelector, equals(DataSelectorType.random));
-        expect(interceptor.dataSelectorView, isNull);
+        final handler = await run(interceptor);
+
+        expect(
+          handler.rejected!.error,
+          contains('must start with a 3-digit HTTP status code'),
+        );
+      });
+
+      test('rejects when a source throws', () async {
+        final interceptor = FixturesInterceptor(
+          sources: [ThrowingSource()],
+          dataSelector: DataSelectorType.defaultValue,
+        );
+
+        final handler = await run(interceptor);
+
+        expect(handler.rejected!.error, contains('Error processing fixture:'));
+        expect(handler.rejected!.error, contains('broken source'));
       });
     });
   });

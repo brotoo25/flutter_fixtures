@@ -35,7 +35,10 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
     dio.interceptors.clear();
     dio.interceptors.add(
       FixturesInterceptor(
-        dataQuery: DioDataQuery(),
+        sources: [
+          HttpFileFixtureSource(),
+          OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
+        ],
         dataSelectorView: FixturesDialogView(
           contextProvider: () => widget.navigatorKey.currentContext!,
         ),
@@ -132,6 +135,14 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
           fullUrl = '$baseUrl/files?$queryString';
           response = await dio.get('/files', queryParameters: queryParams);
           break;
+        case 'openapi':
+          fullUrl = '$baseUrl/products/123';
+          response = await dio.get('/products/123');
+          break;
+        case 'openapi_schema':
+          fullUrl = '$baseUrl/products';
+          response = await dio.post('/products', data: {'name': 'Keyboard'});
+          break;
         case 'invalid':
           fullUrl = '$baseUrl/nonexistent';
           response = await dio.get('/nonexistent');
@@ -215,6 +226,10 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
                       style: TextStyle(fontSize: 12)),
                   Text('• File Download: Fallback mustache (Priority 5)',
                       style: TextStyle(fontSize: 12)),
+                  Text('• Product Details: OpenAPI spec examples (Fallback)',
+                      style: TextStyle(fontSize: 12)),
+                  Text('• Create Product: OpenAPI schema-generated sample',
+                      style: TextStyle(fontSize: 12)),
                   Text('• Invalid API: No match (Error handling)',
                       style: TextStyle(fontSize: 12)),
                 ],
@@ -245,6 +260,12 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
                 DropdownMenuItem(
                     value: 'file',
                     child: Text('File Download (Fallback Mustache)')),
+                DropdownMenuItem(
+                    value: 'openapi',
+                    child: Text('Product Details (OpenAPI Examples)')),
+                DropdownMenuItem(
+                    value: 'openapi_schema',
+                    child: Text('Create Product (OpenAPI Schema)')),
                 DropdownMenuItem(
                     value: 'invalid', child: Text('Invalid API (No Match)')),
               ],

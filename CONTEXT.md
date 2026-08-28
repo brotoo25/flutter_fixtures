@@ -19,20 +19,56 @@ both; the constructor enforces this. For HTTP fixtures the description
 conventionally starts with a 3-digit status code, exposed as the typed
 `statusCode` field.
 
-## Data Query
+## Fixture Outcome
 
-The seam a data source plugs in through (`DataQuery<Input, Output>`):
-`find` maps a domain request to fixture content, `parse` produces a
-Fixture Collection, `select` chooses a document, `data` yields its payload.
-Adapters: `DioDataQuery` (HTTP via Dio), `SqfliteDataQuery` (sqflite).
+The result of serving one fixture request through the Selection Flow's
+`serve` pipeline (`FixtureOutcome`): not found, empty, cancelled, or
+served (the selected Fixture Document plus its payload). Adapters map
+outcomes to their own domain and error policy — the choreography itself
+lives in one place.
+
+## Sqflite Fixture Source
+
+The seam for providing sqflite fixtures (`SqfliteFixtureSource`): `find`
+takes a database query and returns a Fixture Collection, or `null` when
+the source has none; `data` materializes a document's payload.
+`SqfliteDataQuery` is the built-in file-backed adapter.
 
 ## Fixture Source
 
 The core module owning fixture-file IO (`FixtureSource`): tries candidate
-file names in order, decodes JSON, loads document payloads. Data Query
-adapters only build candidate names for their domain and delegate here.
+file names in order, decodes JSON, loads document payloads. Consumers only
+build candidate names for their domain and delegate here — the HTTP File
+Source for HTTP requests, the sqflite Data Query for database queries.
 A missing candidate is skipped; a matched candidate with malformed JSON
 fails loudly.
+
+## HTTP Fixture Source
+
+The seam for providing HTTP fixtures (`HttpFixtureSource`): `resolve` takes
+an `HttpFixtureRequest` (method, path, query parameters) and returns a
+Fixture Collection, or `null` when the source has none; `data` materializes
+a document's payload. Sources build model objects — the wire format belongs
+to the Fixture Collection and Fixture Document alone. HTTP adapters consult
+an ordered list of sources — the first that resolves wins, so list order
+decides precedence. Built-ins: `HttpFileFixtureSource` (fixture files,
+owning the HTTP file naming convention) and `OpenApiFixtureSource`.
+
+## OpenAPI Source
+
+The HTTP Fixture Source for OpenAPI 3.x JSON documents
+(`OpenApiFixtureSource`): matches the request's method and path against the
+spec's `paths` (templates and server base paths included). The operation's
+summary names the collection; each response — status, description, and
+payload examples (or a schema-generated sample) — becomes a Fixture
+Document.
+
+## Schema Sampler
+
+The internal seam under the OpenAPI Source (`OpenApiSchemaSampler`, not
+exported): generates a sample payload from a single schema node — explicit
+example-like values first, then composition keywords, then typed
+placeholders — resolving document-local `$ref`s against the spec.
 
 ## Asset Loader
 
@@ -44,9 +80,12 @@ in-memory fakes in tests.
 
 The behavior behind `FixtureSelector.select`, owned entirely by core:
 strategy dispatch (`DataSelectorType`: pick / defaultValue / random),
-auto-selecting single-option collections, remembered choices (read and
+auto-selecting single-option collections, Selection Memory (read and
 write), single-flight deduplication of concurrent interactive picks, and
-response delays (`DataSelectorDelay`).
+response delays (`DataSelectorDelay`). Its state is scoped to the
+mixing-in instance and keyed by one collection signature. `serve` runs
+the full pipeline — find, select, load payload — and reports a Fixture
+Outcome.
 
 ## Selector View
 
@@ -64,9 +103,10 @@ it is never silently converted into a selection.
 
 ## Selection Memory
 
-The runtime-only store of remembered choices (`FixtureSelectionMemory`),
-keyed by collection description. Written by the selection flow when a
-Fixture Choice asks to be remembered; cleared via `clearFor`/`clearAll`.
+The runtime-only store of remembered choices, owned by the Selection Flow
+and scoped to a selector instance. Written when a Fixture Choice asks to
+be remembered; cleared via `clearRememberedSelectionFor` /
+`clearRememberedSelections` on the selector.
 
 ## Database Adapter
 

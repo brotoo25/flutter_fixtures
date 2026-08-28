@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased
+
+* New `FixtureSelector.serve` runs the whole fixture pipeline — find a
+  collection, select a document, load its payload — and reports a
+  `FixtureOutcome` (`FixtureNotFound` / `FixtureEmpty` / `FixtureCancelled`
+  / `FixtureServed`). Adapters map outcomes to their own domain and error
+  policy instead of each re-implementing the choreography.
+* **BREAKING**: the `DataQuery` interface was removed. HTTP providers
+  implement `HttpFixtureSource`; sqflite providers implement
+  `SqfliteFixtureSource` (in `flutter_fixtures_sqflite`); custom domains
+  define their own source seam and drive it with `FixtureSelector.serve`.
+
+* **BREAKING**: `FixtureSelectionMemory` was removed; remembered choices
+  live inside `FixtureSelector`, scoped to the mixing-in instance and keyed
+  by the same collection signature as pick deduplication. Clear them with
+  `clearRememberedSelectionFor` / `clearRememberedSelections` on the
+  selector. The `@visibleForTesting FixtureSelector.clearPendingPicks` is
+  gone with the static state that required it.
+
+* New `HttpFixtureSource` seam: resolves an `HttpFixtureRequest` (method,
+  path, query parameters) to a `FixtureCollection`. HTTP adapters consult an
+  ordered list of sources; the first that resolves wins. Sources build model
+  objects directly, so the fixture wire format lives only in
+  `FixtureCollection.fromJson` / `FixtureDocument.fromJson` and document
+  invariants are enforced at construction.
+* New `HttpFileFixtureSource` implements the seam over fixture files,
+  owning the HTTP file naming convention (moved from `DioDataQuery`).
+* New `OpenApiFixtureSource` implements the seam over an OpenAPI 3.x JSON
+  document: operation docs name the collection, and each response's status,
+  description, and payload examples (or a schema-generated sample) become
+  selectable documents.
+
 ## 0.2.0
 
 * **BREAKING**: `DataSelectorView.pick` now returns `FixtureChoice?` (the chosen document plus a remember flag); `null` means the user cancelled.

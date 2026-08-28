@@ -6,7 +6,7 @@ SQLite/sqflite implementation for the Flutter Fixtures library. Mock database qu
 
 ## 🎯 Purpose
 
-This package provides a `DataQuery` implementation for SQLite databases, allowing you to:
+This package provides a fixture-backed `DatabaseAdapter` for SQLite, allowing you to:
 
 - Mock database queries during development and testing
 - Test different data scenarios without modifying the database
@@ -21,7 +21,7 @@ A drop-in replacement for sqflite's `Database` that returns fixture data. Provid
 
 ### SqfliteDataQuery
 
-A data provider that loads fixture files from your app's assets and returns mock database results.
+The file-backed `SqfliteFixtureSource`: loads fixture files from your app's assets and returns them as fixture collections. Implement `SqfliteFixtureSource` yourself to provide fixtures from anywhere else.
 
 ### SqfliteQuery
 

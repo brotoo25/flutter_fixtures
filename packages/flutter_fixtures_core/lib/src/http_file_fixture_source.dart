@@ -1,10 +1,13 @@
-import 'package:dio/dio.dart';
-import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
+import 'fixture_asset_loader.dart';
+import 'fixture_collection.dart';
+import 'fixture_document.dart';
+import 'fixture_source.dart';
+import 'http_fixture_source.dart';
 
-/// Implementation of DataQuery for Dio HTTP client
+/// The [HttpFixtureSource] backed by fixture files.
 ///
-/// This class maps a Dio request to fixture file candidates and delegates
-/// loading to [FixtureSource].
+/// Maps a request to fixture-file candidates and delegates loading to
+/// [FixtureSource].
 ///
 /// ## File Naming Convention
 ///
@@ -20,39 +23,38 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 ///
 /// The `*` and `{{key}}` forms are literal file names, not globs — they
 /// match any values with the same arity.
-class DioDataQuery
-    with FixtureSelector
-    implements DataQuery<RequestOptions, Object> {
-  /// The folder where mock data is stored
+class HttpFileFixtureSource implements HttpFixtureSource {
+  /// The folder where fixture files are stored.
   final String mockFolder;
 
   final FixtureSource _source;
 
-  /// Creates a new DioDataQuery with the specified mock folder
-  ///
   /// [assetLoader] substitutes how fixture files are read; it defaults to
   /// the root asset bundle.
-  DioDataQuery({
+  HttpFileFixtureSource({
     this.mockFolder = 'assets/fixtures',
     FixtureAssetLoader assetLoader = const BundleAssetLoader(),
   }) : _source =
             FixtureSource(mockFolder: mockFolder, assetLoader: assetLoader);
 
-  /// Gets the mock folder path
-  String get mockFolderPath => mockFolder;
+  @override
+  Future<FixtureCollection?> resolve(HttpFixtureRequest request) async {
+    final json = await _source.resolve(_candidateNames(request));
+    return json == null ? null : FixtureCollection.fromJson(json);
+  }
 
   @override
-  Future<Object?> find(RequestOptions input) {
-    return _source.resolve(_candidateNames(input));
+  Future<Object?> data(FixtureDocument document) {
+    return _source.data(document);
   }
 
   /// Builds the ordered fixture-file candidates for a request.
-  List<String> _candidateNames(RequestOptions input) {
+  List<String> _candidateNames(HttpFixtureRequest request) {
     // Base file name from method and path (slashes replaced by underscores)
-    final base = '${input.method}${input.path.replaceAll('/', '_')}';
+    final base = '${request.method}${request.path.replaceAll('/', '_')}';
 
     // Prepare query parameter segments (deterministic order by key)
-    final queryParams = input.queryParameters;
+    final queryParams = request.queryParameters;
     final sortedKeys = queryParams.keys.toList()
       ..sort((a, b) => a.compareTo(b));
 
@@ -80,15 +82,5 @@ class DioDataQuery
           '${base}_${sortedKeys.map((k) => '{{$k}}').join('_')}.json',
       ],
     ];
-  }
-
-  @override
-  Future<FixtureCollection?> parse(Object source) async {
-    return FixtureCollection.fromJson(source as Map<String, dynamic>);
-  }
-
-  @override
-  Future<Object?> data(FixtureDocument document) {
-    return _source.data(document);
   }
 }

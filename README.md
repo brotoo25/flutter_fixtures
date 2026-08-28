@@ -88,7 +88,6 @@ final dio = Dio(BaseOptions(baseUrl: 'https://example.com'));
 // Add the FixturesInterceptor
 dio.interceptors.add(
   FixturesInterceptor(
-    dataQuery: DioDataQuery(),
     dataSelectorView: FixturesDialogView(
       contextProvider: () => navigatorKey.currentContext!,
     ),
@@ -226,6 +225,35 @@ Example fixture file (`assets/fixtures/GET_users.json`):
 }
 ```
 
+### OpenAPI Fixtures
+
+If your API ships an OpenAPI 3.x spec, you can skip hand-writing fixture
+files: paste the spec's JSON into your assets and add an
+`OpenApiFixtureSource` to the interceptor's sources.
+
+```dart
+dio.interceptors.add(
+  FixturesInterceptor(
+    sources: [
+      HttpFileFixtureSource(),
+      OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
+    ],
+    dataSelector: DataSelectorType.pick,
+  ),
+);
+```
+
+Sources are consulted in order and the first one that resolves wins — here
+hand-written fixture files take precedence and the spec covers the rest.
+
+Requests with no matching fixture file are looked up in the spec (including
+`{param}` path templates and server base paths), and each documented
+response becomes a selectable fixture: the status code and response
+description label it, and the payload comes from the spec's examples — or,
+when an operation has none, from sample data generated from its schema.
+Hand-written fixture files always take precedence, so you can override any
+endpoint with a custom fixture whenever you need more control.
+
 ## Extensibility
 
 Flutter Fixtures is designed to be highly extensible. You can create your own implementations for different data providers, UI components, or storage mechanisms.
@@ -249,39 +277,15 @@ Available options:
 - `DataSelectorDelay.slow` - ~2000ms
 - `DataSelectorDelay.custom(ms)` - Custom delay
 
-### Creating a Custom Data Provider
+### Creating a Custom Fixture Provider
 
-To create a custom data provider, implement the `DataQuery` interface from the core package:
-`DataQuery<Input, Output>` uses one output type for find/parse/data. If your
-payload shape varies (for example, map or list), use `Output` as `Object`.
-
-```dart
-class MyCustomDataQuery implements DataQuery<MyInput, MyOutput> {
-  @override
-  Future<MyOutput?> find(MyInput input) async {
-    // Your implementation
-  }
-
-  @override
-  Future<FixtureCollection?> parse(MyOutput source) async {
-    // Your implementation
-  }
-
-  @override
-  Future<MyOutput?> data(FixtureDocument document) async {
-    // Your implementation
-  }
-
-  @override
-  Future<FixtureDocument?> select(
-    FixtureCollection fixture,
-    DataSelectorView? view,
-    DataSelectorType selector,
-  ) async {
-    // You can use the FixtureSelector mixin or implement your own logic
-  }
-}
-```
+A fixture provider is a source: it turns a domain request into a
+`FixtureCollection` and materializes a document's payload. HTTP providers
+implement `HttpFixtureSource` from core and join the interceptor's
+`sources` list; for other domains, define a seam of the same shape and
+drive it with `FixtureSelector.serve` — see the
+[core package README](packages/flutter_fixtures_core/README.md) for a
+worked example.
 
 ### Creating a Custom UI Component
 
@@ -323,6 +327,7 @@ The following implementations are planned for future releases:
 - [ ] Sidebar panel
 
 ### Other Features
+- [x] OpenAPI-driven fixtures (build fixtures from a spec's docs and examples)
 - [ ] Fixture recording mode
 - [ ] Fixture validation
 - [x] Response delay simulation

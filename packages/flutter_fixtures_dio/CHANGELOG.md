@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+* **BREAKING**: `FixturesInterceptor` now owns the HTTP fixture pipeline:
+  it maps each request to an `HttpFixtureRequest` and consults an ordered
+  `HttpFixtureSource` list (`sources`); the first source that resolves wins
+  and provides the selected document's payload. Pass `sources:` (or
+  `mockFolder:`/`assetLoader:` for the default file source) instead of
+  `dataQuery:`. Defaults to fixture files (`HttpFileFixtureSource`); add
+  `OpenApiFixtureSource` to derive fixtures from an OpenAPI 3.x spec for
+  requests no earlier source covers.
+* **BREAKING**: `DioDataQuery` was removed — `HttpFixtureSource` is the
+  extension point for custom HTTP fixture providers. The file naming
+  convention lives in `HttpFileFixtureSource` in core.
+* The interceptor drives core's `FixtureSelector.serve` pipeline and maps
+  each `FixtureOutcome` to its Dio response or rejection, keeping the
+  existing error messages.
+
 ## 0.2.0
 
 * **BREAKING**: a selected fixture whose description does not start with a 3-digit status code now rejects with a clear error instead of throwing `FormatException`.
