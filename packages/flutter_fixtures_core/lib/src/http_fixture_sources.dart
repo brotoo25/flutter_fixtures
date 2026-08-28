@@ -19,6 +19,13 @@ import 'http_fixture_source.dart';
 /// ]);
 /// // find: () => sources.resolve(request), data: sources.data
 /// ```
+///
+/// Payload routing is per document identity, so each source must hand out
+/// its own document instances (reusing them across its own resolves is
+/// fine — the built-in sources build fresh ones per resolve). A document
+/// instance that arrives through two different sources is ambiguous, and
+/// [resolve] fails loudly instead of silently rerouting an in-flight
+/// request's payload.
 class HttpFixtureSources implements HttpFixtureSource {
   /// The sources consulted for each request, in precedence order.
   final List<HttpFixtureSource> sources;
@@ -35,6 +42,15 @@ class HttpFixtureSources implements HttpFixtureSource {
       final collection = await source.resolve(request);
       if (collection != null) {
         for (final document in collection.items) {
+          final owner = _resolvedBy[document];
+          if (owner != null && !identical(owner, source)) {
+            throw StateError(
+              'Document "${document.identifier}" was already resolved by '
+              'another source. Sources must hand out their own document '
+              'instances; a shared instance would silently receive the '
+              'wrong payload.',
+            );
+          }
           _resolvedBy[document] = source;
         }
         return collection;

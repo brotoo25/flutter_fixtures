@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// A source with canned answers and counted calls.
 class FakeSource implements HttpFixtureSource {
-  final FixtureCollection? collection;
+  FixtureCollection? collection;
   final Object? payload;
   int resolveCalls = 0;
   int dataCalls = 0;
@@ -96,6 +96,35 @@ void main() {
 
       expect(await sourcesA.data(resolvedFirst!.items.single), 'from a');
       expect(await sourcesA.data(resolvedSecond!.items.single), 'from a');
+    });
+
+    test('a source may reuse its own cached documents across resolves',
+        () async {
+      final cached = collection('cached');
+      final caching = FakeSource(collection: cached, payload: 'cached');
+      final sources = HttpFixtureSources([caching]);
+
+      final first = await sources.resolve(request);
+      final second = await sources.resolve(request);
+
+      expect(identical(first, second), isTrue);
+      expect(await sources.data(second!.items.single), 'cached');
+    });
+
+    test('a document instance shared by two sources fails loudly', () async {
+      final shared = collection('shared');
+      final first = FakeSource(collection: shared);
+      final second = FakeSource(collection: shared);
+      final sources = HttpFixtureSources([first, second]);
+
+      // Request 1: `first` wins and owns the shared documents.
+      await sources.resolve(request);
+
+      // Request 2: `first` no longer resolves, so the SAME document
+      // instance arrives through `second` — ambiguous, rejected loudly
+      // instead of silently rerouting request 1's payload.
+      first.collection = null;
+      expect(() => sources.resolve(request), throwsStateError);
     });
 
     test('data() for a document it never resolved fails loudly', () async {
