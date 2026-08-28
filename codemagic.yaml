@@ -2,7 +2,7 @@ workflows:
   # Main CI workflow for pull requests and pushes
   ci:
     name: CI - Code Quality & Tests
-    instance_type: mac_mini_m1
+    instance_type: mac_mini_m2
     max_build_duration: 30
     environment:
       flutter: stable
@@ -72,7 +72,7 @@ workflows:
   # Workflow for release branches - comprehensive checks
   release:
     name: Release - Full Verification
-    instance_type: mac_mini_m1
+    instance_type: mac_mini_m2
     max_build_duration: 45
     environment:
       flutter: stable
@@ -143,7 +143,7 @@ workflows:
   # Workflow for changed packages only (faster CI for large monorepos)
   quick-check:
     name: Quick Check - Changed Packages Only
-    instance_type: mac_mini_m1
+    instance_type: mac_mini_m2
     max_build_duration: 20
     environment:
       flutter: stable
