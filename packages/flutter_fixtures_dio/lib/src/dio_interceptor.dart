@@ -12,7 +12,7 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 /// covers.
 class FixturesInterceptor extends Interceptor with FixtureSelector {
   /// The fixture sources consulted for each request, in order.
-  final List<HttpFixtureSource> sources;
+  final HttpFixtureSources sources;
 
   /// The view used for user selection of fixtures
   final DataSelectorView? dataSelectorView;
@@ -37,13 +37,13 @@ class FixturesInterceptor extends Interceptor with FixtureSelector {
     this.dataSelectorView,
     required this.dataSelector,
     this.dataSelectorDelay = DataSelectorDelay.instant,
-  }) : sources = sources ??
+  }) : sources = HttpFixtureSources(sources ??
             [
               HttpFileFixtureSource(
                 mockFolder: mockFolder,
                 assetLoader: assetLoader,
               ),
-            ];
+            ]);
 
   @override
   void onRequest(
@@ -51,27 +51,13 @@ class FixturesInterceptor extends Interceptor with FixtureSelector {
     RequestInterceptorHandler handler,
   ) async {
     try {
-      final request = HttpFixtureRequest(
-        method: options.method,
-        path: options.path,
-        queryParameters: options.queryParameters,
-      );
+      // options.uri carries the merged query and resolves relative paths
+      // against the base URL; fromUri owns the normalization from there.
+      final request = HttpFixtureRequest.fromUri(options.method, options.uri);
 
-      // The first source that resolves wins — and it alone provides the
-      // payload, so a source can never answer for another's document.
-      HttpFixtureSource? resolvedBy;
       final outcome = await serve(
-        find: () async {
-          for (final source in sources) {
-            final collection = await source.resolve(request);
-            if (collection != null) {
-              resolvedBy = source;
-              return collection;
-            }
-          }
-          return null;
-        },
-        data: (document) => resolvedBy!.data(document),
+        find: () => sources.resolve(request),
+        data: sources.data,
         view: dataSelectorView,
         selector: dataSelector,
         delay: dataSelectorDelay,

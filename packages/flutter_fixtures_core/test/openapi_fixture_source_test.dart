@@ -180,8 +180,10 @@ void main() {
         },
       });
 
-      final result =
-          await source.resolve(req('GET', 'https://api.example.com/users'));
+      // Normalization of absolute URLs is owned by HttpFixtureRequest.fromUri;
+      // the source only sees the canonical path.
+      final result = await source.resolve(HttpFixtureRequest.fromUri(
+          'GET', Uri.parse('https://api.example.com/users')));
 
       expect(result!.description, equals('listUsers'));
     });

@@ -12,4 +12,5 @@ export 'src/fixture_document.dart';
 export 'src/fixture_collection.dart';
 export 'src/http_file_fixture_source.dart';
 export 'src/http_fixture_source.dart';
+export 'src/http_fixture_sources.dart';
 export 'src/openapi_fixture_source.dart';
