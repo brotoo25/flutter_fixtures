@@ -56,6 +56,13 @@ summary names the collection; each response — status, description, and
 payload examples (or a schema-generated sample) — becomes a Fixture
 Document.
 
+## Schema Sampler
+
+The internal seam under the OpenAPI Source (`OpenApiSchemaSampler`, not
+exported): generates a sample payload from a single schema node — explicit
+example-like values first, then composition keywords, then typed
+placeholders — resolving document-local `$ref`s against the spec.
+
 ## Asset Loader
 
 The IO seam under Fixture Source (`FixtureAssetLoader`): how fixture file
