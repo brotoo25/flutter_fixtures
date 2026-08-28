@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+* **BREAKING**: `SqfliteDataQuery` implements the new `SqfliteFixtureSource`
+  seam (`find` returns a `FixtureCollection`, `data` returns the payload
+  as-is): `parse` is gone (the wire format lives in core's models), list
+  payloads are no longer wrapped in a `result` key, and `mockFolderPath`
+  was removed (use `mockFolder`). `FixtureDatabaseAdapter.dataQuery` is
+  typed as `SqfliteFixtureSource`, and the adapter drives core's
+  `FixtureSelector.serve` pipeline instead of its own find → parse →
+  select → data loop. Fixture files that wrap rows in a top-level
+  `result` key keep working.
+* **BREAKING**: the unused `SqfliteOperation.rawExecute` value was removed;
+  raw statements resolve as `rawQuery` fixtures, as they always did.
+* `SqfliteQuery.fixtureCandidates` owns the fixture-file candidate list
+  (identifier first, bare `{operation}_{table}` fallback), so the naming
+  convention lives in one place.
+* `RealDatabaseAdapter` is covered by a conformance test against an
+  in-memory SQLite database (`sqflite_common_ffi`).
+
 ## 0.2.0
 
 * **BREAKING**: `FixtureDatabaseAdapter.dataQuery` is typed as `DataQuery<SqfliteQuery, Map<String, dynamic>>`, making the seam substitutable in tests.

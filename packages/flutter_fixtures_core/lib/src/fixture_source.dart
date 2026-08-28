@@ -7,7 +7,7 @@ import 'fixture_document.dart';
 ///
 /// This is the single home of fixture-file IO: trying candidate file names
 /// in order, decoding JSON, and resolving a document's payload (inline data
-/// or an external file). DataQuery adapters only build candidate names for
+/// or an external file). Fixture sources only build candidate names for
 /// their domain (HTTP requests, database queries) and delegate here.
 ///
 /// A candidate that does not exist is skipped; a candidate that exists but

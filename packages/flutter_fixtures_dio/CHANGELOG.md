@@ -13,6 +13,9 @@
 * **BREAKING**: `DioDataQuery` was removed — `HttpFixtureSource` is the
   extension point for custom HTTP fixture providers. The file naming
   convention lives in `HttpFileFixtureSource` in core.
+* The interceptor drives core's `FixtureSelector.serve` pipeline and maps
+  each `FixtureOutcome` to its Dio response or rejection, keeping the
+  existing error messages.
 
 ## 0.2.0
 

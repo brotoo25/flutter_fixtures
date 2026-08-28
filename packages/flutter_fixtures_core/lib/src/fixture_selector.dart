@@ -6,6 +6,7 @@ import 'data_selector_view.dart';
 import 'fixture_choice.dart';
 import 'fixture_collection.dart';
 import 'fixture_document.dart';
+import 'fixture_pipeline.dart';
 
 /// Mixin that provides the fixture selection flow for data sources.
 ///
@@ -86,6 +87,33 @@ mixin FixtureSelector {
 
     await delay.apply();
     return selectedOption;
+  }
+
+  /// Runs the full fixture pipeline: obtain a collection through [find],
+  /// select a document, and load its payload through [data].
+  ///
+  /// This is the one home of the find → select → data choreography;
+  /// adapters map the returned [FixtureOutcome] to their domain (an HTTP
+  /// response, database rows) and keep their own error policy.
+  Future<FixtureOutcome> serve({
+    required Future<FixtureCollection?> Function() find,
+    required Future<Object?> Function(FixtureDocument document) data,
+    DataSelectorView? view,
+    required DataSelectorType selector,
+    DataSelectorDelay delay = DataSelectorDelay.instant,
+  }) async {
+    final collection = await find();
+    if (collection == null) {
+      return const FixtureNotFound();
+    }
+    if (collection.items.isEmpty) {
+      return const FixtureEmpty();
+    }
+    final document = await select(collection, view, selector, delay: delay);
+    if (document == null) {
+      return const FixtureCancelled();
+    }
+    return FixtureServed(document: document, payload: await data(document));
   }
 
   /// Clears the remembered choice for [fixture] on this selector.

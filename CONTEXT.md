@@ -19,13 +19,20 @@ both; the constructor enforces this. For HTTP fixtures the description
 conventionally starts with a 3-digit status code, exposed as the typed
 `statusCode` field.
 
-## Data Query
+## Fixture Outcome
 
-The seam a data source plugs in through (`DataQuery<Input, Output>`):
-`find` maps a domain request to fixture content, `parse` produces a
-Fixture Collection, `select` chooses a document, `data` yields its payload.
-Adapter: `SqfliteDataQuery` (sqflite). HTTP adapters plug in through the
-HTTP Fixture Source seam instead.
+The result of serving one fixture request through the Selection Flow's
+`serve` pipeline (`FixtureOutcome`): not found, empty, cancelled, or
+served (the selected Fixture Document plus its payload). Adapters map
+outcomes to their own domain and error policy — the choreography itself
+lives in one place.
+
+## Sqflite Fixture Source
+
+The seam for providing sqflite fixtures (`SqfliteFixtureSource`): `find`
+takes a database query and returns a Fixture Collection, or `null` when
+the source has none; `data` materializes a document's payload.
+`SqfliteDataQuery` is the built-in file-backed adapter.
 
 ## Fixture Source
 
@@ -76,7 +83,9 @@ strategy dispatch (`DataSelectorType`: pick / defaultValue / random),
 auto-selecting single-option collections, Selection Memory (read and
 write), single-flight deduplication of concurrent interactive picks, and
 response delays (`DataSelectorDelay`). Its state is scoped to the
-mixing-in instance and keyed by one collection signature.
+mixing-in instance and keyed by one collection signature. `serve` runs
+the full pipeline — find, select, load payload — and reports a Fixture
+Outcome.
 
 ## Selector View
 

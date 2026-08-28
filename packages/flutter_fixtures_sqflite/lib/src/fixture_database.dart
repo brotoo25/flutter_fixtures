@@ -2,6 +2,7 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import 'database_adapter.dart';
+import 'sqflite_fixture_source.dart';
 import 'sqflite_query.dart';
 
 /// A [DatabaseAdapter] that returns fixture data instead of querying a real database.
@@ -40,9 +41,9 @@ import 'sqflite_query.dart';
 /// - `query_users.json` for `db.query('users')`
 /// - `query_products.json` for `db.query('products')`
 /// - `insert_orders.json` for `db.insert('orders', ...)`
-class FixtureDatabaseAdapter implements DatabaseAdapter {
-  /// The data query implementation for loading fixtures
-  final DataQuery<SqfliteQuery, Map<String, dynamic>> dataQuery;
+class FixtureDatabaseAdapter with FixtureSelector implements DatabaseAdapter {
+  /// The fixture source consulted for each query
+  final SqfliteFixtureSource dataQuery;
 
   /// The selector type for choosing which fixture to return
   final DataSelectorType dataSelector;
@@ -162,65 +163,43 @@ class FixtureDatabaseAdapter implements DatabaseAdapter {
   @override
   Future<void> execute(String sql, [List<Object?>? arguments]) async {
     // For DDL statements, just load fixture if available
-    await _executeQueryRaw(SqfliteQuery.raw(sql: sql));
+    await _payloadFor(SqfliteQuery.raw(sql: sql));
+  }
+
+  /// Runs the core fixture pipeline for [query].
+  ///
+  /// Every miss — no fixture, an empty collection, a cancelled pick —
+  /// degrades to `null` here; callers substitute their operation's default.
+  Future<Object?> _payloadFor(SqfliteQuery query) async {
+    final outcome = await serve(
+      find: () => dataQuery.find(query),
+      data: dataQuery.data,
+      view: dataSelectorView,
+      selector: dataSelector,
+      delay: delay,
+    );
+    return outcome is FixtureServed ? outcome.payload : null;
   }
 
   /// Internal method to execute a query and return list of maps
   Future<List<Map<String, dynamic>>> _executeQuery(SqfliteQuery query) async {
-    final result = await _executeQueryRaw(query);
+    final payload = await _payloadFor(query);
 
-    if (result == null) {
-      return [];
+    if (payload is List) {
+      return payload.cast<Map<String, dynamic>>();
     }
 
-    // Handle the result format
-    if (result is List) {
-      return result.cast<Map<String, dynamic>>();
-    }
-
-    if (result is Map) {
-      // Check if it's wrapped in a 'result' key
-      if (result.containsKey('result') && result['result'] is List) {
-        return (result['result'] as List).cast<Map<String, dynamic>>();
+    if (payload is Map) {
+      // Fixture files may wrap rows under a top-level result key.
+      final rows = payload['result'];
+      if (rows is List) {
+        return rows.cast<Map<String, dynamic>>();
       }
       // Single row result
-      return [result.cast<String, dynamic>()];
+      return [payload.cast<String, dynamic>()];
     }
 
     return [];
-  }
-
-  /// Internal method to execute a query and return raw result
-  Future<dynamic> _executeQueryRaw(SqfliteQuery query) async {
-    // Find fixture data
-    final fixtureData = await dataQuery.find(query);
-    if (fixtureData == null) {
-      return null;
-    }
-
-    // Parse into collection
-    final collection = await dataQuery.parse(fixtureData);
-    if (collection == null) {
-      return null;
-    }
-
-    // Select a fixture
-    final selected = await dataQuery.select(
-      collection,
-      dataSelectorView,
-      dataSelector,
-      delay: delay,
-    );
-
-    if (selected == null) {
-      return null;
-    }
-
-    final result = await dataQuery.data(selected);
-    if (result != null && result.containsKey('result')) {
-      return result['result'];
-    }
-    return result;
   }
 
   /// Executes a write-style query; returns the int stored under [resultKey]
@@ -230,9 +209,9 @@ class FixtureDatabaseAdapter implements DatabaseAdapter {
     SqfliteQuery query, {
     required String resultKey,
   }) async {
-    final result = await _executeQueryRaw(query);
-    if (result is Map && result[resultKey] is int) {
-      return result[resultKey] as int;
+    final payload = await _payloadFor(query);
+    if (payload is Map && payload[resultKey] is int) {
+      return payload[resultKey] as int;
     }
     return 1;
   }

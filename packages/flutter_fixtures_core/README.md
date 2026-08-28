@@ -16,9 +16,8 @@ This package defines the core contracts and data models used by all Flutter Fixt
 
 ### Interfaces
 
-- **`DataQuery<Input, Output>`**: Abstract interface for querying data sources
 - **`DataSelectorView`**: Interface for fixture selection components
-- **`FixtureSelector`**: Mixin providing fixture selection functionality
+- **`FixtureSelector`**: Mixin owning the selection flow — strategy dispatch, remembered choices, pick deduplication, delays — and the `serve` pipeline (find → select → data), reported as a `FixtureOutcome`
 
 ### Data Models
 
@@ -35,10 +34,10 @@ This package defines the core contracts and data models used by all Flutter Fixt
 
 ### Selection Strategies
 
-- **`DataSelectorType`**: Sealed class defining fixture selection strategies
-  - `Random()`: Randomly select from available fixtures
-  - `Default()`: Use the fixture marked as default
-  - `Pick()`: Let user choose through UI
+- **`DataSelectorType`**: Enum defining fixture selection strategies
+  - `random`: Randomly select from available fixtures
+  - `defaultValue`: Use the fixture marked as default
+  - `pick`: Let user choose through UI
 
 ### Response Delays
 
@@ -58,92 +57,65 @@ dependencies:
   flutter_fixtures_core: ^0.1.0
 ```
 
-## 🛠️ Creating Custom Data Providers
+## 🛠️ Creating Custom Fixture Providers
 
-Implement the `DataQuery` interface to create custom data sources:
-`DataQuery<Input, Output>` uses one output type for find/parse/data. If your
-payload can vary in shape (like map or list), use `Output` as `Object`.
+A fixture provider is a **source**: something that turns a domain request
+into a `FixtureCollection` and materializes a document's payload. HTTP
+sources implement `HttpFixtureSource` (see `HttpFileFixtureSource` and
+`OpenApiFixtureSource` for the built-ins); for any other domain, define a
+seam of the same shape and drive it with `FixtureSelector.serve`:
 
 ```dart
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
-class DatabaseDataQuery implements DataQuery<String, Map<String, dynamic>> {
-  final Database database;
+/// The seam: your domain request in, model objects out.
+abstract class CacheFixtureSource {
+  Future<FixtureCollection?> find(String cacheKey);
+  Future<Object?> data(FixtureDocument document);
+}
 
-  DatabaseDataQuery(this.database);
+/// A file-backed adapter built on core's fixture-file IO.
+class FileCacheFixtureSource implements CacheFixtureSource {
+  FileCacheFixtureSource({String mockFolder = 'assets/fixtures/cache'})
+      : _source = FixtureSource(mockFolder: mockFolder);
+
+  final FixtureSource _source;
 
   @override
-  Future<Map<String, dynamic>?> find(String query) async {
-    // Query your database
-    final result = await database.query('fixtures', where: 'query = ?', whereArgs: [query]);
-    return result.isNotEmpty ? result.first : null;
+  Future<FixtureCollection?> find(String cacheKey) async {
+    final json = await _source.resolve(['$cacheKey.json']);
+    return json == null ? null : FixtureCollection.fromJson(json);
   }
 
   @override
-  Future<FixtureCollection?> parse(Map<String, dynamic> source) async {
-    // Parse database result into fixture collection
-    return FixtureCollection(
-      description: source['description'],
-      items: (source['options'] as List).map((item) =>
-        FixtureDocument(
-          identifier: item['id'],
-          description: item['description'],
-          defaultOption: item['is_default'] ?? false,
-          data: item['response_data'],
-        )
-      ).toList(),
+  Future<Object?> data(FixtureDocument document) => _source.data(document);
+}
+
+/// The consumer mixes in FixtureSelector and runs the pipeline.
+class FixtureCache with FixtureSelector {
+  FixtureCache({required this.source, required this.selector, this.view});
+
+  final CacheFixtureSource source;
+  final DataSelectorType selector;
+  final DataSelectorView? view;
+
+  Future<Object?> read(String cacheKey) async {
+    final outcome = await serve(
+      find: () => source.find(cacheKey),
+      data: source.data,
+      view: view,
+      selector: selector,
     );
-  }
-
-  @override
-  Future<Map<String, dynamic>?> data(FixtureDocument document) async {
-    // Return the response data
-    return document.data;
-  }
-
-  @override
-  Future<FixtureDocument?> select(
-    FixtureCollection fixture,
-    DataSelectorView? view,
-    DataSelectorType selector,
-  ) async {
-    // Use the FixtureSelector mixin for standard selection logic
-    return switch (selector) {
-      Pick() => await view?.pick(fixture),
-      Default() => fixture.items.firstWhere((item) => item.defaultOption ?? false),
-      Random() => fixture.items[Random().nextInt(fixture.items.length)],
-    };
+    // Map the outcome to your domain's defaults and error policy.
+    return outcome is FixtureServed ? outcome.payload : null;
   }
 }
 ```
 
-
-
-## 🧩 Using the FixtureSelector Mixin
-
-The `FixtureSelector` mixin provides standard fixture selection logic:
-
-```dart
-class MyDataProvider with FixtureSelector implements DataQuery<String, Map<String, dynamic>> {
-  @override
-  Future<Map<String, dynamic>?> find(String input) async {
-    // Your find implementation
-  }
-
-  @override
-  Future<FixtureCollection?> parse(Map<String, dynamic> source) async {
-    // Your parse implementation
-  }
-
-  @override
-  Future<Map<String, dynamic>?> data(FixtureDocument document) async {
-    // Your data implementation
-  }
-
-  // select() method is provided by the FixtureSelector mixin
-  // It automatically handles delays when specified
-}
-```
+`serve` owns the find → select → data choreography and returns a
+`FixtureOutcome`: `FixtureNotFound`, `FixtureEmpty`, `FixtureCancelled`, or
+`FixtureServed` (the selected document plus its payload). Remembered
+choices, pick deduplication, and delays come with the mixin for free.
 
 ## ⏱️ Simulating Response Delays
 
@@ -151,7 +123,7 @@ Use `DataSelectorDelay` to simulate network latency or other delays:
 
 ```dart
 // Use predefined delays
-await dataQuery.select(
+await selector.select(
   fixture,
   view,
   DataSelectorType.random,
@@ -159,7 +131,7 @@ await dataQuery.select(
 );
 
 // Or create custom delays
-await dataQuery.select(
+await selector.select(
   fixture,
   view,
   DataSelectorType.random,
@@ -167,7 +139,7 @@ await dataQuery.select(
 );
 
 // Default is instant (no delay)
-await dataQuery.select(
+await selector.select(
   fixture,
   view,
   DataSelectorType.random,

@@ -1,11 +1,11 @@
 library flutter_fixtures_core;
 
-export 'src/data_query.dart';
 export 'src/data_selector_delay.dart';
 export 'src/data_selector_type.dart';
 export 'src/data_selector_view.dart';
 export 'src/fixture_asset_loader.dart';
 export 'src/fixture_choice.dart';
+export 'src/fixture_pipeline.dart';
 export 'src/fixture_source.dart';
 export 'src/fixture_selector.dart';
 export 'src/fixture_document.dart';

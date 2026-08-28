@@ -70,6 +70,14 @@ class SqfliteQuery {
     return buffer.toString();
   }
 
+  /// The ordered fixture-file candidates for this query, most specific
+  /// first: the full identifier, then — for table queries with a where
+  /// clause — the bare `{operation}_{table}` fixture as a fallback.
+  List<String> get fixtureCandidates => [
+        '$fixtureIdentifier.json',
+        if (table != null && where != null) '${operation.name}_$table.json',
+      ];
+
   @override
   String toString() =>
       'SqfliteQuery(table: $table, sql: $sql, operation: $operation, where: $where)';
@@ -91,7 +99,4 @@ enum SqfliteOperation {
 
   /// Raw SQL query
   rawQuery,
-
-  /// Raw SQL execution (INSERT/UPDATE/DELETE)
-  rawExecute,
 }

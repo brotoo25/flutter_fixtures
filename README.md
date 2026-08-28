@@ -277,39 +277,15 @@ Available options:
 - `DataSelectorDelay.slow` - ~2000ms
 - `DataSelectorDelay.custom(ms)` - Custom delay
 
-### Creating a Custom Data Provider
+### Creating a Custom Fixture Provider
 
-To create a custom data provider, implement the `DataQuery` interface from the core package:
-`DataQuery<Input, Output>` uses one output type for find/parse/data. If your
-payload shape varies (for example, map or list), use `Output` as `Object`.
-
-```dart
-class MyCustomDataQuery implements DataQuery<MyInput, MyOutput> {
-  @override
-  Future<MyOutput?> find(MyInput input) async {
-    // Your implementation
-  }
-
-  @override
-  Future<FixtureCollection?> parse(MyOutput source) async {
-    // Your implementation
-  }
-
-  @override
-  Future<MyOutput?> data(FixtureDocument document) async {
-    // Your implementation
-  }
-
-  @override
-  Future<FixtureDocument?> select(
-    FixtureCollection fixture,
-    DataSelectorView? view,
-    DataSelectorType selector,
-  ) async {
-    // You can use the FixtureSelector mixin or implement your own logic
-  }
-}
-```
+A fixture provider is a source: it turns a domain request into a
+`FixtureCollection` and materializes a document's payload. HTTP providers
+implement `HttpFixtureSource` from core and join the interceptor's
+`sources` list; for other domains, define a seam of the same shape and
+drive it with `FixtureSelector.serve` — see the
+[core package README](packages/flutter_fixtures_core/README.md) for a
+worked example.
 
 ### Creating a Custom UI Component
 

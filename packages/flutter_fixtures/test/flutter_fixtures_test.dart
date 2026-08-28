@@ -24,8 +24,8 @@ void main() {
       expect(FixtureDocument, isNotNull);
 
       // Verify that the Dio implementation is exported
-      expect(DioDataQuery, isNotNull);
       expect(FixturesInterceptor, isNotNull);
+      expect(HttpFixtureSource, isNotNull);
 
       // Verify that the UI components are exported
       expect(FixturesDialogView, isNotNull);

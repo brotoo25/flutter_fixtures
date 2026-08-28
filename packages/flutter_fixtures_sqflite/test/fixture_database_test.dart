@@ -2,28 +2,18 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 import 'package:flutter_fixtures_sqflite/flutter_fixtures_sqflite.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// A fake DataQuery substituted at the FixtureDatabaseAdapter seam.
-class FakeDataQuery
-    with FixtureSelector
-    implements DataQuery<SqfliteQuery, Map<String, dynamic>> {
-  Map<String, dynamic>? findResult;
-  FixtureCollection? parseResult;
-  Map<String, dynamic>? dataResult;
+/// A fake fixture source substituted at the FixtureDatabaseAdapter seam.
+class FakeFixtureSource implements SqfliteFixtureSource {
+  FakeFixtureSource({this.collection, this.payload});
+
+  final FixtureCollection? collection;
+  final Object? payload;
 
   @override
-  Future<Map<String, dynamic>?> find(SqfliteQuery input) async {
-    return findResult;
-  }
+  Future<FixtureCollection?> find(SqfliteQuery query) async => collection;
 
   @override
-  Future<FixtureCollection?> parse(Map<String, dynamic> source) async {
-    return parseResult;
-  }
-
-  @override
-  Future<Map<String, dynamic>?> data(FixtureDocument document) async {
-    return dataResult;
-  }
+  Future<Object?> data(FixtureDocument document) async => payload;
 }
 
 FixtureCollection _singleDocument() => FixtureCollection(
@@ -37,41 +27,28 @@ FixtureCollection _singleDocument() => FixtureCollection(
       ],
     );
 
+FixtureDatabaseAdapter _db({
+  FixtureCollection? collection,
+  Object? payload,
+}) {
+  return FixtureDatabaseAdapter(
+    dataQuery: FakeFixtureSource(collection: collection, payload: payload),
+    dataSelector: DataSelectorType.defaultValue,
+  );
+}
+
 void main() {
-  group('FixtureDatabase', () {
-    group('constructor', () {
-      test('creates database with required parameters', () {
-        final db = FixtureDatabase(
-          dataQuery: SqfliteDataQuery(),
-          dataSelector: DataSelectorType.defaultValue,
-        );
-
-        expect(db.dataQuery, isNotNull);
-        expect(db.dataSelector, isNotNull);
-        expect(db.dataSelectorView, isNull);
-        expect(db.delay, DataSelectorDelay.instant);
-      });
-
-      test('creates database with all parameters', () {
-        final db = FixtureDatabase(
-          dataQuery: SqfliteDataQuery(),
-          dataSelector: DataSelectorType.random,
-          dataSelectorView: null,
-          delay: DataSelectorDelay.fast,
-        );
-
-        expect(db.delay, DataSelectorDelay.fast);
-      });
-    });
-
+  group('FixtureDatabaseAdapter', () {
     group('query', () {
       test('returns empty list when no fixture found', () async {
-        final fakeDataQuery = FakeDataQuery();
-        fakeDataQuery.findResult = null;
+        final result = await _db().query('users');
 
-        final db = FixtureDatabase(
-          dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue,
+        expect(result, isEmpty);
+      });
+
+      test('returns empty list when the collection has no documents', () async {
+        final db = _db(
+          collection: FixtureCollection(description: 'empty', items: []),
         );
 
         final result = await db.query('users');
@@ -79,35 +56,30 @@ void main() {
         expect(result, isEmpty);
       });
 
-      test('returns empty list when parse returns null', () async {
-        final fakeDataQuery = FakeDataQuery();
-        fakeDataQuery.findResult = {'values': []};
-        fakeDataQuery.parseResult = null;
-
-        final db = FixtureDatabase(
-          dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue,
-        );
-
-        final result = await db.query('users');
-
-        expect(result, isEmpty);
-      });
-
-      test('unwraps result-keyed payloads into rows', () async {
-        final fakeDataQuery = FakeDataQuery();
-        fakeDataQuery.findResult = {'values': []};
-        fakeDataQuery.parseResult = _singleDocument();
-        fakeDataQuery.dataResult = {
-          'result': [
+      test('returns list payloads as rows', () async {
+        final db = _db(
+          collection: _singleDocument(),
+          payload: [
             {'id': 1, 'name': 'John'},
             {'id': 2, 'name': 'Jane'},
           ],
-        };
+        );
 
-        final db = FixtureDatabase(
-          dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue,
+        final result = await db.query('users');
+
+        expect(result, hasLength(2));
+        expect(result.first['name'], equals('John'));
+      });
+
+      test('unwraps result-keyed payloads into rows', () async {
+        final db = _db(
+          collection: _singleDocument(),
+          payload: {
+            'result': [
+              {'id': 1, 'name': 'John'},
+              {'id': 2, 'name': 'Jane'},
+            ],
+          },
         );
 
         final result = await db.query('users');
@@ -117,14 +89,9 @@ void main() {
       });
 
       test('wraps a single-row map payload into one row', () async {
-        final fakeDataQuery = FakeDataQuery();
-        fakeDataQuery.findResult = {'values': []};
-        fakeDataQuery.parseResult = _singleDocument();
-        fakeDataQuery.dataResult = {'id': 1, 'name': 'John'};
-
-        final db = FixtureDatabase(
-          dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue,
+        final db = _db(
+          collection: _singleDocument(),
+          payload: {'id': 1, 'name': 'John'},
         );
 
         final result = await db.query('users');
@@ -136,28 +103,15 @@ void main() {
 
     group('insert', () {
       test('returns default id of 1 when no fixture found', () async {
-        final fakeDataQuery = FakeDataQuery();
-        fakeDataQuery.findResult = null;
-
-        final db = FixtureDatabase(
-          dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue,
-        );
-
-        final result = await db.insert('users', {'name': 'John'});
+        final result = await _db().insert('users', {'name': 'John'});
 
         expect(result, 1);
       });
 
       test('returns the insertId provided by the fixture', () async {
-        final fakeDataQuery = FakeDataQuery();
-        fakeDataQuery.findResult = {'values': []};
-        fakeDataQuery.parseResult = _singleDocument();
-        fakeDataQuery.dataResult = {'insertId': 42};
-
-        final db = FixtureDatabase(
-          dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue,
+        final db = _db(
+          collection: _singleDocument(),
+          payload: {'insertId': 42},
         );
 
         final result = await db.insert('users', {'name': 'John'});
@@ -169,15 +123,7 @@ void main() {
     group('update', () {
       test('returns default affected rows of 1 when no fixture found',
           () async {
-        final fakeDataQuery = FakeDataQuery();
-        fakeDataQuery.findResult = null;
-
-        final db = FixtureDatabase(
-          dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue,
-        );
-
-        final result = await db.update(
+        final result = await _db().update(
           'users',
           {'name': 'Jane'},
           where: 'id = ?',
@@ -187,14 +133,9 @@ void main() {
       });
 
       test('returns the affectedRows provided by the fixture', () async {
-        final fakeDataQuery = FakeDataQuery();
-        fakeDataQuery.findResult = {'values': []};
-        fakeDataQuery.parseResult = _singleDocument();
-        fakeDataQuery.dataResult = {'affectedRows': 3};
-
-        final db = FixtureDatabase(
-          dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue,
+        final db = _db(
+          collection: _singleDocument(),
+          payload: {'affectedRows': 3},
         );
 
         final result =
@@ -207,15 +148,7 @@ void main() {
     group('delete', () {
       test('returns default affected rows of 1 when no fixture found',
           () async {
-        final fakeDataQuery = FakeDataQuery();
-        fakeDataQuery.findResult = null;
-
-        final db = FixtureDatabase(
-          dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue,
-        );
-
-        final result = await db.delete('users', where: 'id = ?');
+        final result = await _db().delete('users', where: 'id = ?');
 
         expect(result, 1);
       });
@@ -223,15 +156,7 @@ void main() {
 
     group('rawQuery', () {
       test('returns empty list when no fixture found', () async {
-        final fakeDataQuery = FakeDataQuery();
-        fakeDataQuery.findResult = null;
-
-        final db = FixtureDatabase(
-          dataQuery: fakeDataQuery,
-          dataSelector: DataSelectorType.defaultValue,
-        );
-
-        final result = await db.rawQuery('SELECT * FROM users');
+        final result = await _db().rawQuery('SELECT * FROM users');
 
         expect(result, isEmpty);
       });

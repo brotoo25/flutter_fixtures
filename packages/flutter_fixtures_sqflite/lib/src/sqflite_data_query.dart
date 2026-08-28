@@ -1,12 +1,13 @@
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
+import 'sqflite_fixture_source.dart';
 import 'sqflite_query.dart';
 
-/// Implementation of DataQuery for SQLite/sqflite database operations
+/// The [SqfliteFixtureSource] backed by fixture files.
 ///
-/// This class provides functionality for finding and parsing fixture data
-/// for SQLite database queries. It allows mocking database responses using
-/// fixture files, similar to how DioDataQuery mocks HTTP responses.
+/// Maps a database query to fixture-file candidates (see
+/// [SqfliteQuery.fixtureCandidates]) and delegates loading to
+/// [FixtureSource].
 ///
 /// ## Fixture File Format
 ///
@@ -40,9 +41,7 @@ import 'sqflite_query.dart';
 /// - `query_users.json` for SELECT queries on users table
 /// - `insert_users.json` for INSERT operations on users table
 /// - `query_users_id_1.json` for queries with WHERE clause
-class SqfliteDataQuery
-    with FixtureSelector
-    implements DataQuery<SqfliteQuery, Map<String, dynamic>> {
+class SqfliteDataQuery implements SqfliteFixtureSource {
   /// The folder where mock data is stored
   final String mockFolder;
 
@@ -58,36 +57,14 @@ class SqfliteDataQuery
   }) : _source =
             FixtureSource(mockFolder: mockFolder, assetLoader: assetLoader);
 
-  /// Gets the mock folder path
-  String get mockFolderPath => mockFolder;
-
   @override
-  Future<Map<String, dynamic>?> find(SqfliteQuery input) {
-    return _source.resolve([
-      '${input.fixtureIdentifier}.json',
-      // For table queries with a where clause, also try without it.
-      if (input.table != null && input.where != null)
-        '${input.operation.name}_${input.table}.json',
-    ]);
+  Future<FixtureCollection?> find(SqfliteQuery query) async {
+    final json = await _source.resolve(query.fixtureCandidates);
+    return json == null ? null : FixtureCollection.fromJson(json);
   }
 
   @override
-  Future<FixtureCollection?> parse(Map<String, dynamic> source) async {
-    return FixtureCollection.fromJson(source);
-  }
-
-  @override
-  Future<Map<String, dynamic>?> data(FixtureDocument document) async {
-    if (document.data == null && document.dataPath == null) {
-      return null;
-    }
-
-    final data = await _source.data(document);
-
-    // Wrap list payloads in a result key for a consistent map shape.
-    if (data is List) {
-      return {'result': data};
-    }
-    return (data as Map).cast<String, dynamic>();
+  Future<Object?> data(FixtureDocument document) {
+    return _source.data(document);
   }
 }

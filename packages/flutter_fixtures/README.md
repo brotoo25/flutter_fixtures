@@ -92,14 +92,17 @@ final response = await dio.get('/users');
 
 #### Custom Data Sources
 ```dart
-// Create custom data provider for any source
-class DatabaseDataQuery implements DataQuery<String, Map<String, dynamic>> {
-  // Implement methods to load fixtures for database queries
-}
+// Create a custom fixture provider for any source: a seam that turns a
+// domain request into a FixtureCollection, driven by FixtureSelector.serve.
+class CacheFixtureSource {
+  Future<FixtureCollection?> find(String cacheKey) async {
+    // Load a fixture collection for the cache key
+  }
 
-// Use with your custom data source
-final dataProvider = DatabaseDataQuery();
-final mockData = await dataProvider.find('SELECT * FROM users');
+  Future<Object?> data(FixtureDocument document) async {
+    // Materialize a document's payload
+  }
+}
 ```
 
 That's it! Your app now uses realistic mock data from fixture files for any data source.
@@ -277,8 +280,7 @@ import 'package:flutter_fixtures/flutter_fixtures.dart';
 
 class DataService {
   late final Dio _dio;
-  late final DatabaseDataQuery _dbQuery;
-  late final FileSystemDataQuery _fsQuery;
+  late final DatabaseAdapter _db;
 
   DataService() {
     // HTTP Client with fixtures
@@ -286,16 +288,16 @@ class DataService {
     if (kDebugMode) {
       _dio.interceptors.add(
         FixturesInterceptor(
-                dataSelector: DataSelectorType.defaultValue,
+          dataSelector: DataSelectorType.defaultValue,
         ),
       );
     }
 
-    // Database queries with fixtures
-    _dbQuery = DatabaseDataQuery();
-
-    // File system operations with fixtures
-    _fsQuery = FileSystemDataQuery();
+    // Database queries with fixtures (flutter_fixtures_sqflite)
+    _db = FixtureDatabaseAdapter(
+      dataQuery: SqfliteDataQuery(),
+      dataSelector: DataSelectorType.defaultValue,
+    );
   }
 
   // HTTP API calls
@@ -306,52 +308,10 @@ class DataService {
         .toList();
   }
 
-  // Database queries
+  // Database queries — same repository code as production, different adapter
   Future<List<User>> getUsersFromDatabase() async {
-    final fixture = await _dbQuery.find('SELECT * FROM users');
-    if (fixture != null) {
-      final collection = await _dbQuery.parse(fixture);
-      if (collection != null) {
-        final document = await _dbQuery.select(
-          collection,
-          null,
-          DataSelectorType.defaultValue
-        );
-        if (document != null) {
-          final data = await _dbQuery.data(document);
-          if (data != null) {
-            return (data['users'] as List)
-                .map((json) => User.fromJson(json))
-                .toList();
-          }
-        }
-      }
-    }
-    return [];
-  }
-
-  // File system operations
-  Future<List<FileInfo>> listFiles(String path) async {
-    final fixture = await _fsQuery.find(path);
-    if (fixture != null) {
-      final collection = await _fsQuery.parse(fixture);
-      if (collection != null) {
-        final document = await _fsQuery.select(
-          collection,
-          null,
-          DataSelectorType.defaultValue
-        );
-        if (document != null) {
-          final data = await _fsQuery.data(document);
-          if (data != null && data['files'] != null) {
-            return (data['files'] as List)
-                .map((f) => FileInfo.fromJson(f))
-                .toList();
-          }
-        }
-      }
-    }
-    return [];
+    final rows = await _db.query('users');
+    return rows.map(User.fromJson).toList();
   }
 }
 
@@ -373,20 +333,6 @@ class User {
     'name': name,
     'email': email,
   };
-}
-
-class FileInfo {
-  final String name;
-  final String type;
-  final int size;
-
-  FileInfo({required this.name, required this.type, required this.size});
-
-  factory FileInfo.fromJson(Map<String, dynamic> json) => FileInfo(
-    name: json['name'],
-    type: json['type'],
-    size: json['size'],
-  );
 }
 ```
 
@@ -454,140 +400,15 @@ dio.interceptors.add(
 dataSelectorDelay: DataSelectorDelay.custom(1500) // 1.5 second delay
 ```
 
-### Custom Data Providers
+### Custom Fixture Providers
 
-Create custom data providers for any data source by implementing the `DataQuery` interface:
-`DataQuery<Input, Output>` uses one output type for find/parse/data. If your
-payload can be map or list, use `Output` as `Object`.
-
-#### Database Queries
-```dart
-import 'dart:math';
-import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
-
-class DatabaseDataQuery with FixtureSelector
-    implements DataQuery<String, Map<String, dynamic>> {
-  @override
-  Future<Map<String, dynamic>?> find(String sqlQuery) async {
-    // Load fixture based on SQL query pattern
-    final fixtureName = _getFixtureNameFromQuery(sqlQuery);
-    return await _loadFixtureFile('database/$fixtureName.json');
-  }
-
-  @override
-  Future<FixtureCollection?> parse(Map<String, dynamic> source) async {
-    // Parse database fixture format
-    return FixtureCollection(
-      description: source['description'],
-      items: (source['values'] as List)
-          .map((option) => FixtureDocument(
-                identifier: option['identifier'] as String,
-                description: option['description'] as String,
-                defaultOption: option['default'] as bool? ?? false,
-                data: option['data'],
-                dataPath: option['dataPath'],
-              ))
-          .toList(),
-    );
-  }
-
-  // select() method is provided by the FixtureSelector mixin
-
-  @override
-  Future<Map<String, dynamic>?> data(FixtureDocument document) async {
-    // Return database-like response
-    return document.data;
-  }
-}
-```
-
-#### File System Operations
-```dart
-class FileSystemDataQuery with FixtureSelector
-    implements DataQuery<String, Map<String, dynamic>> {
-  @override
-  Future<Map<String, dynamic>?> find(String path) async {
-    // Load fixture based on file path
-    return await _loadFixtureFile('filesystem/${path.replaceAll('/', '_')}.json');
-  }
-
-  @override
-  Future<FixtureCollection?> parse(Map<String, dynamic> source) async {
-    // Parse file system fixture format
-    return FixtureCollection(
-      description: source['description'],
-      items: (source['values'] as List)
-          .map((option) => FixtureDocument(
-                identifier: option['identifier'] as String,
-                description: option['description'] as String,
-                defaultOption: option['default'] as bool? ?? false,
-                data: option['data'],
-                dataPath: option['dataPath'],
-              ))
-          .toList(),
-    );
-  }
-
-  // select() method is provided by the FixtureSelector mixin
-
-  @override
-  Future<Map<String, dynamic>?> data(FixtureDocument document) async {
-    // Return file listing data
-    return document.data;
-  }
-}
-```
-
-#### GraphQL Queries
-```dart
-class GraphQLDataQuery with FixtureSelector
-    implements DataQuery<GraphQLRequest, Map<String, dynamic>> {
-  @override
-  Future<Map<String, dynamic>?> find(GraphQLRequest request) async {
-    // Load fixture based on GraphQL operation name
-    return await _loadFixtureFile('graphql/${request.operationName}.json');
-  }
-
-  @override
-  Future<FixtureCollection?> parse(Map<String, dynamic> source) async {
-    return FixtureCollection(
-      description: source['description'],
-      items: (source['values'] as List)
-          .map((option) => FixtureDocument(
-                identifier: option['identifier'] as String,
-                description: option['description'] as String,
-                defaultOption: option['default'] as bool? ?? false,
-                data: option['data'],
-                dataPath: option['dataPath'],
-              ))
-          .toList(),
-    );
-  }
-
-  // select() method is provided by the FixtureSelector mixin
-
-  @override
-  Future<Map<String, dynamic>?> data(FixtureDocument document) async {
-    return document.data;
-  }
-}
-```
-
-### Custom UI Components
-
-Create custom fixture selection UI:
-
-```dart
-import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
-
-class CustomFixtureSelector implements DataSelectorView {
-  @override
-  Future<FixtureChoice?> pick(FixtureCollection fixture) async {
-    // Show your custom UI
-    // Return the user's FixtureChoice or null for cancellation
-  }
-}
-```
+A fixture provider is a source: it turns a domain request into a
+`FixtureCollection` and materializes a document's payload. HTTP providers
+implement `HttpFixtureSource` and join the interceptor's `sources` list;
+sqflite providers implement `SqfliteFixtureSource`. For any other domain,
+define a seam of the same shape and drive it with `FixtureSelector.serve`
+— see the [core package README](https://pub.dev/packages/flutter_fixtures_core)
+for a worked example.
 
 ## 🐛 Troubleshooting
 

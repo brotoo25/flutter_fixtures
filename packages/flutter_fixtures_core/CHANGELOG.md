@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+* New `FixtureSelector.serve` runs the whole fixture pipeline — find a
+  collection, select a document, load its payload — and reports a
+  `FixtureOutcome` (`FixtureNotFound` / `FixtureEmpty` / `FixtureCancelled`
+  / `FixtureServed`). Adapters map outcomes to their own domain and error
+  policy instead of each re-implementing the choreography.
+* **BREAKING**: the `DataQuery` interface was removed. HTTP providers
+  implement `HttpFixtureSource`; sqflite providers implement
+  `SqfliteFixtureSource` (in `flutter_fixtures_sqflite`); custom domains
+  define their own source seam and drive it with `FixtureSelector.serve`.
+
 * **BREAKING**: `FixtureSelectionMemory` was removed; remembered choices
   live inside `FixtureSelector`, scoped to the mixing-in instance and keyed
   by the same collection signature as pick deduplication. Clear them with
