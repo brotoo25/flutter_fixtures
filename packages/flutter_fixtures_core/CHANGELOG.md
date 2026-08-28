@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+* `HttpFixtureRequest.fromUri` is the canonical constructor: it owns HTTP
+  request normalization (scheme and host dropped, the URL's query string
+  merged into `queryParameters`), so sources see one shape and never
+  compensate. Fixes fixture-file candidates for absolute request URLs,
+  which previously came out as `GET_https:__host_path.json`.
+* New `HttpFixtureSources`, an ordered composite that is itself an
+  `HttpFixtureSource`: first source to resolve wins and alone provides the
+  selected document's payload. Source precedence now lives (and is tested)
+  in core instead of each HTTP adapter.
+* `OpenApiFixtureSource` no longer strips schemes or query strings from
+  request paths — that compensation moved behind `fromUri`; it keeps only
+  the OpenAPI-specific `servers` base-path handling.
+
 * New `FixtureSelector.serve` runs the whole fixture pipeline — find a
   collection, select a document, load its payload — and reports a
   `FixtureOutcome` (`FixtureNotFound` / `FixtureEmpty` / `FixtureCancelled`

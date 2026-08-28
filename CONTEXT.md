@@ -49,10 +49,18 @@ The seam for providing HTTP fixtures (`HttpFixtureSource`): `resolve` takes
 an `HttpFixtureRequest` (method, path, query parameters) and returns a
 Fixture Collection, or `null` when the source has none; `data` materializes
 a document's payload. Sources build model objects — the wire format belongs
-to the Fixture Collection and Fixture Document alone. HTTP adapters consult
-an ordered list of sources — the first that resolves wins, so list order
-decides precedence. Built-ins: `HttpFileFixtureSource` (fixture files,
-owning the HTTP file naming convention) and `OpenApiFixtureSource`.
+to the Fixture Collection and Fixture Document alone.
+
+Request normalization is owned by `HttpFixtureRequest.fromUri`, the
+canonical constructor HTTP adapters use: scheme and host dropped, the URL's
+query string merged into the query parameters. Sources assume that shape
+and never compensate for raw request fields.
+
+Precedence is owned by the composite `HttpFixtureSources` (itself an HTTP
+Fixture Source): sources are consulted in order, the first that resolves
+wins, and that source alone provides the selected document's payload.
+Built-ins: `HttpFileFixtureSource` (fixture files, owning the HTTP file
+naming convention) and `OpenApiFixtureSource`.
 
 ## OpenAPI Source
 

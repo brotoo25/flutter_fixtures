@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+* `FixturesInterceptor` builds requests with `HttpFixtureRequest.fromUri`
+  over `options.uri`: absolute request URLs and query parameters embedded
+  in the URL string now resolve fixtures correctly.
+* The `sources` field is now an `HttpFixtureSources` composite (the
+  constructor still takes a plain list); the source-precedence loop moved
+  to core.
+
 * **BREAKING**: `FixturesInterceptor` now owns the HTTP fixture pipeline:
   it maps each request to an `HttpFixtureRequest` and consults an ordered
   `HttpFixtureSource` list (`sources`); the first source that resolves wins

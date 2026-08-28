@@ -96,15 +96,14 @@ class OpenApiFixtureSource implements HttpFixtureSource {
   OpenApiSchemaSampler _samplerFor(Map<String, dynamic> spec) =>
       _sampler ??= OpenApiSchemaSampler(spec);
 
-  /// The request paths to try: as given (query string dropped), plus with
-  /// each `servers` base path stripped.
+  /// The request paths to try: as given, plus with each `servers` base
+  /// path stripped.
+  ///
+  /// Request normalization (scheme, host, query) is owned by
+  /// [HttpFixtureRequest.fromUri]; only the OpenAPI-specific part — spec
+  /// `servers` base paths — is handled here.
   List<String> _candidatePaths(Map<String, dynamic> spec, String rawPath) {
-    var path = rawPath.split('?').first;
-    final parsed = Uri.tryParse(path);
-    if (parsed != null && parsed.hasScheme) {
-      // An absolute request URL — only its path can match the spec.
-      path = parsed.path;
-    }
+    var path = rawPath;
     if (!path.startsWith('/')) {
       path = '/$path';
     }
