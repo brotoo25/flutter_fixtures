@@ -111,7 +111,10 @@ class FixturesInterceptor extends Interceptor with FixtureSelector {
             response.headers.set('x-fixture-file-path', filePath);
           }
 
-          return handler.resolve(response);
+          // Resolve through the response-interceptor stage, so interceptors
+          // registered earlier (logging, RecorderInterceptor) observe the
+          // fixture-served response like any other.
+          return handler.resolve(response, true);
       }
     } catch (e) {
       // If anything goes wrong, reject the request with the error

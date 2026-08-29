@@ -135,16 +135,25 @@ void main() {
   });
 
   test(
-      'fixture-served responses are NOT captured while recording — '
-      'a plain resolve skips the response stage (documented behavior)',
-      () async {
+      'fixture-served responses ARE captured while recording — '
+      'FixturesInterceptor resolves through the response chain', () async {
     final dio = buildDio(withFixtures: true);
 
     recorder.startRecording();
     final response = await dio.get('/users');
     expect(response.data, {'from': 'fixture'});
+    expect(network.hits, 0);
 
-    expect(recorder.recordedCount, 0);
-    expect(await recorder.stopRecording(), isNull);
+    expect(recorder.recordedCount, 1);
+    final session = (await recorder.stopRecording())!;
+    final captured = session.interactions.single.response as Map;
+    expect(captured['body'], {'from': 'fixture'});
+
+    // Replay the fixture-chosen session: same response, no fixture
+    // pipeline involved, network still untouched.
+    await recorder.startReplay(session.id);
+    final replayed = await dio.get('/users');
+    expect(replayed.data, {'from': 'fixture'});
+    expect(network.hits, 0);
   });
 }

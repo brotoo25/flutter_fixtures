@@ -9,6 +9,11 @@
   reject (`ReplayMissBehavior`). Request identity comes from core
   (`HttpFixtureRequest.canonicalTarget`) — no HTTP normalization lives in
   this package — and capture is lazy, so idle traffic costs nothing.
+* `FixturesInterceptor` resolves through the response-interceptor chain
+  (`callFollowingResponseInterceptor: true`), so interceptors registered
+  before it — logging, `RecorderInterceptor` — observe fixture-served
+  responses. Composed with the recorder, fixture responses chosen by hand
+  can be recorded into a session and replayed without dialogs.
 
 * `FixturesInterceptor` builds requests with `HttpFixtureRequest.fromUri`
   over `options.uri`: absolute request URLs and query parameters embedded

@@ -20,10 +20,12 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 /// dio.interceptors.add(RecorderInterceptor(recorder: recorder));
 /// ```
 ///
-/// Recording captures network traffic only. A response produced by a later
-/// interceptor via `handler.resolve` (as `FixturesInterceptor` does) never
-/// reaches this interceptor's response stage — Dio unwinds a plain resolve
-/// straight to the caller — so fixture-served responses are not recorded.
+/// Recording captures whatever reaches this interceptor's response stage:
+/// real network traffic, and responses produced by later interceptors that
+/// resolve through the response chain — `FixturesInterceptor` does, so
+/// fixture-chosen responses can be recorded into a session and replayed
+/// without dialogs. A later interceptor using a plain `handler.resolve`
+/// bypasses the response stage and is not captured.
 ///
 /// HTTP requests are described to the recorder with source `'http'`, the
 /// method as operation, and the path with sorted query as target — the host

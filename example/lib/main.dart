@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
               BasicExamplePage(navigatorKey: MyApp.navigatorKey),
               AdvancedExamplePage(navigatorKey: MyApp.navigatorKey),
               SqfliteExamplePage(navigatorKey: MyApp.navigatorKey),
-              const RecorderExamplePage(),
+              RecorderExamplePage(navigatorKey: MyApp.navigatorKey),
             ],
           ),
         ),

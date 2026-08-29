@@ -398,5 +398,19 @@ final recorder = FixtureRecorder(store: MemoryRecordingSessionStore());
 dio.interceptors.add(RecorderInterceptor(recorder: recorder));
 ```
 
+Composed with `FixturesInterceptor` (recorder first), the two features
+chain: fixture responses — including ones picked by hand through the
+dialog — are recorded into the session, and replaying serves the same
+choices back in order with no dialogs and no fixture pipeline involved:
+
+```dart
+dio.interceptors
+  ..add(RecorderInterceptor(recorder: recorder))
+  ..add(FixturesInterceptor(
+    dataSelectorView: FixturesDialogView(contextProvider: () => context),
+    dataSelector: DataSelectorType.pick,
+  ));
+```
+
 See the recorder package README for sessions, storage, ordering
 semantics, and the built-in UI tools.

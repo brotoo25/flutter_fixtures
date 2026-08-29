@@ -5,24 +5,25 @@ import 'package:flutter_fixtures/flutter_fixtures.dart';
 import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// Demonstrates the recorder module: capture real traffic from
-/// jsonplaceholder.typicode.com, save it as a named session, then replay it
-/// with networking cut off — the flow used for product demos and offline
-/// simulations.
+/// Demonstrates the recorder module composed with the fixtures pipeline:
+/// every request's response is chosen through flutter_fixtures itself
+/// (the pick dialog), the recorder captures whichever responses you
+/// choose, and replaying serves them back instantly — same choices, same
+/// order, no dialogs, no network.
 ///
-/// Each request button opens an options dialog (different options are
-/// different requests, so replay matching becomes tangible), every request
-/// lands in a log with a provenance chip (LIVE / REC / REPLAY / MISS) and
-/// its latency, and while replaying a session timeline checks recorded
-/// interactions off in serve order.
+/// Every request lands in a log with a provenance chip (FIXTURE / REC /
+/// REPLAY / MISS) and its latency, and while replaying a session timeline
+/// checks recorded interactions off in serve order.
 class RecorderExamplePage extends StatefulWidget {
-  const RecorderExamplePage({super.key});
+  final GlobalKey<NavigatorState> navigatorKey;
+
+  const RecorderExamplePage({super.key, required this.navigatorKey});
 
   @override
   State<RecorderExamplePage> createState() => _RecorderExamplePageState();
 }
 
-enum _Provenance { live, recorded, replayed, miss }
+enum _Provenance { fixture, recorded, replayed, miss }
 
 class _LogEntry {
   final String method;
@@ -50,13 +51,21 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
         '${(await getApplicationDocumentsDirectory()).path}/fixture_recordings'),
   );
 
-  // Reject replay misses: while replaying, the network is provably never
-  // touched — an unrecorded request fails as MISS instead of going online.
-  late final Dio dio = Dio(
-    BaseOptions(baseUrl: 'https://jsonplaceholder.typicode.com'),
-  )..interceptors.add(RecorderInterceptor(
+  // The recorder interceptor comes first, so replayed sessions win and
+  // recording sees the fixture-served responses. The fixtures interceptor
+  // serves every request from fixture files, with the response chosen by
+  // hand through the library's own pick dialog. Replay misses reject, so
+  // while replaying nothing falls through to the fixture pipeline.
+  late final Dio dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
+    ..interceptors.add(RecorderInterceptor(
       recorder: recorder,
       onReplayMiss: ReplayMissBehavior.reject,
+    ))
+    ..interceptors.add(FixturesInterceptor(
+      dataSelectorView: FixturesDialogView(
+        contextProvider: () => widget.navigatorKey.currentContext!,
+      ),
+      dataSelector: DataSelectorType.pick,
     ));
 
   final List<_LogEntry> _log = [];
@@ -145,7 +154,7 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
     final provenance = switch (recorder.mode) {
       RecorderMode.replaying => _Provenance.replayed,
       RecorderMode.recording => _Provenance.recorded,
-      RecorderMode.idle => _Provenance.live,
+      RecorderMode.idle => _Provenance.fixture,
     };
     final stopwatch = Stopwatch()..start();
     _LogEntry entry;
@@ -166,116 +175,27 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
     } catch (e) {
       stopwatch.stop();
       final isMiss = recorder.isReplaying;
+      final cancelled = !isMiss && '$e'.contains('No fixture selected');
       entry = _LogEntry(
         method: method,
         path: pathAndQuery,
-        status: isMiss ? 'miss' : 'error',
+        status: isMiss ? 'miss' : (cancelled ? 'cancelled' : 'error'),
         milliseconds: stopwatch.elapsedMilliseconds,
         provenance: isMiss ? _Provenance.miss : provenance,
         body: isMiss
-            ? 'Not in this session — while replaying, the network is never '
-                'touched.\n\nReplay matches method + path + query, so an '
-                'option you did not record is a miss.\n\n$e'
-            : '$e',
+            ? 'Not in this session — while replaying, requests never fall '
+                'through to the fixture pipeline.\n\nReplay matches '
+                'method + path + query, so a request you did not record '
+                'is a miss.\n\n$e'
+            : cancelled
+                ? 'Pick dialog cancelled — no response was chosen.'
+                : '$e',
       );
     }
     setState(() {
       _log.insert(0, entry);
       _selected = 0;
     });
-  }
-
-  // ----- request options dialogs -------------------------------------
-
-  Future<void> _sendTodo() async {
-    final id = await _pickOption<int>(
-      title: 'GET /todos/{id}',
-      options: {1: '/todos/1', 2: '/todos/2', 3: '/todos/3'},
-    );
-    if (id == null) return;
-    await _request('GET', '/todos/$id', () => dio.get('/todos/$id'));
-  }
-
-  Future<void> _sendUsers() async {
-    final limit = await _pickOption<int>(
-      title: 'GET /users?_limit={n}',
-      options: {1: '_limit=1', 3: '_limit=3', 5: '_limit=5'},
-    );
-    if (limit == null) return;
-    await _request('GET', '/users?_limit=$limit',
-        () => dio.get('/users', queryParameters: {'_limit': '$limit'}));
-  }
-
-  Future<T?> _pickOption<T>({
-    required String title,
-    required Map<T, String> options,
-  }) {
-    return showDialog<T>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(title),
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
-            child: Text(
-              'Each option is a different request — replay matches '
-              'method + path + query.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ),
-          for (final entry in options.entries)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, entry.key),
-              child: Text(entry.value),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _sendPost() async {
-    final controller = TextEditingController(text: 'Recorded post');
-    final title = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('POST /posts'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Post title'),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'The body is informational — replay matches this POST even '
-              'with a different title.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Send'),
-          ),
-        ],
-      ),
-    );
-    if (title == null) return;
-    await _request(
-        'POST',
-        '/posts',
-        () => dio.post('/posts', data: {
-              'title': title,
-              'body': 'Captured by flutter_fixtures_recorder',
-              'userId': 1,
-            }));
   }
 
   String _prettifyJson(dynamic data) {
@@ -316,9 +236,28 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _requestButton(Icons.download, 'GET /todos…', _sendTodo),
-              _requestButton(Icons.people, 'GET /users…', _sendUsers),
-              _requestButton(Icons.upload, 'POST /posts…', _sendPost),
+              _requestButton(
+                  Icons.login,
+                  'POST /login',
+                  () => _request(
+                      'POST',
+                      '/login',
+                      () => dio.post('/login', data: {
+                            'username': 'admin',
+                            'password': '123456',
+                          }))),
+              _requestButton(Icons.monitor_heart, 'GET /health',
+                  () => _request('GET', '/health', () => dio.get('/health'))),
+              _requestButton(
+                  Icons.search,
+                  'GET /search',
+                  () => _request(
+                      'GET',
+                      '/search?page=1&q=flutter',
+                      () => dio.get('/search', queryParameters: {
+                            'page': '1',
+                            'q': 'flutter',
+                          }))),
             ],
           ),
           const SizedBox(height: 12),
@@ -340,8 +279,8 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
     if (_log.isEmpty) {
       return Center(
         child: Text(
-          'No requests yet.\nFire one above to see where its response '
-          'comes from.',
+          'No requests yet.\nFire one above and pick its response in the '
+          'fixtures dialog.',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.grey[600]),
         ),
@@ -416,28 +355,27 @@ class _ModeBanner extends StatelessWidget {
           Colors.red[900]!,
           Icons.fiber_manual_record,
           'RECORDING — ${recorder.recordedCount} captured',
-          'Fire requests below; each live response is captured. '
-              'Tap ⏹ in the toolbar to save the session.',
+          'Fire requests and pick their responses; every choice is '
+              'captured. Tap ⏹ in the toolbar to save the session.',
         ),
       RecorderMode.replaying => (
           Colors.green[50]!,
           Colors.green[900]!,
           Icons.replay_circle_filled,
           'REPLAYING "${recorder.replaySession?.name}"',
-          'Fire the same requests and watch the timeline below check them '
-              'off in recorded order. The network is never touched — '
-              'Airplane Mode works.',
+          'Fire the same requests: your recorded choices return instantly, '
+              'in order, with no dialogs — watch the timeline below.',
         ),
       RecorderMode.idle => (
           Colors.blueGrey[50]!,
           Colors.blueGrey[800]!,
-          Icons.wifi,
-          'LIVE — talking to jsonplaceholder.typicode.com',
+          Icons.rule,
+          'FIXTURES — you pick each response',
           hasSessions
-              ? 'Tap the sessions icon in the toolbar to replay a saved '
-                  'session — or record a new one with ⏺.'
-              : 'Tap ⏺ in the toolbar to start recording, then fire some '
-                  'requests.',
+              ? 'Tap the sessions icon in the toolbar to replay saved '
+                  'choices — or record a new session with ⏺.'
+              : 'Tap ⏺ in the toolbar, fire requests, and pick their '
+                  'responses — your choices become a replayable session.',
         ),
     };
 
@@ -559,7 +497,7 @@ class _SessionTimeline extends StatelessWidget {
   }
 }
 
-/// LIVE / REC / REPLAY / MISS — where a response came from.
+/// FIXTURE / REC / REPLAY / MISS — where a response came from.
 class _ProvenanceChip extends StatelessWidget {
   final _Provenance provenance;
 
@@ -568,13 +506,13 @@ class _ProvenanceChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (provenance) {
-      _Provenance.live => ('LIVE', Colors.blueGrey),
+      _Provenance.fixture => ('FIXTURE', Colors.blueGrey),
       _Provenance.recorded => ('REC', Colors.red),
       _Provenance.replayed => ('REPLAY', Colors.green),
       _Provenance.miss => ('MISS', Colors.orange),
     };
     return Container(
-      width: 58,
+      width: 62,
       padding: const EdgeInsets.symmetric(vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
