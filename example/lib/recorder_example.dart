@@ -26,7 +26,7 @@ class RecorderExamplePage extends StatefulWidget {
   State<RecorderExamplePage> createState() => _RecorderExamplePageState();
 }
 
-enum _Provenance { fixture, recorded, replayed, miss }
+enum _Provenance { fixture, recorded, replayed }
 
 class _LogEntry {
   final String method;
@@ -57,13 +57,12 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
   // The recorder interceptor comes first, so replayed sessions win and
   // recording sees the fixture-served responses. The fixtures interceptor
   // serves every request from fixture files, with the response chosen by
-  // hand through the library's own pick dialog. Replay misses reject, so
-  // while replaying nothing falls through to the fixture pipeline.
+  // hand through the library's own pick dialog. Replay misses forward:
+  // once a session's recordings for a request run out, the request falls
+  // back to the fixtures pipeline and the picker explicitly returns —
+  // unless that pick was marked "Remember", which answers silently.
   late final Dio dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
-    ..interceptors.add(RecorderInterceptor(
-      recorder: recorder,
-      onReplayMiss: ReplayMissBehavior.reject,
-    ))
+    ..interceptors.add(RecorderInterceptor(recorder: recorder))
     ..interceptors.add(FixturesInterceptor(
       dataSelectorView: FixturesDialogView(
         contextProvider: () => widget.navigatorKey.currentContext!,
@@ -76,12 +75,12 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
   bool _timelineExpanded = true;
 
   // Mirror of the replay cursor, so the timeline can check interactions
-  // off in serve order. Reset whenever the recorder notifies while
+  // off in serve order and responses can be attributed to the session or
+  // to the fixtures fallback. Reset whenever the recorder notifies while
   // replaying (replay start, session switch, or restart — decide() and
   // lookups never notify).
   final Map<String, int> _cursorByKey = {};
   final Map<int, int> _serveOrder = {};
-  final Map<int, int> _repeats = {};
   int _serveCounter = 0;
 
   @override
@@ -108,7 +107,6 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
   void _resetMirror() {
     _cursorByKey.clear();
     _serveOrder.clear();
-    _repeats.clear();
     _serveCounter = 0;
   }
 
@@ -128,25 +126,23 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
     return '${interaction.request.operation} ${interaction.request.target}';
   }
 
-  /// Advance the mirrored cursor for a replayed request: mark the next
-  /// unconsumed recording for this key served, or count a repeat once the
-  /// key is exhausted (the engine repeats the last recording).
-  void _markConsumed(String method, String pathAndQuery) {
+  /// Whether a response that arrived while replaying came from the
+  /// session (advancing the mirrored cursor) or fell through to the
+  /// fixtures pipeline because the key was never recorded or its
+  /// recordings are exhausted.
+  bool _consumeIfReplayed(String method, String pathAndQuery) {
     final session = recorder.replaySession;
-    if (session == null) return;
+    if (session == null) return false;
     final key = _keyFor(method, pathAndQuery);
     final indices = [
       for (var i = 0; i < session.interactions.length; i++)
         if (_keyOfInteraction(session.interactions[i]) == key) i,
     ];
-    if (indices.isEmpty) return;
     final cursor = _cursorByKey[key] ?? 0;
-    if (cursor < indices.length) {
-      _serveOrder[indices[cursor]] = ++_serveCounter;
-    } else {
-      _repeats[indices.last] = (_repeats[indices.last] ?? 0) + 1;
-    }
+    if (indices.isEmpty || cursor >= indices.length) return false;
+    _serveOrder[indices[cursor]] = ++_serveCounter;
     _cursorByKey[key] = cursor + 1;
+    return true;
   }
 
   Future<void> _request(
@@ -154,16 +150,21 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
     String pathAndQuery,
     Future<Response> Function() send,
   ) async {
-    final provenance = switch (recorder.mode) {
-      RecorderMode.replaying => _Provenance.replayed,
-      RecorderMode.recording => _Provenance.recorded,
-      RecorderMode.idle => _Provenance.fixture,
-    };
     final stopwatch = Stopwatch()..start();
     _LogEntry entry;
     try {
       final response = await send();
       stopwatch.stop();
+      // While replaying, attribute the response: served from the session,
+      // or fallen through to the fixtures picker (never recorded, or the
+      // session's recordings for this request are used up).
+      final provenance = switch (recorder.mode) {
+        RecorderMode.replaying => _consumeIfReplayed(method, pathAndQuery)
+            ? _Provenance.replayed
+            : _Provenance.fixture,
+        RecorderMode.recording => _Provenance.recorded,
+        RecorderMode.idle => _Provenance.fixture,
+      };
       entry = _LogEntry(
         method: method,
         path: pathAndQuery,
@@ -172,27 +173,19 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
         provenance: provenance,
         body: _prettifyJson(response.data),
       );
-      if (provenance == _Provenance.replayed) {
-        _markConsumed(method, pathAndQuery);
-      }
     } catch (e) {
       stopwatch.stop();
-      final isMiss = recorder.isReplaying;
-      final cancelled = !isMiss && '$e'.contains('No fixture selected');
+      final cancelled = '$e'.contains('No fixture selected');
       entry = _LogEntry(
         method: method,
         path: pathAndQuery,
-        status: isMiss ? 'miss' : (cancelled ? 'cancelled' : 'error'),
+        status: cancelled ? 'cancelled' : 'error',
         milliseconds: stopwatch.elapsedMilliseconds,
-        provenance: isMiss ? _Provenance.miss : provenance,
-        body: isMiss
-            ? 'Not in this session — while replaying, requests never fall '
-                'through to the fixture pipeline.\n\nReplay matches '
-                'method + path + query, so a request you did not record '
-                'is a miss.\n\n$e'
-            : cancelled
-                ? 'Pick dialog cancelled — no response was chosen.'
-                : '$e',
+        provenance:
+            recorder.isRecording ? _Provenance.recorded : _Provenance.fixture,
+        body: cancelled
+            ? 'Pick dialog cancelled — no response was chosen.'
+            : '$e',
       );
     }
     setState(() => _log.insert(0, entry));
@@ -330,7 +323,6 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
             recorder: recorder,
             hasSessions: _hasSessions,
             serveOrder: _serveOrder,
-            repeats: _repeats,
             timelineExpanded: _timelineExpanded,
             onToggleTimeline: () =>
                 setState(() => _timelineExpanded = !_timelineExpanded),
@@ -429,7 +421,6 @@ class _StatusCard extends StatelessWidget {
   final FixtureRecorder recorder;
   final bool hasSessions;
   final Map<int, int> serveOrder;
-  final Map<int, int> repeats;
   final bool timelineExpanded;
   final VoidCallback onToggleTimeline;
   final VoidCallback onRecord;
@@ -442,7 +433,6 @@ class _StatusCard extends StatelessWidget {
     required this.recorder,
     required this.hasSessions,
     required this.serveOrder,
-    required this.repeats,
     required this.timelineExpanded,
     required this.onToggleTimeline,
     required this.onRecord,
@@ -468,7 +458,8 @@ class _StatusCard extends StatelessWidget {
           Colors.green[900]!,
           Icons.replay_circle_filled,
           'Replaying "${session?.name}"',
-          'Recorded choices return instantly, in order — no dialogs.',
+          'Recorded choices return in order; when they run out, the '
+              'picker returns (remembered picks answer silently).',
         ),
       RecorderMode.idle => (
           Colors.blueGrey[50]!,
@@ -595,7 +586,6 @@ class _StatusCard extends StatelessWidget {
                   ? _TimelineList(
                       session: session,
                       serveOrder: serveOrder,
-                      repeats: repeats,
                       onColor: onColor,
                     )
                   : const SizedBox(width: double.infinity),
@@ -608,18 +598,17 @@ class _StatusCard extends StatelessWidget {
 }
 
 /// The session's interactions in recorded order, checked off live with
-/// serve-order badges as replayed requests consume them; ↻ marks
-/// repeat-last serves after a recording is exhausted.
+/// serve-order badges as replayed requests consume them. Each serves
+/// exactly once — a full timeline means the session's scope has ended
+/// and further requests go back to the fixtures picker.
 class _TimelineList extends StatelessWidget {
   final RecordingSession session;
   final Map<int, int> serveOrder;
-  final Map<int, int> repeats;
   final Color onColor;
 
   const _TimelineList({
     required this.session,
     required this.serveOrder,
-    required this.repeats,
     required this.onColor,
   });
 
@@ -634,7 +623,6 @@ class _TimelineList extends StatelessWidget {
         itemBuilder: (context, index) {
           final interaction = session.interactions[index];
           final order = serveOrder[index];
-          final repeatCount = repeats[index] ?? 0;
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 3),
             child: Row(
@@ -664,9 +652,6 @@ class _TimelineList extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (repeatCount > 0)
-                  Text('↻ ×$repeatCount',
-                      style: TextStyle(fontSize: 11, color: onColor)),
               ],
             ),
           );
@@ -676,7 +661,7 @@ class _TimelineList extends StatelessWidget {
   }
 }
 
-/// FIXTURE / REC / REPLAY / MISS — where a response came from.
+/// FIXTURE / REC / REPLAY — where a response came from.
 class _ProvenanceChip extends StatelessWidget {
   final _Provenance provenance;
 
@@ -688,7 +673,6 @@ class _ProvenanceChip extends StatelessWidget {
       _Provenance.fixture => ('FIXTURE', Colors.blueGrey),
       _Provenance.recorded => ('REC', Colors.red),
       _Provenance.replayed => ('REPLAY', Colors.green),
-      _Provenance.miss => ('MISS', Colors.orange),
     };
     return Container(
       width: 60,

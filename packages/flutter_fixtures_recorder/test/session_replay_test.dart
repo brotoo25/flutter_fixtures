@@ -85,15 +85,16 @@ void main() {
       expect(next(), 'done');
     });
 
-    test('repeats the last recording once a key is exhausted', () {
+    test('an exhausted key is a miss — each recording serves exactly once', () {
       final replay = SessionReplay(session([
         interaction('/status', response: 'pending'),
         interaction('/status', response: 'done'),
       ]));
 
-      replay.next(request('/status'));
-      replay.next(request('/status'));
+      expect(replay.next(request('/status'))?.response, 'pending');
       expect(replay.next(request('/status'))?.response, 'done');
+      expect(replay.next(request('/status')), isNull);
+      expect(replay.next(request('/status')), isNull);
     });
 
     test('keeps an independent cursor per request key', () {

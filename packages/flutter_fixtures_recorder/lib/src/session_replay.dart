@@ -8,17 +8,19 @@ import 'recording_session.dart';
 /// key keeps its own cursor. Repeated requests with the same key receive
 /// the responses in the order they were recorded — so a polling endpoint
 /// that was captured returning `pending`, `pending`, `done` replays exactly
-/// that progression. Once a key's recordings are exhausted, the last one is
-/// served again, which keeps long-running demos alive after the recorded
-/// traffic runs out.
+/// that progression. Each recording is served exactly once: when a key's
+/// recordings are exhausted, further requests are misses, making the end
+/// of the session's scope explicit instead of silently repeating stale
+/// responses. [restart] rewinds every cursor for another pass.
 ///
 /// The engine is source-agnostic: keys start with the request's source, so
 /// HTTP traffic, database queries, and custom sources coexist in one
 /// session without colliding.
 ///
-/// A request whose key was never recorded returns `null`; what happens then
-/// (forward to the real source, fail) is the adapter's policy, not this
-/// class's — see `ReplayMissBehavior`.
+/// A miss — a key that was never recorded, or one whose recordings are
+/// used up — returns `null`; what happens then (forward to the real
+/// source, fail) is the adapter's policy, not this class's — see
+/// `ReplayMissBehavior`.
 class SessionReplay {
   /// The session being replayed.
   final RecordingSession session;
@@ -37,17 +39,16 @@ class SessionReplay {
   }
 
   /// Returns the next recorded response for this request, or `null` if the
-  /// session holds no recording for it.
+  /// session holds no recording for it — including when the key's
+  /// recordings have all been served.
   RecordedInteraction? next(RecordedRequest request) {
     final key = _keyOf(request);
     final recordings = _byKey[key];
     if (recordings == null) return null;
     final cursor = _cursors[key] ?? 0;
-    if (cursor < recordings.length) {
-      _cursors[key] = cursor + 1;
-      return recordings[cursor];
-    }
-    return recordings.last;
+    if (cursor >= recordings.length) return null;
+    _cursors[key] = cursor + 1;
+    return recordings[cursor];
   }
 
   /// Rewinds every per-key cursor to the beginning of the session.

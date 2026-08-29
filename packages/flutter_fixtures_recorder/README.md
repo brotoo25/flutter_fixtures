@@ -71,12 +71,16 @@ source receives the same responses in the same order.
   is `source operation target`, so sources never collide inside a session.
 - Repeated requests with the same key are served **in recorded order**: a
   polling endpoint captured as `pending → pending → done` replays exactly
-  that progression. After the recordings run out, the last response
-  repeats, which keeps long demos alive.
-- Requests with no recording follow the `ReplayMissBehavior` the adapter
-  passes in: **forward** to the real source (default) or **reject/fail** to
-  guarantee the real source is never touched. The recorder interprets the
-  policy — adapters only render the resulting `ReplayDecision`.
+  that progression. Each recording serves **exactly once** — when a key's
+  recordings run out, the session's scope has explicitly ended and further
+  requests are misses (`restartReplay` rewinds for another pass).
+- Misses — requests never recorded, or replayed past their recordings —
+  follow the `ReplayMissBehavior` the adapter passes in: **forward** to
+  the real source (default) or **reject/fail** to guarantee the real
+  source is never touched. The recorder interprets the policy — adapters
+  only render the resulting `ReplayDecision`. Composed with
+  `FixturesInterceptor` and `forward`, the fixture picker reappears when
+  a session runs out — and picks marked "Remember" answer silently.
 
 ## The pieces
 

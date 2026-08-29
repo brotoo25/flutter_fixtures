@@ -204,10 +204,12 @@ directory, not on web) and `MemoryRecordingSessionStore` (runtime-only);
 The playback engine (`SessionReplay`): interactions grouped by request key
 (`source operation target` by default, customizable via a
 `RequestKeyBuilder`), one cursor per key, responses served in recorded
-order, repeating the last once exhausted. A request with no recording
-returns `null` — the miss policy (`ReplayMissBehavior`: forward / reject)
-is chosen by the source adapter but interpreted by the Fixture Recorder's
-`decide`, which turns it into a Replay Decision.
+order, each recording exactly once — an exhausted key is a miss, making
+the end of the session's scope explicit rather than silently repeating
+stale responses. A miss returns `null` — the miss policy
+(`ReplayMissBehavior`: forward / reject) is chosen by the source adapter
+but interpreted by the Fixture Recorder's `decide`, which turns it into a
+Replay Decision.
 
 ## Recorder Toolbar
 

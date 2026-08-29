@@ -33,8 +33,11 @@ class _StubHttpAdapter implements HttpClientAdapter {
 
 /// An in-memory HTTP Fixture Source, so fixtures serve without assets.
 class _FakeFixtureSource implements HttpFixtureSource {
+  int resolveCalls = 0;
+
   @override
   Future<FixtureCollection?> resolve(HttpFixtureRequest request) async {
+    resolveCalls++;
     return FixtureCollection(
       description: 'Fixtures for ${request.path}',
       items: [
@@ -58,6 +61,7 @@ class _FakeFixtureSource implements HttpFixtureSource {
 void main() {
   late FixtureRecorder recorder;
   late _StubHttpAdapter network;
+  late _FakeFixtureSource fixtureSource;
 
   Dio buildDio({bool withFixtures = false}) {
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test'));
@@ -65,8 +69,9 @@ void main() {
     dio.httpClientAdapter = network;
     dio.interceptors.add(RecorderInterceptor(recorder: recorder));
     if (withFixtures) {
+      fixtureSource = _FakeFixtureSource();
       dio.interceptors.add(FixturesInterceptor(
-        sources: [_FakeFixtureSource()],
+        sources: [fixtureSource],
         dataSelector: DataSelectorType.defaultValue,
       ));
     }
@@ -132,6 +137,37 @@ void main() {
     expect(replayed.data, {'from': 'network'});
     expect(replayed.statusCode, 200);
     expect(network.hits, 1); // the wire was not touched again
+  });
+
+  test(
+      'an exhausted session falls back to the fixtures pipeline — '
+      'the picker returns once recordings run out', () async {
+    final dio = buildDio(withFixtures: true);
+
+    // Record ONE fixture-served response for this endpoint.
+    recorder.startRecording();
+    await dio.get('/users');
+    final session = (await recorder.stopRecording())!;
+    expect(session.interactions, hasLength(1));
+
+    await recorder.startReplay(session.id);
+    final resolvesBeforeReplay = fixtureSource.resolveCalls;
+
+    // First request: replayed from the session, fixtures not consulted.
+    await dio.get('/users');
+    expect(fixtureSource.resolveCalls, resolvesBeforeReplay);
+
+    // Second request: the key is exhausted — the request forwards and the
+    // fixture source is consulted again (interactively, the picker).
+    final fellThrough = await dio.get('/users');
+    expect(fellThrough.data, {'from': 'fixture'});
+    expect(fixtureSource.resolveCalls, resolvesBeforeReplay + 1);
+    expect(network.hits, 0); // still no real network involved
+
+    // Restarting the replay rewinds: the session serves again.
+    recorder.restartReplay();
+    await dio.get('/users');
+    expect(fixtureSource.resolveCalls, resolvesBeforeReplay + 1);
   });
 
   test(
