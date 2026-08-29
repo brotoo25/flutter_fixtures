@@ -9,11 +9,14 @@ import 'package:path_provider/path_provider.dart';
 /// every request's response is chosen through flutter_fixtures itself
 /// (the pick dialog), the recorder captures whichever responses you
 /// choose, and replaying serves them back instantly — same choices, same
-/// order, no dialogs, no network.
+/// order, no dialogs.
 ///
-/// Every request lands in a log with a provenance chip (FIXTURE / REC /
-/// REPLAY / MISS) and its latency, and while replaying a session timeline
-/// checks recorded interactions off in serve order.
+/// The screen is three blocks: a status card that is also the control
+/// surface (and, while replaying, the session's live progress), a row of
+/// request chips, and a full-height request log whose rows open their
+/// response body in a bottom sheet. The status card is a custom control
+/// surface built on the recorder's public API; the built-in sessions
+/// sheet is used as-is.
 class RecorderExamplePage extends StatefulWidget {
   final GlobalKey<NavigatorState> navigatorKey;
 
@@ -69,8 +72,8 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
     ));
 
   final List<_LogEntry> _log = [];
-  int _selected = 0;
   bool _hasSessions = false;
+  bool _timelineExpanded = true;
 
   // Mirror of the replay cursor, so the timeline can check interactions
   // off in serve order. Reset whenever the recorder notifies while
@@ -192,10 +195,7 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
                 : '$e',
       );
     }
-    setState(() {
-      _log.insert(0, entry);
-      _selected = 0;
-    });
+    setState(() => _log.insert(0, entry));
   }
 
   String _prettifyJson(dynamic data) {
@@ -207,71 +207,182 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
     }
   }
 
+  // ----- control-surface actions --------------------------------------
+
+  Future<void> _stopRecordingFlow() async {
+    // The card only decides whether to show the name prompt; the recorder
+    // owns the "empty recording saves nothing" rule.
+    if (recorder.recordedCount == 0) {
+      await recorder.stopRecording();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nothing recorded.')),
+        );
+      }
+      return;
+    }
+    final controller = TextEditingController();
+    // null = keep recording; (true, _) = discard; (false, name) = save.
+    final choice = await showDialog<(bool, String)>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save recording'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Session name',
+            hintText: 'Leave empty for a timestamped name',
+          ),
+          onSubmitted: (value) => Navigator.pop(context, (false, value)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, (true, '')),
+            child: const Text('Discard'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, (false, controller.text)),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (choice == null) return;
+    final (discard, name) = choice;
+    final session = await recorder.stopRecording(name: name, discard: discard);
+    if (session != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Saved "${session.name}".')),
+      );
+    }
+  }
+
+  void _showEntry(_LogEntry entry) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _ProvenanceChip(provenance: entry.provenance),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '${entry.method} ${entry.path}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      '${entry.status} · ${entry.milliseconds} ms',
+                      style: const TextStyle(fontFamily: 'monospace'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        entry.body,
+                        style: const TextStyle(
+                            fontFamily: 'monospace', fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ----- build ---------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
-    final session = recorder.replaySession;
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
-            children: [
-              RecorderToolbar(recorder: recorder),
-              const Spacer(),
-            ],
+          _StatusCard(
+            recorder: recorder,
+            hasSessions: _hasSessions,
+            serveOrder: _serveOrder,
+            repeats: _repeats,
+            timelineExpanded: _timelineExpanded,
+            onToggleTimeline: () =>
+                setState(() => _timelineExpanded = !_timelineExpanded),
+            onRecord: recorder.startRecording,
+            onStopRecording: _stopRecordingFlow,
+            onStopReplay: recorder.stopReplay,
+            onRestartReplay: recorder.restartReplay,
+            onSessions: () => showRecordingSessionsSheet(context, recorder),
           ),
-          const SizedBox(height: 12),
-          _ModeBanner(recorder: recorder, hasSessions: _hasSessions),
-          if (recorder.isReplaying && session != null) ...[
-            const SizedBox(height: 12),
-            _SessionTimeline(
-              session: session,
-              serveOrder: _serveOrder,
-              repeats: _repeats,
-            ),
-          ],
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _requestButton(
-                  Icons.login,
-                  'POST /login',
-                  () => _request(
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _requestChip(Icons.login, 'POST /login', () {
+                  _request(
                       'POST',
                       '/login',
                       () => dio.post('/login', data: {
                             'username': 'admin',
                             'password': '123456',
-                          }))),
-              _requestButton(Icons.monitor_heart, 'GET /health',
-                  () => _request('GET', '/health', () => dio.get('/health'))),
-              _requestButton(
-                  Icons.search,
-                  'GET /search',
-                  () => _request(
+                          }));
+                }),
+                const SizedBox(width: 8),
+                _requestChip(Icons.monitor_heart, 'GET /health', () {
+                  _request('GET', '/health', () => dio.get('/health'));
+                }),
+                const SizedBox(width: 8),
+                _requestChip(Icons.search, 'GET /search', () {
+                  _request(
                       'GET',
                       '/search?page=1&q=flutter',
                       () => dio.get('/search', queryParameters: {
                             'page': '1',
                             'q': 'flutter',
-                          }))),
-            ],
+                          }));
+                }),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Expanded(child: _buildLog(context)),
         ],
       ),
     );
   }
 
-  Widget _requestButton(IconData icon, String label, VoidCallback onPressed) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
+  Widget _requestChip(IconData icon, String label, VoidCallback onPressed) {
+    return ActionChip(
+      avatar: Icon(icon, size: 16),
       label: Text(label),
+      onPressed: onPressed,
     );
   }
 
@@ -286,212 +397,280 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
         ),
       );
     }
-    final selected = _log[_selected];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Request log: newest first, one provenance chip per request.
-        Expanded(
-          flex: 2,
-          child: Card(
-            margin: EdgeInsets.zero,
-            child: ListView.builder(
-              itemCount: _log.length,
-              itemBuilder: (context, index) {
-                final entry = _log[index];
-                return ListTile(
-                  dense: true,
-                  selected: index == _selected,
-                  leading: _ProvenanceChip(provenance: entry.provenance),
-                  title: Text('${entry.method} ${entry.path}'),
-                  trailing: Text(
-                    '${entry.status} · ${entry.milliseconds} ms',
-                    style: const TextStyle(fontFamily: 'monospace'),
-                  ),
-                  onTap: () => setState(() => _selected = index),
-                );
-              },
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListView.separated(
+        itemCount: _log.length,
+        separatorBuilder: (_, __) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          final entry = _log[index];
+          return ListTile(
+            dense: true,
+            leading: _ProvenanceChip(provenance: entry.provenance),
+            title: Text('${entry.method} ${entry.path}',
+                overflow: TextOverflow.ellipsis),
+            trailing: Text(
+              '${entry.status} · ${entry.milliseconds} ms',
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
             ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        // Body of the selected log entry.
-        Expanded(
-          flex: 3,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12.0),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: SingleChildScrollView(
-              child: Text(
-                selected.body,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-              ),
-            ),
-          ),
-        ),
-      ],
+            onTap: () => _showEntry(entry),
+          );
+        },
+      ),
     );
   }
 }
 
-/// A colored banner that mirrors the recorder's mode and says what to do
-/// next — the state machine, made visible.
-class _ModeBanner extends StatelessWidget {
+/// The one control surface: mode color, next-step hint, actions — and,
+/// while replaying, the session's live progress with a collapsible
+/// timeline. A custom surface needs nothing beyond the recorder's public
+/// API.
+class _StatusCard extends StatelessWidget {
   final FixtureRecorder recorder;
   final bool hasSessions;
+  final Map<int, int> serveOrder;
+  final Map<int, int> repeats;
+  final bool timelineExpanded;
+  final VoidCallback onToggleTimeline;
+  final VoidCallback onRecord;
+  final VoidCallback onStopRecording;
+  final VoidCallback onStopReplay;
+  final VoidCallback onRestartReplay;
+  final VoidCallback onSessions;
 
-  const _ModeBanner({required this.recorder, required this.hasSessions});
+  const _StatusCard({
+    required this.recorder,
+    required this.hasSessions,
+    required this.serveOrder,
+    required this.repeats,
+    required this.timelineExpanded,
+    required this.onToggleTimeline,
+    required this.onRecord,
+    required this.onStopRecording,
+    required this.onStopReplay,
+    required this.onRestartReplay,
+    required this.onSessions,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final session = recorder.replaySession;
     final (color, onColor, icon, title, hint) = switch (recorder.mode) {
       RecorderMode.recording => (
           Colors.red[50]!,
           Colors.red[900]!,
           Icons.fiber_manual_record,
-          'RECORDING — ${recorder.recordedCount} captured',
-          'Fire requests and pick their responses; every choice is '
-              'captured. Tap ⏹ in the toolbar to save the session.',
+          'Recording · ${recorder.recordedCount}',
+          'Every response you pick is captured.',
         ),
       RecorderMode.replaying => (
           Colors.green[50]!,
           Colors.green[900]!,
           Icons.replay_circle_filled,
-          'REPLAYING "${recorder.replaySession?.name}"',
-          'Fire the same requests: your recorded choices return instantly, '
-              'in order, with no dialogs — watch the timeline below.',
+          'Replaying "${session?.name}"',
+          'Recorded choices return instantly, in order — no dialogs.',
         ),
       RecorderMode.idle => (
           Colors.blueGrey[50]!,
           Colors.blueGrey[800]!,
           Icons.rule,
-          'FIXTURES — you pick each response',
+          'Fixtures — you pick each response',
           hasSessions
-              ? 'Tap the sessions icon in the toolbar to replay saved '
-                  'choices — or record a new session with ⏺.'
-              : 'Tap ⏺ in the toolbar, fire requests, and pick their '
-                  'responses — your choices become a replayable session.',
+              ? 'Replay saved choices, or record new ones.'
+              : 'Record while picking — your choices become a session.',
         ),
     };
 
+    final actions = switch (recorder.mode) {
+      RecorderMode.idle => [
+          IconButton.filled(
+            tooltip: 'Start recording',
+            style: IconButton.styleFrom(backgroundColor: Colors.red),
+            icon: const Icon(Icons.fiber_manual_record, size: 20),
+            onPressed: onRecord,
+          ),
+          IconButton(
+            tooltip: 'Sessions',
+            icon: const Icon(Icons.video_library_outlined),
+            onPressed: onSessions,
+          ),
+        ],
+      RecorderMode.recording => [
+          IconButton.filled(
+            tooltip: 'Stop and save',
+            icon: const Icon(Icons.stop, size: 20),
+            onPressed: onStopRecording,
+          ),
+        ],
+      RecorderMode.replaying => [
+          IconButton(
+            tooltip: 'Restart replay',
+            icon: const Icon(Icons.replay),
+            onPressed: onRestartReplay,
+          ),
+          IconButton(
+            tooltip: 'Stop replay',
+            icon: const Icon(Icons.stop_circle_outlined),
+            onPressed: onStopReplay,
+          ),
+          IconButton(
+            tooltip: 'Sessions',
+            icon: const Icon(Icons.video_library_outlined),
+            onPressed: onSessions,
+          ),
+        ],
+    };
+
+    final total = session?.interactions.length ?? 0;
+    final served = serveOrder.length;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: onColor.withValues(alpha: 0.25)),
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: onColor, size: 28),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: TextStyle(
-                        color: onColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13)),
-                const SizedBox(height: 2),
-                Text(hint, style: TextStyle(color: onColor, fontSize: 12)),
-              ],
-            ),
+          Row(
+            children: [
+              Icon(icon, color: onColor, size: 26),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: TextStyle(
+                            color: onColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14)),
+                    Text(hint,
+                        style: TextStyle(
+                            color: onColor.withValues(alpha: 0.85),
+                            fontSize: 12)),
+                  ],
+                ),
+              ),
+              ...actions,
+            ],
           ),
+          if (recorder.isReplaying && session != null) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: InkWell(
+                onTap: onToggleTimeline,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: total == 0 ? 0 : served / total,
+                          minHeight: 6,
+                          color: Colors.green,
+                          backgroundColor: Colors.green[100],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('$served / $total',
+                        style: TextStyle(color: onColor, fontSize: 12)),
+                    Icon(
+                      timelineExpanded ? Icons.expand_less : Icons.expand_more,
+                      size: 18,
+                      color: onColor,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              alignment: Alignment.topCenter,
+              child: timelineExpanded
+                  ? _TimelineList(
+                      session: session,
+                      serveOrder: serveOrder,
+                      repeats: repeats,
+                      onColor: onColor,
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// The active session's interactions in recorded order, checked off live
-/// as replayed requests consume them — the per-key replay cursor, made
-/// visible. A ↻ badge appears when an exhausted recording repeats its
-/// last response.
-class _SessionTimeline extends StatelessWidget {
+/// The session's interactions in recorded order, checked off live with
+/// serve-order badges as replayed requests consume them; ↻ marks
+/// repeat-last serves after a recording is exhausted.
+class _TimelineList extends StatelessWidget {
   final RecordingSession session;
   final Map<int, int> serveOrder;
   final Map<int, int> repeats;
+  final Color onColor;
 
-  const _SessionTimeline({
+  const _TimelineList({
     required this.session,
     required this.serveOrder,
     required this.repeats,
+    required this.onColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final served = serveOrder.length;
-    final total = session.interactions.length;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Session timeline — $served of $total served',
-                style: Theme.of(context)
-                    .textTheme
-                    .labelLarge
-                    ?.copyWith(color: Colors.green[900]),
-              ),
-            ),
-            const SizedBox(height: 4),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 168),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: session.interactions.length,
-                itemBuilder: (context, index) {
-                  final interaction = session.interactions[index];
-                  final order = serveOrder[index];
-                  final repeatCount = repeats[index] ?? 0;
-                  return ListTile(
-                    dense: true,
-                    visualDensity: VisualDensity.compact,
-                    leading: order == null
-                        ? Icon(Icons.radio_button_unchecked,
-                            size: 20, color: Colors.grey[400])
-                        : CircleAvatar(
-                            radius: 10,
-                            backgroundColor: Colors.green,
-                            child: Text('$order',
-                                style: const TextStyle(
-                                    fontSize: 11, color: Colors.white)),
-                          ),
-                    title: Text(
-                      '${interaction.request.operation} '
-                      '${interaction.request.target}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: order == null ? Colors.grey[600] : null,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 132),
+      child: ListView.builder(
+        shrinkWrap: true,
+        padding: const EdgeInsets.only(top: 6, right: 8),
+        itemCount: session.interactions.length,
+        itemBuilder: (context, index) {
+          final interaction = session.interactions[index];
+          final order = serveOrder[index];
+          final repeatCount = repeats[index] ?? 0;
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              children: [
+                order == null
+                    ? Icon(Icons.radio_button_unchecked,
+                        size: 16, color: Colors.green[200])
+                    : CircleAvatar(
+                        radius: 8,
+                        backgroundColor: Colors.green,
+                        child: Text('$order',
+                            style: const TextStyle(
+                                fontSize: 10, color: Colors.white)),
                       ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${interaction.request.operation} '
+                    '${interaction.request.target}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: order == null
+                          ? onColor.withValues(alpha: 0.5)
+                          : onColor,
                     ),
-                    trailing: repeatCount > 0
-                        ? Text('↻ ×$repeatCount',
-                            style: TextStyle(
-                                fontSize: 11, color: Colors.green[800]))
-                        : null,
-                  );
-                },
-              ),
+                  ),
+                ),
+                if (repeatCount > 0)
+                  Text('↻ ×$repeatCount',
+                      style: TextStyle(fontSize: 11, color: onColor)),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -512,12 +691,11 @@ class _ProvenanceChip extends StatelessWidget {
       _Provenance.miss => ('MISS', Colors.orange),
     };
     return Container(
-      width: 62,
+      width: 60,
       padding: const EdgeInsets.symmetric(vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color),
       ),
       child: Text(
         label,
