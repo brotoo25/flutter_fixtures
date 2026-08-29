@@ -188,7 +188,14 @@ class FixtureRecorder extends ChangeNotifier implements TrafficRecorder {
   }
 
   /// Rewinds the active replay to the beginning of its session.
-  void restartReplay() => _replay?.restart();
+  ///
+  /// Notifies listeners, so UIs tracking replay progress can reset.
+  void restartReplay() {
+    final replay = _replay;
+    if (replay == null) return;
+    replay.restart();
+    notifyListeners();
+  }
 
   /// Summaries of all saved sessions, most recently recorded first.
   ///

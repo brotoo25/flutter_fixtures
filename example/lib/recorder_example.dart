@@ -10,9 +10,11 @@ import 'package:path_provider/path_provider.dart';
 /// with networking cut off — the flow used for product demos and offline
 /// simulations.
 ///
-/// Every request lands in a log with a provenance chip (LIVE / REC /
-/// REPLAY / MISS) and its latency, so where a response came from is
-/// visible at a glance — replayed responses return in ~0 ms.
+/// Each request button opens an options dialog (different options are
+/// different requests, so replay matching becomes tangible), every request
+/// lands in a log with a provenance chip (LIVE / REC / REPLAY / MISS) and
+/// its latency, and while replaying a session timeline checks recorded
+/// interactions off in serve order.
 class RecorderExamplePage extends StatefulWidget {
   const RecorderExamplePage({super.key});
 
@@ -61,6 +63,15 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
   int _selected = 0;
   bool _hasSessions = false;
 
+  // Mirror of the replay cursor, so the timeline can check interactions
+  // off in serve order. Reset whenever the recorder notifies while
+  // replaying (replay start, session switch, or restart — decide() and
+  // lookups never notify).
+  final Map<String, int> _cursorByKey = {};
+  final Map<int, int> _serveOrder = {};
+  final Map<int, int> _repeats = {};
+  int _serveCounter = 0;
+
   @override
   void initState() {
     super.initState();
@@ -75,9 +86,18 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
   }
 
   void _onRecorderChanged() {
-    setState(() {});
+    setState(() {
+      if (recorder.isReplaying) _resetMirror();
+    });
     // Stopping a recording may have saved a new session.
     if (recorder.mode == RecorderMode.idle) _refreshSessions();
+  }
+
+  void _resetMirror() {
+    _cursorByKey.clear();
+    _serveOrder.clear();
+    _repeats.clear();
+    _serveCounter = 0;
   }
 
   Future<void> _refreshSessions() async {
@@ -85,9 +105,41 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
     if (mounted) setState(() => _hasSessions = sessions.isNotEmpty);
   }
 
+  /// The replay match key for a request — the same identity the recorder
+  /// uses: method plus core's canonical target rendering.
+  String _keyFor(String method, String pathAndQuery) {
+    final request = HttpFixtureRequest.fromUri(method, Uri.parse(pathAndQuery));
+    return '${request.method} ${request.canonicalTarget}';
+  }
+
+  String _keyOfInteraction(RecordedInteraction interaction) {
+    return '${interaction.request.operation} ${interaction.request.target}';
+  }
+
+  /// Advance the mirrored cursor for a replayed request: mark the next
+  /// unconsumed recording for this key served, or count a repeat once the
+  /// key is exhausted (the engine repeats the last recording).
+  void _markConsumed(String method, String pathAndQuery) {
+    final session = recorder.replaySession;
+    if (session == null) return;
+    final key = _keyFor(method, pathAndQuery);
+    final indices = [
+      for (var i = 0; i < session.interactions.length; i++)
+        if (_keyOfInteraction(session.interactions[i]) == key) i,
+    ];
+    if (indices.isEmpty) return;
+    final cursor = _cursorByKey[key] ?? 0;
+    if (cursor < indices.length) {
+      _serveOrder[indices[cursor]] = ++_serveCounter;
+    } else {
+      _repeats[indices.last] = (_repeats[indices.last] ?? 0) + 1;
+    }
+    _cursorByKey[key] = cursor + 1;
+  }
+
   Future<void> _request(
     String method,
-    String path,
+    String pathAndQuery,
     Future<Response> Function() send,
   ) async {
     final provenance = switch (recorder.mode) {
@@ -102,24 +154,28 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
       stopwatch.stop();
       entry = _LogEntry(
         method: method,
-        path: path,
+        path: pathAndQuery,
         status: '${response.statusCode}',
         milliseconds: stopwatch.elapsedMilliseconds,
         provenance: provenance,
         body: _prettifyJson(response.data),
       );
+      if (provenance == _Provenance.replayed) {
+        _markConsumed(method, pathAndQuery);
+      }
     } catch (e) {
       stopwatch.stop();
       final isMiss = recorder.isReplaying;
       entry = _LogEntry(
         method: method,
-        path: path,
+        path: pathAndQuery,
         status: isMiss ? 'miss' : 'error',
         milliseconds: stopwatch.elapsedMilliseconds,
         provenance: isMiss ? _Provenance.miss : provenance,
         body: isMiss
             ? 'Not in this session — while replaying, the network is never '
-                'touched.\n\n$e'
+                'touched.\n\nReplay matches method + path + query, so an '
+                'option you did not record is a miss.\n\n$e'
             : '$e',
       );
     }
@@ -127,6 +183,99 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
       _log.insert(0, entry);
       _selected = 0;
     });
+  }
+
+  // ----- request options dialogs -------------------------------------
+
+  Future<void> _sendTodo() async {
+    final id = await _pickOption<int>(
+      title: 'GET /todos/{id}',
+      options: {1: '/todos/1', 2: '/todos/2', 3: '/todos/3'},
+    );
+    if (id == null) return;
+    await _request('GET', '/todos/$id', () => dio.get('/todos/$id'));
+  }
+
+  Future<void> _sendUsers() async {
+    final limit = await _pickOption<int>(
+      title: 'GET /users?_limit={n}',
+      options: {1: '_limit=1', 3: '_limit=3', 5: '_limit=5'},
+    );
+    if (limit == null) return;
+    await _request('GET', '/users?_limit=$limit',
+        () => dio.get('/users', queryParameters: {'_limit': '$limit'}));
+  }
+
+  Future<T?> _pickOption<T>({
+    required String title,
+    required Map<T, String> options,
+  }) {
+    return showDialog<T>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(title),
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
+            child: Text(
+              'Each option is a different request — replay matches '
+              'method + path + query.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ),
+          for (final entry in options.entries)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, entry.key),
+              child: Text(entry.value),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendPost() async {
+    final controller = TextEditingController(text: 'Recorded post');
+    final title = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('POST /posts'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Post title'),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'The body is informational — replay matches this POST even '
+              'with a different title.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Send'),
+          ),
+        ],
+      ),
+    );
+    if (title == null) return;
+    await _request(
+        'POST',
+        '/posts',
+        () => dio.post('/posts', data: {
+              'title': title,
+              'body': 'Captured by flutter_fixtures_recorder',
+              'userId': 1,
+            }));
   }
 
   String _prettifyJson(dynamic data) {
@@ -140,6 +289,7 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
 
   @override
   Widget build(BuildContext context) {
+    final session = recorder.replaySession;
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -153,32 +303,22 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
           ),
           const SizedBox(height: 12),
           _ModeBanner(recorder: recorder, hasSessions: _hasSessions),
+          if (recorder.isReplaying && session != null) ...[
+            const SizedBox(height: 12),
+            _SessionTimeline(
+              session: session,
+              serveOrder: _serveOrder,
+              repeats: _repeats,
+            ),
+          ],
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _requestButton(Icons.download, 'GET /todos/1',
-                  () => _request('GET', '/todos/1', () => dio.get('/todos/1'))),
-              _requestButton(
-                  Icons.people,
-                  'GET /users',
-                  () => _request(
-                      'GET',
-                      '/users?_limit=3',
-                      () =>
-                          dio.get('/users', queryParameters: {'_limit': '3'}))),
-              _requestButton(
-                  Icons.upload,
-                  'POST /posts',
-                  () => _request(
-                      'POST',
-                      '/posts',
-                      () => dio.post('/posts', data: {
-                            'title': 'Recorded post',
-                            'body': 'Captured by flutter_fixtures_recorder',
-                            'userId': 1,
-                          }))),
+              _requestButton(Icons.download, 'GET /todos…', _sendTodo),
+              _requestButton(Icons.people, 'GET /users…', _sendUsers),
+              _requestButton(Icons.upload, 'POST /posts…', _sendPost),
             ],
           ),
           const SizedBox(height: 12),
@@ -284,8 +424,8 @@ class _ModeBanner extends StatelessWidget {
           Colors.green[900]!,
           Icons.replay_circle_filled,
           'REPLAYING "${recorder.replaySession?.name}"',
-          'Fire the same requests: responses return instantly from the '
-              'session, in recorded order. The network is never touched — '
+          'Fire the same requests and watch the timeline below check them '
+              'off in recorded order. The network is never touched — '
               'Airplane Mode works.',
         ),
       RecorderMode.idle => (
@@ -328,6 +468,92 @@ class _ModeBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The active session's interactions in recorded order, checked off live
+/// as replayed requests consume them — the per-key replay cursor, made
+/// visible. A ↻ badge appears when an exhausted recording repeats its
+/// last response.
+class _SessionTimeline extends StatelessWidget {
+  final RecordingSession session;
+  final Map<int, int> serveOrder;
+  final Map<int, int> repeats;
+
+  const _SessionTimeline({
+    required this.session,
+    required this.serveOrder,
+    required this.repeats,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final served = serveOrder.length;
+    final total = session.interactions.length;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Session timeline — $served of $total served',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge
+                    ?.copyWith(color: Colors.green[900]),
+              ),
+            ),
+            const SizedBox(height: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 168),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: session.interactions.length,
+                itemBuilder: (context, index) {
+                  final interaction = session.interactions[index];
+                  final order = serveOrder[index];
+                  final repeatCount = repeats[index] ?? 0;
+                  return ListTile(
+                    dense: true,
+                    visualDensity: VisualDensity.compact,
+                    leading: order == null
+                        ? Icon(Icons.radio_button_unchecked,
+                            size: 20, color: Colors.grey[400])
+                        : CircleAvatar(
+                            radius: 10,
+                            backgroundColor: Colors.green,
+                            child: Text('$order',
+                                style: const TextStyle(
+                                    fontSize: 11, color: Colors.white)),
+                          ),
+                    title: Text(
+                      '${interaction.request.operation} '
+                      '${interaction.request.target}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: order == null ? Colors.grey[600] : null,
+                      ),
+                    ),
+                    trailing: repeatCount > 0
+                        ? Text('↻ ×$repeatCount',
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.green[800]))
+                        : null,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
