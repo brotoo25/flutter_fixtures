@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'recorded_request.dart';
 
 /// One captured request/response pair inside a Recording Session.
@@ -10,6 +8,11 @@ import 'recorded_request.dart';
 /// HTTP, a list of rows for a database — and is opaque to the recorder
 /// itself. Adapters own both sides: whoever wrote the response shape is the
 /// one who reads it back.
+///
+/// The round-trip contract: when sessions are persisted, the [response]
+/// must survive a JSON encode/decode cycle and still be readable by its
+/// adapter. A persistent store refuses an unencodable response loudly at
+/// save time — failing at the keyboard beats replaying garbage mid-demo.
 class RecordedInteraction {
   /// What was asked.
   final RecordedRequest request;
@@ -37,26 +40,11 @@ class RecordedInteraction {
   }
 
   /// Converts this interaction to its session-file JSON representation.
-  ///
-  /// Values that cannot be JSON-encoded (streams, bytes, arbitrary objects)
-  /// are stored as their string representation instead of failing the save.
   Map<String, dynamic> toJson() {
-    final requestJson = request.toJson();
-    requestJson['payload'] = _jsonSafe(requestJson['payload']);
     return {
-      'request': requestJson,
-      'response': _jsonSafe(response),
+      'request': request.toJson(),
+      'response': response,
       'recordedAt': recordedAt.toIso8601String(),
     };
-  }
-
-  static Object? _jsonSafe(Object? value) {
-    if (value == null) return null;
-    try {
-      jsonEncode(value);
-      return value;
-    } catch (_) {
-      return value.toString();
-    }
   }
 }

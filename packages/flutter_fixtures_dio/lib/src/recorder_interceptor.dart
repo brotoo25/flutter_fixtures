@@ -45,30 +45,23 @@ class RecorderInterceptor extends Interceptor {
   });
 
   /// Describes a Dio request in the recorder's source-agnostic shape.
+  ///
+  /// Request identity is core's knowledge: `HttpFixtureRequest.fromUri`
+  /// normalizes, `canonicalTarget` renders — no HTTP normalization lives
+  /// in this package.
   static RecordedRequest describe(RequestOptions options) {
+    final request = HttpFixtureRequest.fromUri(options.method, options.uri);
     return RecordedRequest(
       source: source,
-      operation: options.method.toUpperCase(),
-      target: _target(options.uri),
+      operation: request.method,
+      target: request.canonicalTarget,
       payload: options.data,
     );
   }
 
-  /// Path plus sorted query. Sorting makes the target independent of the
-  /// order a client happens to serialize query parameters in.
-  static String _target(Uri uri) {
-    final entries = uri.queryParametersAll.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    final query = entries
-        .map((e) => '${e.key}=${(List.of(e.value)..sort()).join(',')}')
-        .join('&');
-    final path = uri.path.isEmpty ? '/' : uri.path;
-    return query.isEmpty ? path : '$path?$query';
-  }
-
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    switch (recorder.decide(describe(options), onMiss: onReplayMiss)) {
+    switch (recorder.decide(() => describe(options), onMiss: onReplayMiss)) {
       case Replayed(:final interaction):
         handler.resolve(_toResponse(interaction, options));
       case RejectRequest(:final message):
@@ -96,11 +89,11 @@ class RecorderInterceptor extends Interceptor {
     handler.next(err);
   }
 
-  // record() is a no-op unless the recorder is capturing, so this needs
-  // no mode check of its own.
+  // The capture thunk runs only while recording, so idle traffic builds
+  // no request description and copies no headers.
   void _capture(Response response) {
     recorder.record(
-      RecordedInteraction(
+      () => RecordedInteraction(
         request: describe(response.requestOptions),
         response: {
           'statusCode': response.statusCode ?? 0,

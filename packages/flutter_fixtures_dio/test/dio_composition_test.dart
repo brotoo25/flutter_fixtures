@@ -113,6 +113,27 @@ void main() {
     expect(network.hits, 0);
   });
 
+  test('a session crosses JSON persistence and replays through a real Dio',
+      () async {
+    final dio = buildDio();
+
+    recorder.startRecording();
+    await dio.get('/users');
+    final session = (await recorder.stopRecording())!;
+
+    // A file-backed store hands back plain JSON, not the original Dart
+    // objects — replay must survive the round-trip end to end.
+    final restored = RecordingSession.fromJson(
+      jsonDecode(jsonEncode(session.toJson())) as Map<String, dynamic>,
+    );
+    recorder.startReplayOf(restored);
+
+    final replayed = await dio.get('/users');
+    expect(replayed.data, {'from': 'network'});
+    expect(replayed.statusCode, 200);
+    expect(network.hits, 1); // the wire was not touched again
+  });
+
   test(
       'fixture-served responses are NOT captured while recording — '
       'a plain resolve skips the response stage (documented behavior)',

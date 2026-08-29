@@ -26,8 +26,8 @@ void main() {
   group('recording', () {
     test('captures interactions and saves a session on stop', () async {
       recorder.startRecording(name: 'Demo');
-      recorder.record(interaction('GET', '/users'));
-      recorder.record(interaction('POST', '/login'));
+      recorder.record(() => interaction('GET', '/users'));
+      recorder.record(() => interaction('POST', '/login'));
 
       final session = await recorder.stopRecording();
 
@@ -40,28 +40,28 @@ void main() {
 
     test('a name given at stop time wins', () async {
       recorder.startRecording(name: 'Draft');
-      recorder.record(interaction('GET', '/users'));
+      recorder.record(() => interaction('GET', '/users'));
       final session = await recorder.stopRecording(name: 'Final');
       expect(session!.name, 'Final');
     });
 
     test('an unnamed session gets a timestamped default name', () async {
       recorder.startRecording();
-      recorder.record(interaction('GET', '/users'));
+      recorder.record(() => interaction('GET', '/users'));
       final session = await recorder.stopRecording();
       expect(session!.name, startsWith('Session '));
     });
 
     test('a blank name counts as absent', () async {
       recorder.startRecording(name: '  ');
-      recorder.record(interaction('GET', '/users'));
+      recorder.record(() => interaction('GET', '/users'));
       final session = await recorder.stopRecording(name: '');
       expect(session!.name, startsWith('Session '));
     });
 
     test('discard saves nothing', () async {
       recorder.startRecording();
-      recorder.record(interaction('GET', '/users'));
+      recorder.record(() => interaction('GET', '/users'));
       final session = await recorder.stopRecording(discard: true);
       expect(session, isNull);
       expect(await store.list(), isEmpty);
@@ -75,7 +75,7 @@ void main() {
     });
 
     test('record is a no-op while idle', () {
-      recorder.record(interaction('GET', '/users'));
+      recorder.record(() => interaction('GET', '/users'));
       expect(recorder.recordedCount, 0);
     });
 
@@ -88,7 +88,7 @@ void main() {
       recorder.addListener(() => notifications++);
 
       recorder.startRecording();
-      recorder.record(interaction('GET', '/users'));
+      recorder.record(() => interaction('GET', '/users'));
       expect(notifications, 2);
     });
   });
@@ -98,7 +98,7 @@ void main() {
 
     setUp(() async {
       recorder.startRecording();
-      recorder.record(interaction('GET', '/users', body: 'recorded'));
+      recorder.record(() => interaction('GET', '/users', body: 'recorded'));
       saved = (await recorder.stopRecording())!;
     });
 
@@ -107,7 +107,7 @@ void main() {
 
       expect(recorder.isReplaying, isTrue);
       expect(recorder.replaySession?.id, saved.id);
-      final decision = recorder.decide(request('GET', '/users'));
+      final decision = recorder.decide(() => request('GET', '/users'));
       expect(decision, isA<Replayed>());
       expect((decision as Replayed).interaction.response, 'recorded');
     });
@@ -128,7 +128,7 @@ void main() {
       recorder.startReplayOf(other);
 
       expect(recorder.replaySession?.id, 'other');
-      final decision = recorder.decide(request('GET', '/users'));
+      final decision = recorder.decide(() => request('GET', '/users'));
       expect((decision as Replayed).interaction.response, 'other');
     });
 
@@ -151,9 +151,9 @@ void main() {
         ],
       ));
 
-      recorder.decide(request('GET', '/status'));
+      recorder.decide(() => request('GET', '/status'));
       recorder.restartReplay();
-      final decision = recorder.decide(request('GET', '/status'));
+      final decision = recorder.decide(() => request('GET', '/status'));
       expect((decision as Replayed).interaction.response, 'first');
     });
 
@@ -170,7 +170,7 @@ void main() {
         interactions: [interaction('GET', '/users?ts=1', body: 'ok')],
       ));
 
-      final decision = recorder.decide(request('GET', '/users?ts=999'));
+      final decision = recorder.decide(() => request('GET', '/users?ts=999'));
       expect((decision as Replayed).interaction.response, 'ok');
     });
   });
@@ -180,14 +180,15 @@ void main() {
 
     setUp(() async {
       recorder.startRecording();
-      recorder.record(interaction('GET', '/users', body: 'recorded'));
+      recorder.record(() => interaction('GET', '/users', body: 'recorded'));
       saved = (await recorder.stopRecording())!;
     });
 
     test('forwards while idle, whatever the miss policy says', () {
-      expect(recorder.decide(request('GET', '/users')), isA<ForwardToSource>());
+      expect(recorder.decide(() => request('GET', '/users')),
+          isA<ForwardToSource>());
       expect(
-        recorder.decide(request('GET', '/users'),
+        recorder.decide(() => request('GET', '/users'),
             onMiss: ReplayMissBehavior.reject),
         isA<ForwardToSource>(),
       );
@@ -195,19 +196,19 @@ void main() {
 
     test('replays a recorded request', () async {
       await recorder.startReplay(saved.id);
-      expect(recorder.decide(request('GET', '/users')), isA<Replayed>());
+      expect(recorder.decide(() => request('GET', '/users')), isA<Replayed>());
     });
 
     test('forwards a miss by default', () async {
       await recorder.startReplay(saved.id);
-      expect(
-          recorder.decide(request('GET', '/unknown')), isA<ForwardToSource>());
+      expect(recorder.decide(() => request('GET', '/unknown')),
+          isA<ForwardToSource>());
     });
 
     test('rejects a miss with the session named in the message', () async {
       await recorder.startReplay(saved.id);
       final decision = recorder.decide(
-        request('GET', '/unknown'),
+        () => request('GET', '/unknown'),
         onMiss: ReplayMissBehavior.reject,
       );
       expect(decision, isA<RejectRequest>());
@@ -217,10 +218,42 @@ void main() {
     });
   });
 
+  group('laziness', () {
+    test('idle decide and record never invoke their builders', () {
+      final decision =
+          recorder.decide(() => throw StateError('request built while idle'));
+      expect(decision, isA<ForwardToSource>());
+
+      recorder.record(() => throw StateError('capture built while idle'));
+      expect(recorder.recordedCount, 0);
+    });
+  });
+
   group('mode guards', () {
     test('cannot start recording while recording', () {
       recorder.startRecording();
       expect(() => recorder.startRecording(), throwsStateError);
+    });
+
+    test('cannot start recording while replaying', () {
+      recorder.startReplayOf(RecordingSession(
+        id: 'r',
+        name: 'Replay',
+        recordedAt: DateTime.now(),
+        interactions: const [],
+      ));
+      expect(() => recorder.startRecording(), throwsStateError);
+    });
+
+    test('stopRecording while replaying is a no-op returning null', () async {
+      recorder.startReplayOf(RecordingSession(
+        id: 'r',
+        name: 'Replay',
+        recordedAt: DateTime.now(),
+        interactions: const [],
+      ));
+      expect(await recorder.stopRecording(), isNull);
+      expect(recorder.isReplaying, isTrue);
     });
 
     test('cannot start replay while recording', () {
@@ -240,7 +273,7 @@ void main() {
   group('session management', () {
     test('sessions() lists what the store holds', () async {
       recorder.startRecording();
-      recorder.record(interaction('GET', '/users'));
+      recorder.record(() => interaction('GET', '/users'));
       final saved = (await recorder.stopRecording())!;
 
       final listed = await recorder.sessions();
@@ -249,7 +282,7 @@ void main() {
 
     test('deleteSession removes from the store', () async {
       recorder.startRecording();
-      recorder.record(interaction('GET', '/users'));
+      recorder.record(() => interaction('GET', '/users'));
       final saved = (await recorder.stopRecording())!;
 
       await recorder.deleteSession(saved.id);

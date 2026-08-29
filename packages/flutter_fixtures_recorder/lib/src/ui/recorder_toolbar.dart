@@ -125,8 +125,10 @@ class RecorderToolbar extends StatelessWidget {
   }
 
   Future<void> _stopRecording(BuildContext context) async {
+    // The widget only decides whether to show the name prompt; the
+    // recorder owns the "empty recording saves nothing" rule.
     if (recorder.recordedCount == 0) {
-      await recorder.stopRecording(discard: true);
+      await recorder.stopRecording();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Nothing recorded.')),

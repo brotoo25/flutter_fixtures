@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_fixtures/flutter_fixtures.dart';
 import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
@@ -18,35 +17,19 @@ class RecorderExamplePage extends StatefulWidget {
 }
 
 class _RecorderExamplePageState extends State<RecorderExamplePage> {
-  FixtureRecorder? recorder;
-  late Dio dio;
+  // sessionStoreForDirectory resolves the directory lazily and falls back
+  // to an in-memory store on web, so everything constructs synchronously.
+  late final FixtureRecorder recorder = FixtureRecorder(
+    store: sessionStoreForDirectory(() async =>
+        '${(await getApplicationDocumentsDirectory()).path}/fixture_recordings'),
+  );
+
+  late final Dio dio = Dio(
+    BaseOptions(baseUrl: 'https://jsonplaceholder.typicode.com'),
+  )..interceptors.add(RecorderInterceptor(recorder: recorder));
 
   String responseCode = "";
   String responseData = "";
-
-  @override
-  void initState() {
-    super.initState();
-    _initialize();
-  }
-
-  Future<void> _initialize() async {
-    // File-backed sessions survive app restarts; web has no file system,
-    // so recordings there live for the app's lifetime only.
-    final RecordingSessionStore store;
-    if (kIsWeb) {
-      store = MemoryRecordingSessionStore();
-    } else {
-      final dir = await getApplicationDocumentsDirectory();
-      store = FileRecordingSessionStore('${dir.path}/fixture_recordings');
-    }
-    final fixtureRecorder = FixtureRecorder(store: store);
-
-    dio = Dio(BaseOptions(baseUrl: 'https://jsonplaceholder.typicode.com'));
-    dio.interceptors.add(RecorderInterceptor(recorder: fixtureRecorder));
-
-    setState(() => recorder = fixtureRecorder);
-  }
 
   Future<void> _request(Future<Response> Function() send) async {
     try {
@@ -74,10 +57,6 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
 
   @override
   Widget build(BuildContext context) {
-    final recorder = this.recorder;
-    if (recorder == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16.0),

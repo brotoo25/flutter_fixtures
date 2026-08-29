@@ -34,6 +34,12 @@ takes a database query and returns a Fixture Collection, or `null` when
 the source has none; `data` materializes a document's payload.
 `SqfliteDataQuery` is the built-in file-backed adapter.
 
+Statement identity is one model: `SqfliteQuery` carries every field a
+`DatabaseAdapter` operation takes, with two projections —
+`fixtureCandidates` (deliberately lossy fixture-file names, so one
+fixture serves a family of statements) and `recordingTarget` (total
+canonical JSON for record & replay, so differing arguments never match).
+
 ## Fixture Source
 
 The core module owning fixture-file IO (`FixtureSource`): tries candidate
@@ -54,7 +60,9 @@ to the Fixture Collection and Fixture Document alone.
 Request normalization is owned by `HttpFixtureRequest.fromUri`, the
 canonical constructor HTTP adapters use: scheme and host dropped, the URL's
 query string merged into the query parameters. Sources assume that shape
-and never compensate for raw request fields.
+and never compensate for raw request fields. `canonicalTarget` renders the
+normalized request as one escaped, sorted string — the HTTP identity used
+by record & replay, identical whichever HTTP client built the request.
 
 Precedence is owned by the composite `HttpFixtureSources` (itself an HTTP
 Fixture Source): sources are consulted in order, the first that resolves
@@ -120,11 +128,13 @@ be remembered; cleared via `clearRememberedSelectionFor` /
 
 The thin record-and-replay seam in core (`TrafficRecorder`): two calls —
 `decide` (how should this request be handled?) and `record` (capture this
-interaction; a no-op unless recording). Transport packages implement
-capture and replay against this contract only (`RecorderInterceptor` in
-flutter_fixtures_dio, `RecordingDatabaseAdapter` in
-flutter_fixtures_sqflite), so they never depend on the recorder engine.
-All heavy lifting sits behind the seam in the **Fixture Recorder**.
+interaction). Both take builder functions the recorder invokes only when
+its mode requires them, so idle traffic builds nothing and encodes
+nothing. Transport packages implement capture and replay against this
+contract only (`RecorderInterceptor` in flutter_fixtures_dio,
+`RecordingDatabaseAdapter` in flutter_fixtures_sqflite), so they never
+depend on the recorder engine. All heavy lifting sits behind the seam in
+the **Fixture Recorder**.
 
 ## Fixture Recorder
 
@@ -163,8 +173,11 @@ The source-agnostic description of one request (`RecordedRequest`):
 a **source** name (`http`, `sqlite`, custom), an **operation** (HTTP
 method, `query`, `insert`, ...), and a normalized **target** (path with
 sorted query, SQL with arguments), plus an informational payload that never
-participates in matching. Adapters own target normalization — the same
-logical request must always produce the same target.
+participates in matching. The same logical request must always produce the
+same target; the built-in renderings own that knowledge —
+`HttpFixtureRequest.canonicalTarget` for HTTP,
+`SqfliteQuery.recordingTarget` for sqflite — and custom sources own it for
+their domain.
 
 ## Recorded Interaction
 
@@ -172,13 +185,19 @@ One captured request/response pair (`RecordedInteraction`): a Recorded
 Request plus the response and capture time. The response is opaque to the
 recorder — it is whatever the capturing adapter needs to reconstruct its
 native response later, and the adapter that wrote it is the one that reads
-it back.
+it back. The round-trip contract: when sessions are persisted, a response
+must survive a JSON encode/decode cycle; a persistent Session Store
+refuses anything else loudly at save time.
 
 ## Session Store
 
 The recorder's persistence seam (`RecordingSessionStore`): save, load,
-list, delete sessions. Built-ins: `FileRecordingSessionStore` (JSON files
-on disk, not on web) and `MemoryRecordingSessionStore` (runtime-only).
+delete sessions, and list lightweight summaries
+(`RecordingSessionSummary` — id, name, recorded-at, interaction count),
+so browsing never loads recorded payloads. Built-ins:
+`FileRecordingSessionStore` (JSON files on disk, lazily resolved
+directory, not on web) and `MemoryRecordingSessionStore` (runtime-only);
+`sessionStoreForDirectory` picks files where possible and memory on web.
 
 ## Session Replay
 

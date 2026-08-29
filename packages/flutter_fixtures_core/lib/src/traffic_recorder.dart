@@ -13,18 +13,28 @@ import 'replay_miss_behavior.dart';
 /// implementation (`FixtureRecorder` in `flutter_fixtures_recorder`); this
 /// contract is deliberately just the two calls an adapter needs, so
 /// adapters never inspect recorder state.
+///
+/// Both calls take *builder functions* rather than built values: the
+/// recorder invokes them only when its mode requires them, so while it is
+/// idle no request descriptions are built, no payloads are copied, and no
+/// encoding runs — idle traffic is genuinely free.
 abstract class TrafficRecorder {
   /// Decides how a request should be handled: serve a recorded response,
   /// let the request continue to the real source, or fail it.
   ///
-  /// [onMiss] is the adapter's policy for requests with no recorded
-  /// response during replay; interpreting it is the recorder's job.
+  /// [request] is invoked only while replaying. [onMiss] is the adapter's
+  /// policy for requests with no recorded response during replay;
+  /// interpreting it is the recorder's job.
   ReplayDecision decide(
-    RecordedRequest request, {
+    RecordedRequest Function() request, {
     ReplayMissBehavior onMiss = ReplayMissBehavior.forward,
   });
 
-  /// Captures one interaction. Must be a no-op unless the recorder is
-  /// capturing, so adapters can call it unconditionally.
-  void record(RecordedInteraction interaction);
+  /// Captures one interaction. [capture] is invoked only while recording,
+  /// so adapters can call this unconditionally at zero idle cost.
+  ///
+  /// The captured interaction's `response` is read back by the same
+  /// adapter that wrote it, and must survive a JSON encode/decode round
+  /// trip when sessions are persisted — see [RecordedInteraction].
+  void record(RecordedInteraction Function() capture);
 }

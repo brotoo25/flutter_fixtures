@@ -43,7 +43,7 @@ void main() {
     recorder.startRecording();
     await tester.pumpWidget(app(recorder));
 
-    recorder.record(interaction());
+    recorder.record(() => interaction());
     await tester.pump();
 
     expect(find.text('Recording · 1'), findsOneWidget);
@@ -52,7 +52,7 @@ void main() {
   testWidgets('stopping with traffic prompts for a name and saves',
       (tester) async {
     recorder.startRecording();
-    recorder.record(interaction());
+    recorder.record(() => interaction());
     await tester.pumpWidget(app(recorder));
 
     await tester.tap(find.byTooltip('Stop recording'));
@@ -70,7 +70,7 @@ void main() {
 
   testWidgets('discarding from the stop dialog saves nothing', (tester) async {
     recorder.startRecording();
-    recorder.record(interaction());
+    recorder.record(() => interaction());
     await tester.pumpWidget(app(recorder));
 
     await tester.tap(find.byTooltip('Stop recording'));
@@ -96,5 +96,63 @@ void main() {
     await tester.tap(find.byTooltip('Stop replay'));
     await tester.pump();
     expect(recorder.mode, RecorderMode.idle);
+  });
+
+  testWidgets('stopping an empty recording skips the prompt and saves nothing',
+      (tester) async {
+    recorder.startRecording();
+    await tester.pumpWidget(app(recorder));
+
+    await tester.tap(find.byTooltip('Stop recording'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Save recording'), findsNothing);
+    expect(find.text('Nothing recorded.'), findsOneWidget);
+    expect(recorder.mode, RecorderMode.idle);
+    expect(await recorder.sessions(), isEmpty);
+  });
+
+  testWidgets('saving with a blank name falls back to the default',
+      (tester) async {
+    recorder.startRecording();
+    recorder.record(() => interaction());
+    await tester.pumpWidget(app(recorder));
+
+    await tester.tap(find.byTooltip('Stop recording'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save')); // name field left empty
+    await tester.pumpAndSettle();
+
+    final sessions = await recorder.sessions();
+    expect(sessions.single.name, startsWith('Session '));
+  });
+
+  testWidgets('restart replay rewinds the session', (tester) async {
+    RecordedInteraction step(String body) => RecordedInteraction(
+          request: RecordedRequest(
+            source: 'http',
+            operation: 'GET',
+            target: '/status',
+          ),
+          response: body,
+          recordedAt: DateTime(2026, 8, 28),
+        );
+    recorder.startReplayOf(RecordingSession(
+      id: 'seq',
+      name: 'Sequence',
+      recordedAt: DateTime(2026, 8, 28),
+      interactions: [step('first'), step('second')],
+    ));
+    await tester.pumpWidget(app(recorder));
+
+    RecordedRequest request() =>
+        RecordedRequest(source: 'http', operation: 'GET', target: '/status');
+    recorder.decide(request);
+
+    await tester.tap(find.byTooltip('Restart replay'));
+    await tester.pump();
+
+    final decision = recorder.decide(request);
+    expect((decision as Replayed).interaction.response, 'first');
   });
 }

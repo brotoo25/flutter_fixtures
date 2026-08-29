@@ -38,6 +38,34 @@ void main() {
     });
   });
 
+  group('canonicalTarget', () {
+    test('renders path plus sorted, escaped query pairs', () {
+      final request = HttpFixtureRequest.fromUri(
+          'GET', Uri.parse('/search?q=hello world&page=2'));
+      expect(request.canonicalTarget, '/search?page=2&q=hello+world');
+    });
+
+    test('is independent of query parameter order', () {
+      final ab = HttpFixtureRequest.fromUri('GET', Uri.parse('/u?a=1&b=2'));
+      final ba = HttpFixtureRequest.fromUri('GET', Uri.parse('/u?b=2&a=1'));
+      expect(ab.canonicalTarget, ba.canonicalTarget);
+    });
+
+    test('keeps distinct requests distinct through escaping', () {
+      final repeated =
+          HttpFixtureRequest.fromUri('GET', Uri.parse('/u?a=1&a=2'));
+      final literal =
+          HttpFixtureRequest.fromUri('GET', Uri.parse('/u?a=1%2C2'));
+      expect(repeated.canonicalTarget, isNot(literal.canonicalTarget));
+    });
+
+    test('a query-less request is just the path', () {
+      final request = HttpFixtureRequest.fromUri(
+          'GET', Uri.parse('https://api.test/users'));
+      expect(request.canonicalTarget, '/users');
+    });
+  });
+
   group('fromUri feeding HttpFileFixtureSource', () {
     test('an absolute URL produces the plain candidate file name', () async {
       final loader = _RecordingLoader();

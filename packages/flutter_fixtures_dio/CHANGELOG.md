@@ -6,7 +6,9 @@
   through core's `TrafficRecorder` seam (engine:
   `flutter_fixtures_recorder`). Replay wins over later
   response-producing interceptors; misses forward to the network or
-  reject (`ReplayMissBehavior`).
+  reject (`ReplayMissBehavior`). Request identity comes from core
+  (`HttpFixtureRequest.canonicalTarget`) — no HTTP normalization lives in
+  this package — and capture is lazy, so idle traffic costs nothing.
 
 * `FixturesInterceptor` builds requests with `HttpFixtureRequest.fromUri`
   over `options.uri`: absolute request URLs and query parameters embedded

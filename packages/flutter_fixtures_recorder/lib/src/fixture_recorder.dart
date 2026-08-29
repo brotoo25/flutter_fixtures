@@ -118,12 +118,12 @@ class FixtureRecorder extends ChangeNotifier implements TrafficRecorder {
 
   /// Captures one interaction into the in-progress recording.
   ///
-  /// Called by source adapters. Does nothing unless recording, so adapters
-  /// can call it unconditionally.
+  /// Called by source adapters. [capture] is invoked only while recording,
+  /// so adapters can call this unconditionally at zero idle cost.
   @override
-  void record(RecordedInteraction interaction) {
+  void record(RecordedInteraction Function() capture) {
     if (!isRecording) return;
-    _buffer.add(interaction);
+    _buffer.add(capture());
     notifyListeners();
   }
 
@@ -165,20 +165,22 @@ class FixtureRecorder extends ChangeNotifier implements TrafficRecorder {
   /// choreography: mode check, ordered lookup (see [SessionReplay]), and
   /// the [onMiss] policy — including the phrasing of the miss message.
   ///
-  /// Adapters translate the returned [ReplayDecision] into their native
-  /// transport and nothing else.
+  /// [request] is invoked only while replaying, so idle traffic never pays
+  /// for building a request description. Adapters translate the returned
+  /// [ReplayDecision] into their native transport and nothing else.
   @override
   ReplayDecision decide(
-    RecordedRequest request, {
+    RecordedRequest Function() request, {
     ReplayMissBehavior onMiss = ReplayMissBehavior.forward,
   }) {
     final replay = _replay;
     if (replay == null) return ForwardToSource();
-    final interaction = replay.next(request);
+    final resolved = request();
+    final interaction = replay.next(resolved);
     if (interaction != null) return Replayed(interaction);
     if (onMiss == ReplayMissBehavior.reject) {
       return RejectRequest(
-        'No recorded response for "${request.operation} ${request.target}" '
+        'No recorded response for "${resolved.operation} ${resolved.target}" '
         'in session "${replay.session.name}".',
       );
     }
@@ -188,8 +190,11 @@ class FixtureRecorder extends ChangeNotifier implements TrafficRecorder {
   /// Rewinds the active replay to the beginning of its session.
   void restartReplay() => _replay?.restart();
 
-  /// All saved sessions, most recently recorded first.
-  Future<List<RecordingSession>> sessions() => _store.list();
+  /// Summaries of all saved sessions, most recently recorded first.
+  ///
+  /// Listing never loads recorded payloads; use [startReplay] (or the
+  /// store's `load`) to materialize a session.
+  Future<List<RecordingSessionSummary>> sessions() => _store.list();
 
   /// Deletes a saved session.
   Future<void> deleteSession(String id) => _store.delete(id);

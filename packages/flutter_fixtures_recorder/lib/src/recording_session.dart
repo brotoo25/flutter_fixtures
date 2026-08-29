@@ -46,4 +46,41 @@ class RecordingSession {
       'interactions': interactions.map((e) => e.toJson()).toList(),
     };
   }
+
+  /// This session's listing projection.
+  RecordingSessionSummary toSummary() {
+    return RecordingSessionSummary(
+      id: id,
+      name: name,
+      recordedAt: recordedAt,
+      interactionCount: interactions.length,
+    );
+  }
+}
+
+/// The listing projection of a Recording Session: everything a picker
+/// needs, none of the recorded payloads.
+///
+/// Returned by `RecordingSessionStore.list`, so browsing sessions never
+/// loads recorded traffic; the full [RecordingSession] is materialized
+/// only when a session is replayed.
+class RecordingSessionSummary {
+  /// The session's unique identifier — pass to `startReplay`/`load`.
+  final String id;
+
+  /// The session's human-readable name.
+  final String name;
+
+  /// When the session was recorded.
+  final DateTime recordedAt;
+
+  /// How many interactions the session holds.
+  final int interactionCount;
+
+  RecordingSessionSummary({
+    required this.id,
+    required this.name,
+    required this.recordedAt,
+    required this.interactionCount,
+  });
 }

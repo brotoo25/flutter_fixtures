@@ -37,8 +37,11 @@ drop the toolbar somewhere in your debug/demo UI:
 import 'package:flutter_fixtures_dio/flutter_fixtures_dio.dart';
 import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
 
+// Files where possible, memory on web — the directory resolves lazily,
+// so everything constructs synchronously.
 final recorder = FixtureRecorder(
-  store: FileRecordingSessionStore('${documentsDir.path}/fixture_recordings'),
+  store: sessionStoreForDirectory(() async =>
+      '${(await getApplicationDocumentsDirectory()).path}/fixture_recordings'),
 );
 
 // HTTP:
@@ -82,7 +85,7 @@ source receives the same responses in the same order.
 | `FixtureRecorder` | The single entry point: mode transitions (idle / recording / replaying), capture, replay lookup, session management. A `ChangeNotifier`, so any widget can observe it. |
 | `RecordedRequest` | The source-agnostic description of one request: source + operation + target (+ informational payload). |
 | `RecordingSession` / `RecordedInteraction` | The saved artifact: a named, ordered capture of traffic, JSON-serializable. The response inside an interaction is opaque to the recorder — the adapter that wrote it reads it back. |
-| `RecordingSessionStore` | The persistence seam. Built-ins: `FileRecordingSessionStore` (JSON files, survives restarts) and `MemoryRecordingSessionStore` (runtime-only, web-friendly). |
+| `RecordingSessionStore` | The persistence seam: save/load full sessions, list lightweight summaries. Built-ins: `FileRecordingSessionStore` (JSON files, survives restarts) and `MemoryRecordingSessionStore` (runtime-only, web-friendly); `sessionStoreForDirectory` picks the right one per platform. |
 | `SessionReplay` | The playback engine: per-request-key cursors over a session. |
 | `ReplayDecision` | The recorder's sealed answer per request: `Replayed`, `ForwardToSource`, or `RejectRequest` — returned by `decide`, rendered by adapters. |
 | `ReplayMissBehavior` | The miss policy adapters pass to `decide`: forward or reject. |
@@ -103,29 +106,31 @@ Future<Object?> loadPreferences(FixtureRecorder recorder) async {
     target: 'user_preferences',
   );
 
-  switch (recorder.decide(request)) {
+  switch (recorder.decide(() => request)) {
     case Replayed(:final interaction):
       return interaction.response;
     case RejectRequest(:final message):
       throw StateError(message);
     case ForwardToSource():
       final value = await realPreferenceLookup();
-      recorder.record(RecordedInteraction(
-        request: request,
-        response: value,
-        recordedAt: DateTime.now(),
-      )); // no-op unless recording
+      recorder.record(() => RecordedInteraction(
+            request: request,
+            response: value,
+            recordedAt: DateTime.now(),
+          )); // the builder runs only while recording
       return value;
   }
 }
 ```
 
 Mode checks, ordered replay, and the miss policy all live behind `decide` —
-an adapter never needs to ask the recorder what mode it is in.
+an adapter never needs to ask the recorder what mode it is in. Both calls
+take builder functions the recorder invokes only when its mode needs them,
+so idle traffic costs nothing.
 
 Keep the target **normalized** (the same logical request must always
-produce the same target) and the response **JSON-encodable** if sessions
-should survive file storage.
+produce the same target) and the response **JSON-encodable** — a
+persistent store refuses anything else loudly at save time.
 
 ## Bring your own UI
 
@@ -181,13 +186,18 @@ FixtureRecorder(
   store: store,
   keyOf: (request) => request.source == 'http'
       ? '${request.source} ${request.operation} ${request.target.split('?').first}'
-      : request.requestKey,
+      : RecordedRequest.defaultKey(request),
 )
 ```
 
 ## Notes
 
-- Responses are stored as JSON; values that cannot be JSON-encoded
-  (streams, raw bytes) are stored as their string representation.
-- `FileRecordingSessionStore` is not available on web — use
-  `MemoryRecordingSessionStore` or a custom store there.
+- Responses are stored as JSON. A response that cannot be JSON-encoded
+  (a stream, raw bytes) is rejected loudly at save time — a record-time
+  error beats a corrupted replay mid-demo.
+- `FileRecordingSessionStore` is not available on web;
+  `sessionStoreForDirectory` falls back to `MemoryRecordingSessionStore`
+  there, so recordings live for the app's lifetime.
+- Listing sessions (`recorder.sessions()`) returns lightweight
+  `RecordingSessionSummary` values — recorded payloads load only when a
+  session is replayed.

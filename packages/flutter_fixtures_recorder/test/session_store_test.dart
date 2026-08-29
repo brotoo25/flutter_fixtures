@@ -54,11 +54,12 @@ void main() {
       expect(interaction.recordedAt, source.recordedAt);
     });
 
-    test('a response that cannot be JSON-encoded is stored as a string', () {
-      final json = session('s1', body: Object()).toJson();
-      expect(jsonEncode(json), isA<String>());
-      final interaction = (json['interactions'] as List).single as Map;
-      expect(interaction['response'], isA<String>());
+    test('the memory store accepts any response value', () async {
+      // No encoding boundary is crossed, so the round-trip contract cannot
+      // be violated here.
+      final store = MemoryRecordingSessionStore();
+      await store.save(session('s1', body: Object()));
+      expect((await store.load('s1'))?.id, 's1');
     });
   });
 
@@ -106,9 +107,62 @@ void main() {
       expect(await store.list(), isEmpty);
     });
 
-    test('a malformed session file fails loudly', () async {
+    test('creates its directory on first save', () async {
+      final nested = FileRecordingSessionStore('${dir.path}/nested/deep');
+      await nested.save(session('s1'));
+      expect((await nested.load('s1'))?.id, 's1');
+    });
+
+    test('resolves a deferred directory lazily on first use', () async {
+      var resolved = false;
+      final deferred = FileRecordingSessionStore.deferred(() async {
+        resolved = true;
+        return '${dir.path}/deferred';
+      });
+      expect(resolved, isFalse);
+
+      await deferred.save(session('s1'));
+      expect(resolved, isTrue);
+      expect((await deferred.load('s1'))?.id, 's1');
+    });
+
+    test('saving the same id overwrites', () async {
+      await store.save(session('s1'));
+      await store.save(RecordingSession(
+        id: 's1',
+        name: 'Renamed',
+        recordedAt: DateTime(2026, 8, 29),
+        interactions: const [],
+      ));
+
+      expect((await store.load('s1'))?.name, 'Renamed');
+      expect(await store.list(), hasLength(1));
+    });
+
+    test('a response that cannot be JSON-encoded fails loudly at save',
+        () async {
+      expect(
+        () => store.save(session('bad', body: Object())),
+        throwsA(isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('Session bad'),
+        )),
+      );
+      expect(await store.list(), isEmpty);
+    });
+
+    test('a malformed session file fails loudly on list and load', () async {
       File('${dir.path}/bad.json').writeAsStringSync('not json');
       expect(store.list(), throwsFormatException);
+      expect(store.load('bad'), throwsFormatException);
+    });
+
+    test('sessionStoreForDirectory returns a working file store', () async {
+      final store = sessionStoreForDirectory(() async => '${dir.path}/factory');
+      expect(store, isA<FileRecordingSessionStore>());
+      await store.save(session('s1'));
+      expect((await store.list()).single.id, 's1');
     });
   });
 }

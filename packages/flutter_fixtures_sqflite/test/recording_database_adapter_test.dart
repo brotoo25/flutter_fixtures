@@ -254,15 +254,15 @@ void main() {
         () async {
       recorder.startRecording();
       await db.query('users');
-      recorder.record(RecordedInteraction(
-        request: RecordedRequest(
-          source: 'http',
-          operation: 'GET',
-          target: '/users',
-        ),
-        response: 'http response',
-        recordedAt: DateTime.now(),
-      ));
+      recorder.record(() => RecordedInteraction(
+            request: RecordedRequest(
+              source: 'http',
+              operation: 'GET',
+              target: '/users',
+            ),
+            response: 'http response',
+            recordedAt: DateTime.now(),
+          ));
       final session = (await recorder.stopRecording())!;
       await recorder.startReplay(session.id);
 
@@ -270,11 +270,11 @@ void main() {
       expect(rows, [
         {'id': 1, 'name': 'Ada'}
       ]);
-      final decision = recorder.decide(RecordedRequest(
-        source: 'http',
-        operation: 'GET',
-        target: '/users',
-      ));
+      final decision = recorder.decide(() => RecordedRequest(
+            source: 'http',
+            operation: 'GET',
+            target: '/users',
+          ));
       expect((decision as Replayed).interaction.response, 'http response');
     });
   });

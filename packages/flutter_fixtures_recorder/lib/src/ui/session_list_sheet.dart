@@ -5,10 +5,11 @@ import '../recording_session.dart';
 
 /// Shows the built-in saved-sessions sheet for a [FixtureRecorder].
 ///
-/// Lists saved sessions newest first; tapping one starts replaying it
-/// (switching sessions if a replay is already active), and the trash icon
-/// deletes it. Like the toolbar, this is a plain consumer of the recorder's
-/// public API — replace it freely with your own session picker.
+/// Lists session summaries newest first (recorded payloads are never
+/// loaded for the listing); tapping one starts replaying it (switching
+/// sessions if a replay is already active), and the trash icon deletes it.
+/// Like the toolbar, this is a plain consumer of the recorder's public
+/// API — replace it freely with your own session picker.
 Future<void> showRecordingSessionsSheet(
   BuildContext context,
   FixtureRecorder recorder,
@@ -29,8 +30,10 @@ class _SessionListSheet extends StatefulWidget {
   State<_SessionListSheet> createState() => _SessionListSheetState();
 }
 
+// Reading recorder state without a ListenableBuilder is safe here only
+// because every state-changing action pops the sheet.
 class _SessionListSheetState extends State<_SessionListSheet> {
-  late Future<List<RecordingSession>> _sessions;
+  late Future<List<RecordingSessionSummary>> _sessions;
 
   @override
   void initState() {
@@ -48,7 +51,7 @@ class _SessionListSheetState extends State<_SessionListSheet> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: FutureBuilder<List<RecordingSession>>(
+      child: FutureBuilder<List<RecordingSessionSummary>>(
         future: _sessions,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -83,24 +86,24 @@ class _SessionListSheetState extends State<_SessionListSheet> {
                       )
                     : null,
               ),
-              for (final session in sessions)
+              for (final summary in sessions)
                 ListTile(
-                  leading: widget.recorder.replaySession?.id == session.id
+                  leading: widget.recorder.replaySession?.id == summary.id
                       ? const Icon(Icons.play_circle)
                       : const Icon(Icons.movie_outlined),
-                  title: Text(session.name),
+                  title: Text(summary.name),
                   subtitle: Text(
-                    '${session.interactions.length} interactions',
+                    '${summary.interactionCount} interactions',
                   ),
                   trailing: IconButton(
                     tooltip: 'Delete session',
                     icon: const Icon(Icons.delete_outline),
                     onPressed: () async {
-                      await widget.recorder.deleteSession(session.id);
+                      await widget.recorder.deleteSession(summary.id);
                       _reload();
                     },
                   ),
-                  onTap: () => _replay(session),
+                  onTap: () => _replay(summary),
                 ),
             ],
           );
@@ -109,15 +112,11 @@ class _SessionListSheetState extends State<_SessionListSheet> {
     );
   }
 
-  void _replay(RecordingSession session) {
-    if (widget.recorder.isRecording) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Stop the recording first.')),
-      );
-      return;
-    }
-    widget.recorder.startReplayOf(session);
-    Navigator.pop(context);
+  Future<void> _replay(RecordingSessionSummary summary) async {
+    // Loads current state from the store; switching sessions while
+    // replaying is the recorder's job, not this widget's.
+    await widget.recorder.startReplay(summary.id);
+    if (mounted) Navigator.pop(context);
   }
 
   Widget _message(String text) {
