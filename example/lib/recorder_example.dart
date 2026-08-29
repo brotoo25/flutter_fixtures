@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter_fixtures/flutter_fixtures.dart';
 import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
@@ -20,7 +21,15 @@ import 'package:path_provider/path_provider.dart';
 class RecorderExamplePage extends StatefulWidget {
   final GlobalKey<NavigatorState> navigatorKey;
 
-  const RecorderExamplePage({super.key, required this.navigatorKey});
+  /// Increments when the app bar's clear action is tapped on this tab;
+  /// the page clears its request log in response.
+  final ValueListenable<int>? clearSignal;
+
+  const RecorderExamplePage({
+    super.key,
+    required this.navigatorKey,
+    this.clearSignal,
+  });
 
   @override
   State<RecorderExamplePage> createState() => _RecorderExamplePageState();
@@ -87,13 +96,20 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
   void initState() {
     super.initState();
     recorder.addListener(_onRecorderChanged);
+    widget.clearSignal?.addListener(_clearLog);
     _refreshSessions();
   }
 
   @override
   void dispose() {
     recorder.removeListener(_onRecorderChanged);
+    widget.clearSignal?.removeListener(_clearLog);
     super.dispose();
+  }
+
+  void _clearLog() {
+    if (_log.isEmpty) return;
+    setState(_log.clear);
   }
 
   void _onRecorderChanged() {
