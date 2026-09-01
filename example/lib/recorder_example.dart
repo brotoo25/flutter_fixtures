@@ -83,15 +83,6 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
   bool _hasSessions = false;
   bool _timelineExpanded = true;
 
-  // Mirror of the replay cursor, so the timeline can check interactions
-  // off in serve order and responses can be attributed to the session or
-  // to the fixtures fallback. Reset whenever the recorder notifies while
-  // replaying (replay start, session switch, or restart — decide() and
-  // lookups never notify).
-  final Map<String, int> _cursorByKey = {};
-  final Map<int, int> _serveOrder = {};
-  int _serveCounter = 0;
-
   @override
   void initState() {
     super.initState();
@@ -112,53 +103,17 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
     setState(_log.clear);
   }
 
+  // The recorder notifies on mode changes, captures, and replayed hits —
+  // the timeline reads its progress straight off the recorder.
   void _onRecorderChanged() {
-    setState(() {
-      if (recorder.isReplaying) _resetMirror();
-    });
-    // Stopping a recording may have saved a new session.
+    setState(() {});
+    // Stopping a recording notifies once the session is saved.
     if (recorder.mode == RecorderMode.idle) _refreshSessions();
-  }
-
-  void _resetMirror() {
-    _cursorByKey.clear();
-    _serveOrder.clear();
-    _serveCounter = 0;
   }
 
   Future<void> _refreshSessions() async {
     final sessions = await recorder.sessions();
     if (mounted) setState(() => _hasSessions = sessions.isNotEmpty);
-  }
-
-  /// The replay match key for a request — the same identity the recorder
-  /// uses: method plus core's canonical target rendering.
-  String _keyFor(String method, String pathAndQuery) {
-    final request = HttpFixtureRequest.fromUri(method, Uri.parse(pathAndQuery));
-    return '${request.method} ${request.canonicalTarget}';
-  }
-
-  String _keyOfInteraction(RecordedInteraction interaction) {
-    return '${interaction.request.operation} ${interaction.request.target}';
-  }
-
-  /// Whether a response that arrived while replaying came from the
-  /// session (advancing the mirrored cursor) or fell through to the
-  /// fixtures pipeline because the key was never recorded or its
-  /// recordings are exhausted.
-  bool _consumeIfReplayed(String method, String pathAndQuery) {
-    final session = recorder.replaySession;
-    if (session == null) return false;
-    final key = _keyFor(method, pathAndQuery);
-    final indices = [
-      for (var i = 0; i < session.interactions.length; i++)
-        if (_keyOfInteraction(session.interactions[i]) == key) i,
-    ];
-    final cursor = _cursorByKey[key] ?? 0;
-    if (indices.isEmpty || cursor >= indices.length) return false;
-    _serveOrder[indices[cursor]] = ++_serveCounter;
-    _cursorByKey[key] = cursor + 1;
-    return true;
   }
 
   Future<void> _request(
@@ -169,42 +124,55 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
     final stopwatch = Stopwatch()..start();
     _LogEntry entry;
     try {
-      final response = await send();
-      stopwatch.stop();
-      // While replaying, attribute the response: served from the session,
-      // or fallen through to the fixtures picker (never recorded, or the
-      // session's recordings for this request are used up).
-      final provenance = switch (recorder.mode) {
-        RecorderMode.replaying => _consumeIfReplayed(method, pathAndQuery)
-            ? _Provenance.replayed
-            : _Provenance.fixture,
-        RecorderMode.recording => _Provenance.recorded,
-        RecorderMode.idle => _Provenance.fixture,
-      };
-      entry = _LogEntry(
-        method: method,
-        path: pathAndQuery,
-        status: '${response.statusCode}',
-        milliseconds: stopwatch.elapsedMilliseconds,
-        provenance: provenance,
-        body: _prettifyJson(response.data),
-      );
-    } catch (e) {
-      stopwatch.stop();
-      final cancelled = '$e'.contains('No fixture selected');
-      entry = _LogEntry(
-        method: method,
-        path: pathAndQuery,
-        status: cancelled ? 'cancelled' : 'error',
-        milliseconds: stopwatch.elapsedMilliseconds,
-        provenance:
-            recorder.isRecording ? _Provenance.recorded : _Provenance.fixture,
-        body: cancelled
-            ? 'Pick dialog cancelled — no response was chosen.'
-            : '$e',
-      );
+      entry = _entryFor(method, pathAndQuery, await send(), stopwatch);
+    } on DioException catch (e) {
+      // Error statuses (recorded or replayed) arrive here with a response;
+      // rejected requests (pick dialog cancelled, replay miss) without one.
+      final response = e.response;
+      if (response != null) {
+        entry = _entryFor(method, pathAndQuery, response, stopwatch);
+      } else {
+        stopwatch.stop();
+        final cancelled = '${e.error}'.contains('No fixture selected');
+        entry = _LogEntry(
+          method: method,
+          path: pathAndQuery,
+          status: cancelled ? 'cancelled' : 'error',
+          milliseconds: stopwatch.elapsedMilliseconds,
+          provenance:
+              recorder.isRecording ? _Provenance.recorded : _Provenance.fixture,
+          body: cancelled
+              ? 'Pick dialog cancelled — no response was chosen.'
+              : '${e.error}',
+        );
+      }
     }
     setState(() => _log.insert(0, entry));
+  }
+
+  _LogEntry _entryFor(
+    String method,
+    String pathAndQuery,
+    Response response,
+    Stopwatch stopwatch,
+  ) {
+    stopwatch.stop();
+    // Replayed responses are tagged by the interceptor; anything else came
+    // through the fixtures pipeline (captured while recording).
+    final replayed =
+        response.headers.value(RecorderInterceptor.replayedHeader) != null;
+    return _LogEntry(
+      method: method,
+      path: pathAndQuery,
+      status: '${response.statusCode}',
+      milliseconds: stopwatch.elapsedMilliseconds,
+      provenance: replayed
+          ? _Provenance.replayed
+          : recorder.isRecording
+              ? _Provenance.recorded
+              : _Provenance.fixture,
+      body: _prettifyJson(response.data),
+    );
   }
 
   String _prettifyJson(dynamic data) {
@@ -213,57 +181,6 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
       return const JsonEncoder.withIndent('  ').convert(data);
     } catch (_) {
       return data.toString();
-    }
-  }
-
-  // ----- control-surface actions --------------------------------------
-
-  Future<void> _stopRecordingFlow() async {
-    // The card only decides whether to show the name prompt; the recorder
-    // owns the "empty recording saves nothing" rule.
-    if (recorder.recordedCount == 0) {
-      await recorder.stopRecording();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nothing recorded.')),
-        );
-      }
-      return;
-    }
-    final controller = TextEditingController();
-    // null = keep recording; (true, _) = discard; (false, name) = save.
-    final choice = await showDialog<(bool, String)>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Save recording'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Session name',
-            hintText: 'Leave empty for a timestamped name',
-          ),
-          onSubmitted: (value) => Navigator.pop(context, (false, value)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, (true, '')),
-            child: const Text('Discard'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, (false, controller.text)),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    if (choice == null) return;
-    final (discard, name) = choice;
-    final session = await recorder.stopRecording(name: name, discard: discard);
-    if (session != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved "${session.name}".')),
-      );
     }
   }
 
@@ -338,12 +255,11 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
           _StatusCard(
             recorder: recorder,
             hasSessions: _hasSessions,
-            serveOrder: _serveOrder,
             timelineExpanded: _timelineExpanded,
             onToggleTimeline: () =>
                 setState(() => _timelineExpanded = !_timelineExpanded),
             onRecord: recorder.startRecording,
-            onStopRecording: _stopRecordingFlow,
+            onStopRecording: () => stopRecordingWithPrompt(context, recorder),
             onStopReplay: recorder.stopReplay,
             onRestartReplay: recorder.restartReplay,
             onSessions: () => showRecordingSessionsSheet(context, recorder),
@@ -432,11 +348,10 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
 /// The one control surface: mode color, next-step hint, actions — and,
 /// while replaying, the session's live progress with a collapsible
 /// timeline. A custom surface needs nothing beyond the recorder's public
-/// API.
+/// API — progress included.
 class _StatusCard extends StatelessWidget {
   final FixtureRecorder recorder;
   final bool hasSessions;
-  final Map<int, int> serveOrder;
   final bool timelineExpanded;
   final VoidCallback onToggleTimeline;
   final VoidCallback onRecord;
@@ -448,7 +363,6 @@ class _StatusCard extends StatelessWidget {
   const _StatusCard({
     required this.recorder,
     required this.hasSessions,
-    required this.serveOrder,
     required this.timelineExpanded,
     required this.onToggleTimeline,
     required this.onRecord,
@@ -529,7 +443,7 @@ class _StatusCard extends StatelessWidget {
     };
 
     final total = session?.interactions.length ?? 0;
-    final served = serveOrder.length;
+    final served = recorder.replayedCount;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
@@ -601,7 +515,7 @@ class _StatusCard extends StatelessWidget {
               child: timelineExpanded
                   ? _TimelineList(
                       session: session,
-                      serveOrder: serveOrder,
+                      serveOrder: recorder.replayServeOrder,
                       onColor: onColor,
                     )
                   : const SizedBox(width: double.infinity),
@@ -619,7 +533,7 @@ class _StatusCard extends StatelessWidget {
 /// and further requests go back to the fixtures picker.
 class _TimelineList extends StatelessWidget {
   final RecordingSession session;
-  final Map<int, int> serveOrder;
+  final List<int?> serveOrder;
   final Color onColor;
 
   const _TimelineList({

@@ -29,9 +29,11 @@ enum RecorderMode {
 /// their request's `source`, so a session can hold HTTP and database
 /// traffic side by side.
 ///
-/// The recorder is a [ChangeNotifier]: it notifies on every mode change and
-/// on every captured interaction, so any widget can observe it (the built-in
-/// toolbar is nothing more than a listener on this class).
+/// The recorder is a [ChangeNotifier]: it notifies on every mode change, on
+/// every captured interaction, and on every replayed one, so any widget can
+/// observe it (the built-in toolbar is nothing more than a listener on this
+/// class). The stop-recording notification fires once the session is saved,
+/// so a listener that lists sessions on idle sees the new one.
 ///
 /// Mode transitions: recording can only start from [RecorderMode.idle];
 /// replaying can start from idle or replaying (starting a replay while one
@@ -66,16 +68,24 @@ class FixtureRecorder extends ChangeNotifier implements TrafficRecorder {
   /// The session currently being replayed, if any.
   RecordingSession? get replaySession => _replay?.session;
 
+  /// How many interactions the active replay has served since it
+  /// (re)started; `0` when not replaying.
+  int get replayedCount => _replay?.servedCount ?? 0;
+
+  /// For each interaction of [replaySession] (by index), the 1-based order
+  /// it was served in since the replay (re)started, or `null` if not yet;
+  /// empty when not replaying. See [SessionReplay.serveOrder].
+  List<int?> get replayServeOrder => _replay?.serveOrder ?? const [];
+
   /// Starts capturing traffic into a new session.
   ///
   /// The [name] can also be given (or overridden) at [stopRecording] time;
   /// a blank name means "use the default timestamped name". Throws a
   /// [StateError] unless the recorder is idle.
   void startRecording({String? name}) {
-    _requireNotRecording('start recording');
-    if (isReplaying) {
+    if (_mode != RecorderMode.idle) {
       throw StateError(
-          'Cannot start recording while replaying. Stop the replay first.');
+          'Cannot start recording while ${_mode.name}. Stop it first.');
     }
     _pendingName = _normalizeName(name);
     _buffer.clear();
@@ -89,6 +99,9 @@ class FixtureRecorder extends ChangeNotifier implements TrafficRecorder {
   /// [startRecording] and then to a timestamped default. Returns the saved
   /// session, or `null` when there was nothing to save: the recorder was
   /// not recording, [discard] was set, or no traffic was captured.
+  ///
+  /// Capture stops immediately; listeners are notified once the session is
+  /// saved (or the save fails), so [sessions] already reflects it.
   Future<RecordingSession?> stopRecording({
     String? name,
     bool discard = false,
@@ -99,21 +112,23 @@ class FixtureRecorder extends ChangeNotifier implements TrafficRecorder {
     _buffer.clear();
     _pendingName = null;
     _mode = RecorderMode.idle;
-    notifyListeners();
+    try {
+      if (discard || interactions.isEmpty) return null;
 
-    if (discard || interactions.isEmpty) return null;
-
-    final recordedAt = DateTime.now();
-    final session = RecordingSession(
-      id: recordedAt.millisecondsSinceEpoch.toString(),
-      name: _normalizeName(name) ??
-          pendingName ??
-          'Session ${_formatTimestamp(recordedAt)}',
-      recordedAt: recordedAt,
-      interactions: interactions,
-    );
-    await _store.save(session);
-    return session;
+      final recordedAt = DateTime.now();
+      final session = RecordingSession(
+        id: recordedAt.millisecondsSinceEpoch.toString(),
+        name: _normalizeName(name) ??
+            pendingName ??
+            'Session ${_formatTimestamp(recordedAt)}',
+        recordedAt: recordedAt,
+        interactions: interactions,
+      );
+      await _store.save(session);
+      return session;
+    } finally {
+      notifyListeners();
+    }
   }
 
   /// Captures one interaction into the in-progress recording.
@@ -168,6 +183,9 @@ class FixtureRecorder extends ChangeNotifier implements TrafficRecorder {
   /// [request] is invoked only while replaying, so idle traffic never pays
   /// for building a request description. Adapters translate the returned
   /// [ReplayDecision] into their native transport and nothing else.
+  ///
+  /// A replayed hit advances the session's progress ([replayedCount],
+  /// [replayServeOrder]) and notifies listeners; misses do not.
   @override
   ReplayDecision decide(
     RecordedRequest Function() request, {
@@ -177,7 +195,10 @@ class FixtureRecorder extends ChangeNotifier implements TrafficRecorder {
     if (replay == null) return ForwardToSource();
     final resolved = request();
     final interaction = replay.next(resolved);
-    if (interaction != null) return Replayed(interaction);
+    if (interaction != null) {
+      notifyListeners();
+      return Replayed(interaction);
+    }
     if (onMiss == ReplayMissBehavior.reject) {
       return RejectRequest(
         'No recorded response for "${resolved.operation} ${resolved.target}" '

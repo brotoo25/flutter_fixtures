@@ -12,9 +12,6 @@
 * `HttpFixtureRequest.canonicalTarget`: the escaped, sorted rendering of a
   request's identity, used as the record & replay match key — identical
   whichever HTTP client built the request.
-* `RecordedInteraction` no longer silently stringifies unencodable
-  responses; the round-trip contract is stated on the type and enforced
-  loudly by persistent stores at save time.
 
 * `HttpFixtureRequest.fromUri` is the canonical constructor: it owns HTTP
   request normalization (scheme and host dropped, the URL's query string

@@ -9,6 +9,12 @@
   reject (`ReplayMissBehavior`). Request identity comes from core
   (`HttpFixtureRequest.canonicalTarget`) — no HTTP normalization lives in
   this package — and capture is lazy, so idle traffic costs nothing.
+  Replayed responses behave like the live ones did: they resolve through
+  the response-interceptor chain, carry an `x-fixture-replayed` header
+  (`RecorderInterceptor.replayedHeader`), and an error status per the
+  request's `validateStatus` surfaces as `DioException.badResponse`.
+  Request payloads that are not JSON data (multipart `FormData`) are
+  recorded as strings so they never block a save.
 * `FixturesInterceptor` resolves through the response-interceptor chain
   (`callFollowingResponseInterceptor: true`), so interceptors registered
   before it — logging, `RecorderInterceptor` — observe fixture-served

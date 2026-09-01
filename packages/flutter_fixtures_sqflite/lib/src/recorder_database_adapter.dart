@@ -15,7 +15,7 @@ import 'sqflite_query.dart';
 /// described and encoded lazily, only when the recorder's mode needs them.
 ///
 /// ```dart
-/// final db = RecordingDatabaseAdapter(
+/// final db = RecorderDatabaseAdapter(
 ///   inner: RealDatabaseAdapter(await openDatabase('app.db')),
 ///   recorder: recorder,
 /// );
@@ -28,7 +28,7 @@ import 'sqflite_query.dart';
 /// the same logical statement always matches and any differing argument
 /// never does. Mutations are captured too: replaying an `insert` returns
 /// the recorded row id without writing anywhere.
-class RecordingDatabaseAdapter implements DatabaseAdapter {
+class RecorderDatabaseAdapter implements DatabaseAdapter {
   /// The [RecordedRequest.source] used for database traffic.
   static const String source = 'sqlite';
 
@@ -42,7 +42,7 @@ class RecordingDatabaseAdapter implements DatabaseAdapter {
   /// Policy for replay operations with no recorded response.
   final ReplayMissBehavior onReplayMiss;
 
-  RecordingDatabaseAdapter({
+  RecorderDatabaseAdapter({
     required this.inner,
     required this.recorder,
     this.onReplayMiss = ReplayMissBehavior.forward,

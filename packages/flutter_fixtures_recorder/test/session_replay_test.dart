@@ -141,6 +141,26 @@ void main() {
       expect(replay.next(request('/status'))?.response, 'first');
     });
 
+    test('tracks serve order per interaction and a served count', () {
+      final replay = SessionReplay(session([
+        interaction('/a', response: 'a1'),
+        interaction('/b', response: 'b1'),
+        interaction('/a', response: 'a2'),
+      ]));
+      expect(replay.servedCount, 0);
+      expect(replay.serveOrder, [null, null, null]);
+
+      replay.next(request('/a'));
+      replay.next(request('/b'));
+      replay.next(request('/unknown')); // a miss does not count
+      expect(replay.servedCount, 2);
+      expect(replay.serveOrder, [1, 2, null]);
+
+      replay.restart();
+      expect(replay.servedCount, 0);
+      expect(replay.serveOrder, [null, null, null]);
+    });
+
     test('honors a custom request key builder', () {
       final replay = SessionReplay(
         session([interaction('/users?ts=1', response: 'ok')]),

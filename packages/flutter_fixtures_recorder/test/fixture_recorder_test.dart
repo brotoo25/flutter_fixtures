@@ -91,6 +91,36 @@ void main() {
       recorder.record(() => interaction('GET', '/users'));
       expect(notifications, 2);
     });
+
+    test('the stop notification fires once the session is saved', () async {
+      List<RecordingSessionSummary>? listedOnIdle;
+      recorder.addListener(() async {
+        if (recorder.mode == RecorderMode.idle) {
+          listedOnIdle = await recorder.sessions();
+        }
+      });
+
+      recorder.startRecording();
+      recorder.record(() => interaction('GET', '/users'));
+      final saved = await recorder.stopRecording();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(listedOnIdle?.map((s) => s.id), [saved!.id]);
+    });
+
+    test('a failed save still returns the recorder to idle and notifies',
+        () async {
+      recorder = FixtureRecorder(store: _FailingStore());
+      var notified = false;
+      recorder.addListener(() => notified = recorder.mode == RecorderMode.idle);
+
+      recorder.startRecording();
+      recorder.record(() => interaction('GET', '/users'));
+      await expectLater(recorder.stopRecording(), throwsStateError);
+
+      expect(recorder.mode, RecorderMode.idle);
+      expect(notified, isTrue);
+    });
   });
 
   group('replay', () {
@@ -155,6 +185,37 @@ void main() {
       recorder.restartReplay();
       final decision = recorder.decide(() => request('GET', '/status'));
       expect((decision as Replayed).interaction.response, 'first');
+    });
+
+    test('replayed hits advance progress and notify; restart resets both', () {
+      recorder.startReplayOf(RecordingSession(
+        id: 'seq',
+        name: 'Sequence',
+        recordedAt: DateTime(2026, 8, 28),
+        interactions: [
+          interaction('GET', '/a', body: 'a1'),
+          interaction('GET', '/b', body: 'b1'),
+          interaction('GET', '/a', body: 'a2'),
+        ],
+      ));
+      var notifications = 0;
+      recorder.addListener(() => notifications++);
+
+      recorder.decide(() => request('GET', '/b'));
+      recorder.decide(() => request('GET', '/a'));
+      recorder.decide(() => request('GET', '/missing')); // a miss
+      expect(notifications, 2);
+      expect(recorder.replayedCount, 2);
+      expect(recorder.replayServeOrder, [2, 1, null]);
+
+      recorder.restartReplay();
+      expect(notifications, 3);
+      expect(recorder.replayedCount, 0);
+      expect(recorder.replayServeOrder, [null, null, null]);
+
+      recorder.stopReplay();
+      expect(recorder.replayedCount, 0);
+      expect(recorder.replayServeOrder, isEmpty);
     });
 
     test('a custom key builder threads through to replay matching', () {
@@ -289,4 +350,11 @@ void main() {
       expect(await recorder.sessions(), isEmpty);
     });
   });
+}
+
+class _FailingStore extends MemoryRecordingSessionStore {
+  @override
+  Future<void> save(RecordingSession session) async {
+    throw StateError('disk full');
+  }
 }

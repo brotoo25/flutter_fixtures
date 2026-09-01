@@ -412,5 +412,11 @@ dio.interceptors
   ));
 ```
 
+Replayed responses behave like the live ones did: they flow through the
+response-interceptor chain, an error status raises `DioException.badResponse`
+as the original did, and each carries an `x-fixture-replayed` header
+(`RecorderInterceptor.replayedHeader`) so logs and UIs can tell replays
+from live traffic.
+
 See the recorder package README for sessions, storage, ordering
 semantics, and the built-in UI tools.

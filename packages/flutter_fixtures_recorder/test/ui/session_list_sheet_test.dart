@@ -78,6 +78,24 @@ void main() {
     expect(await store.list(), isEmpty);
   });
 
+  testWidgets('deleting the session being replayed stops the replay',
+      (tester) async {
+    await store.save(session('s1', 'Active'));
+    await store.save(session('s2', 'Other'));
+    await recorder.startReplay('s1');
+    await openSheet(tester);
+
+    await tester.tap(find.descendant(
+      of: find.widgetWithText(ListTile, 'Active'),
+      matching: find.byTooltip('Delete session'),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(recorder.mode, RecorderMode.idle);
+    expect(find.text('Stop replay'), findsNothing);
+    expect((await store.list()).map((s) => s.id), ['s2']);
+  });
+
   testWidgets('tapping a session while replaying switches sessions',
       (tester) async {
     await store.save(session('s1', 'First'));

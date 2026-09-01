@@ -132,7 +132,7 @@ interaction). Both take builder functions the recorder invokes only when
 its mode requires them, so idle traffic builds nothing and encodes
 nothing. Transport packages implement capture and replay against this
 contract only (`RecorderInterceptor` in flutter_fixtures_dio,
-`RecordingDatabaseAdapter` in flutter_fixtures_sqflite), so they never
+`RecorderDatabaseAdapter` in flutter_fixtures_sqflite), so they never
 depend on the recorder engine. All heavy lifting sits behind the seam in
 the **Fixture Recorder**.
 
@@ -209,13 +209,17 @@ the end of the session's scope explicit rather than silently repeating
 stale responses. A miss returns `null` — the miss policy
 (`ReplayMissBehavior`: forward / reject) is chosen by the source adapter
 but interpreted by the Fixture Recorder's `decide`, which turns it into a
-Replay Decision.
+Replay Decision. Progress is the engine's knowledge, not a UI's:
+`servedCount` and per-interaction `serveOrder` (surfaced on the Fixture
+Recorder as `replayedCount` / `replayServeOrder`, which notifies on every
+hit) — nothing outside the engine re-derives keys or cursors.
 
 ## Recorder Toolbar
 
-The built-in recorder UI (`RecorderToolbar` plus the sessions sheet).
-Plain listeners on `FixtureRecorder` with no private hooks — a custom
-control surface uses the same public API.
+The built-in recorder UI (`RecorderToolbar`, the sessions sheet, and the
+stop-recording prompt `stopRecordingWithPrompt`). Plain listeners on
+`FixtureRecorder` with no private hooks — a custom control surface uses
+the same public API and can reuse the prompt and the sheet as-is.
 
 ## Database Adapter
 

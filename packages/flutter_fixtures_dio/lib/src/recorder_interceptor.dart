@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
@@ -27,6 +29,11 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 /// without dialogs. A later interceptor using a plain `handler.resolve`
 /// bypasses the response stage and is not captured.
 ///
+/// Replayed responses behave like the live ones did: they flow through the
+/// response-interceptor chain, carry the [replayedHeader], and an error
+/// status (per the request's `validateStatus`) surfaces as a
+/// `DioException.badResponse` exactly as the original did.
+///
 /// HTTP requests are described to the recorder with source `'http'`, the
 /// method as operation, and the path with sorted query as target — the host
 /// is intentionally dropped, so a session recorded against one environment
@@ -34,6 +41,11 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 class RecorderInterceptor extends Interceptor {
   /// The [RecordedRequest.source] used for HTTP traffic.
   static const String source = 'http';
+
+  /// Set on every replayed response, with the interaction's capture time as
+  /// value, so callers (logging, provenance UIs) can tell replayed responses
+  /// from live ones — the counterpart of `x-fixture-file-path`.
+  static const String replayedHeader = 'x-fixture-replayed';
 
   /// The recorder this interceptor feeds and reads.
   final TrafficRecorder recorder;
@@ -57,18 +69,50 @@ class RecorderInterceptor extends Interceptor {
       source: source,
       operation: request.method,
       target: request.canonicalTarget,
-      payload: options.data,
+      payload: _recordablePayload(options.data),
     );
+  }
+
+  // The payload is informational — it never participates in matching — so
+  // it must never make a session unsaveable: anything that is not plain
+  // JSON data (FormData, streams) is recorded as its string form.
+  static Object? _recordablePayload(Object? data) {
+    if (data == null || data is String || data is num || data is bool) {
+      return data;
+    }
+    try {
+      jsonEncode(data);
+      return data;
+    } on JsonUnsupportedObjectError {
+      return data.toString();
+    }
   }
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     switch (recorder.decide(() => describe(options), onMiss: onReplayMiss)) {
       case Replayed(:final interaction):
-        handler.resolve(_toResponse(interaction, options));
+        // Resolve/reject through the following interceptor stages, so the
+        // rest of the chain observes a replayed response exactly like a
+        // live one (this interceptor's own capture is a no-op while
+        // replaying).
+        final response = _toResponse(interaction, options);
+        if (options.validateStatus(response.statusCode)) {
+          handler.resolve(response, true);
+        } else {
+          handler.reject(
+            DioException.badResponse(
+              statusCode: response.statusCode!,
+              requestOptions: options,
+              response: response,
+            ),
+            true,
+          );
+        }
       case RejectRequest(:final message):
         handler.reject(
           DioException(requestOptions: options, error: message),
+          true,
         );
       case ForwardToSource():
         handler.next(options);
@@ -115,6 +159,7 @@ class RecorderInterceptor extends Interceptor {
         // not match the re-encoded body, so it is not replayed.
         if ((entry.key as String).toLowerCase() != 'content-length')
           entry.key as String: List<String>.from(entry.value as List),
+      replayedHeader: [recorded.recordedAt.toIso8601String()],
     };
     return Response(
       requestOptions: options,

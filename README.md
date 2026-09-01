@@ -18,7 +18,7 @@ This library is designed to be modular and extensible. It consists of the follow
 - **flutter_fixtures_sqflite**: SQLite/sqflite database implementation
 - **flutter_fixtures_ui**: UI components for fixture selection
 - **flutter_fixtures_recorder**: Record & replay engine for real traffic from any source, for demos and offline use (the dio and sqflite packages ship the matching interceptor/adapter)
-- **flutter_fixtures**: Meta-package that combines all the above
+- **flutter_fixtures**: Meta-package bundling core, dio and ui (sqflite and recorder are opt-in)
 
 ## Features
 

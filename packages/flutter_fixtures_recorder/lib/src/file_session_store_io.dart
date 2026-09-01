@@ -82,20 +82,17 @@ class FileRecordingSessionStore implements RecordingSessionStore {
   Future<List<RecordingSessionSummary>> list() async {
     final dir = Directory(await _dir);
     if (!await dir.exists()) return [];
-    final summaries = <RecordingSessionSummary>[];
-    await for (final entry in dir.list()) {
-      if (entry is File && entry.path.endsWith('.json')) {
-        // Project the summary straight from JSON — listing never builds
-        // the recorded interactions.
-        final json = _decode(await entry.readAsString(), entry.path);
-        summaries.add(RecordingSessionSummary(
-          id: json['id'] as String,
-          name: json['name'] as String,
-          recordedAt: DateTime.parse(json['recordedAt'] as String),
-          interactionCount: (json['interactions'] as List).length,
-        ));
-      }
-    }
+    final files = await dir
+        .list()
+        .where((entry) => entry is File && entry.path.endsWith('.json'))
+        .cast<File>()
+        .toList();
+    // Each file is parsed in full (there is no cheaper way to read its
+    // metadata), but only the summary is retained; files load concurrently.
+    final summaries = await Future.wait(files.map((file) async {
+      final json = _decode(await file.readAsString(), file.path);
+      return RecordingSession.fromJson(json).toSummary();
+    }));
     summaries.sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
     return summaries;
   }

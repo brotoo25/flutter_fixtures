@@ -19,7 +19,7 @@ package ships its own implementation of the capture/replay side:
 | Adapter | Ships in | Source |
 | --- | --- | --- |
 | `RecorderInterceptor` | `flutter_fixtures_dio` | HTTP via a Dio interceptor |
-| `RecordingDatabaseAdapter` | `flutter_fixtures_sqflite` | sqflite via a `DatabaseAdapter` decorator |
+| `RecorderDatabaseAdapter` | `flutter_fixtures_sqflite` | sqflite via a `DatabaseAdapter` decorator |
 | (your code) | anywhere | anything else — see [Any source](#any-source) below |
 
 ## Quick Start
@@ -48,8 +48,8 @@ final recorder = FixtureRecorder(
 final dio = Dio();
 dio.interceptors.add(RecorderInterceptor(recorder: recorder));
 
-// Database (RecordingDatabaseAdapter ships in flutter_fixtures_sqflite):
-final db = RecordingDatabaseAdapter(
+// Database (RecorderDatabaseAdapter ships in flutter_fixtures_sqflite):
+final db = RecorderDatabaseAdapter(
   inner: RealDatabaseAdapter(await openDatabase('app.db')),
   recorder: recorder,
 );
@@ -93,7 +93,7 @@ source receives the same responses in the same order.
 | `SessionReplay` | The playback engine: per-request-key cursors over a session. |
 | `ReplayDecision` | The recorder's sealed answer per request: `Replayed`, `ForwardToSource`, or `RejectRequest` — returned by `decide`, rendered by adapters. |
 | `ReplayMissBehavior` | The miss policy adapters pass to `decide`: forward or reject. |
-| `RecorderToolbar` / `showRecordingSessionsSheet` | The built-in UI tools: start/stop recording with a save prompt, list/select/delete sessions, stop or restart replay. |
+| `RecorderToolbar` / `stopRecordingWithPrompt` / `showRecordingSessionsSheet` | The built-in UI tools: start/stop recording with a save-or-discard prompt, list/select/delete sessions, stop or restart replay. The prompt and the sheet are plain functions, reusable from a custom control surface. |
 
 ## Any source
 
@@ -151,6 +151,8 @@ ListenableBuilder(
       ),
     RecorderMode.recording => IconButton(
         icon: const Icon(Icons.stop),
+        // Or stopRecordingWithPrompt(context, recorder) for the built-in
+        // save-or-discard dialog.
         onPressed: () => recorder.stopRecording(name: 'My demo'),
       ),
     RecorderMode.replaying => IconButton(
@@ -175,7 +177,7 @@ remote service, shared preferences:
 class MyStore implements RecordingSessionStore {
   Future<void> save(RecordingSession session) async { ... }
   Future<RecordingSession?> load(String id) async { ... }
-  Future<List<RecordingSession>> list() async { ... }
+  Future<List<RecordingSessionSummary>> list() async { ... }
   Future<void> delete(String id) async { ... }
 }
 ```
@@ -203,5 +205,8 @@ FixtureRecorder(
   `sessionStoreForDirectory` falls back to `MemoryRecordingSessionStore`
   there, so recordings live for the app's lifetime.
 - Listing sessions (`recorder.sessions()`) returns lightweight
-  `RecordingSessionSummary` values — recorded payloads load only when a
-  session is replayed.
+  `RecordingSessionSummary` values — recorded payloads are not retained by
+  a listing, only by a replay.
+- Request payloads are informational and never block a save: the Dio
+  adapter records anything that is not plain JSON data (multipart
+  `FormData`, streams) as its string form.

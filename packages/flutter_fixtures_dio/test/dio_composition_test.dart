@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// A network stand-in: every request that reaches the wire gets this JSON.
 class _StubHttpAdapter implements HttpClientAdapter {
   int hits = 0;
+  int statusCode = 200;
 
   @override
   Future<ResponseBody> fetch(
@@ -20,7 +21,7 @@ class _StubHttpAdapter implements HttpClientAdapter {
     hits++;
     return ResponseBody.fromString(
       jsonEncode({'from': 'network'}),
-      200,
+      statusCode,
       headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
       },
@@ -55,6 +56,25 @@ class _FakeFixtureSource implements HttpFixtureSource {
   Future<Object?> data(FixtureDocument document) async => document.data;
 }
 
+/// Counts what the response/error stages see — stands in for a logging or
+/// transforming interceptor registered before the recorder.
+class _ObservingInterceptor extends Interceptor {
+  int responses = 0;
+  int errors = 0;
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    responses++;
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    errors++;
+    handler.next(err);
+  }
+}
+
 /// These tests run a real Dio with both interceptors installed — the
 /// composition the READMEs describe — pinning Dio's actual chain semantics
 /// instead of assuming them.
@@ -63,10 +83,14 @@ void main() {
   late _StubHttpAdapter network;
   late _FakeFixtureSource fixtureSource;
 
+  late _ObservingInterceptor observer;
+
   Dio buildDio({bool withFixtures = false}) {
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test'));
     network = _StubHttpAdapter();
     dio.httpClientAdapter = network;
+    observer = _ObservingInterceptor();
+    dio.interceptors.add(observer);
     dio.interceptors.add(RecorderInterceptor(recorder: recorder));
     if (withFixtures) {
       fixtureSource = _FakeFixtureSource();
@@ -191,5 +215,52 @@ void main() {
     final replayed = await dio.get('/users');
     expect(replayed.data, {'from': 'fixture'});
     expect(network.hits, 0);
+  });
+
+  test('a replayed error status throws the way the live one did', () async {
+    final dio = buildDio();
+    network.statusCode = 404;
+
+    recorder.startRecording();
+    await expectLater(dio.get('/missing'), throwsA(isA<DioException>()));
+    final session = (await recorder.stopRecording())!;
+    expect((session.interactions.single.response as Map)['statusCode'], 404);
+
+    await recorder.startReplay(session.id);
+    await expectLater(
+      dio.get('/missing'),
+      throwsA(isA<DioException>()
+          .having((e) => e.type, 'type', DioExceptionType.badResponse)
+          .having((e) => e.response?.statusCode, 'status', 404)),
+    );
+    expect(network.hits, 1);
+    expect(observer.errors, 2); // the live error and the replayed one
+  });
+
+  test('an interceptor registered before the recorder observes replays',
+      () async {
+    final dio = buildDio();
+    recorder.startRecording();
+    await dio.get('/users');
+    final session = (await recorder.stopRecording())!;
+    expect(observer.responses, 1);
+
+    await recorder.startReplay(session.id);
+    final replayed = await dio.get('/users');
+    expect(observer.responses, 2);
+    expect(
+      replayed.headers.value(RecorderInterceptor.replayedHeader),
+      isNotNull,
+    );
+  });
+
+  test('a session holding a multipart upload still persists', () async {
+    final dio = buildDio();
+    recorder.startRecording();
+    await dio.post('/upload', data: FormData.fromMap({'file': 'bytes'}));
+    final session = (await recorder.stopRecording())!;
+
+    // The file store's contract: the whole session must JSON-encode.
+    expect(() => jsonEncode(session.toJson()), returnsNormally);
   });
 }

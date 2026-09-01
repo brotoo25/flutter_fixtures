@@ -7,7 +7,8 @@ import '../recording_session.dart';
 ///
 /// Lists session summaries newest first (recorded payloads are never
 /// loaded for the listing); tapping one starts replaying it (switching
-/// sessions if a replay is already active), and the trash icon deletes it.
+/// sessions if a replay is already active), and the trash icon deletes it
+/// — stopping the replay first if that session is the one being replayed.
 /// Like the toolbar, this is a plain consumer of the recorder's public
 /// API — replace it freely with your own session picker.
 Future<void> showRecordingSessionsSheet(
@@ -31,7 +32,7 @@ class _SessionListSheet extends StatefulWidget {
 }
 
 // Reading recorder state without a ListenableBuilder is safe here only
-// because every state-changing action pops the sheet.
+// because every state-changing action either pops the sheet or reloads it.
 class _SessionListSheetState extends State<_SessionListSheet> {
   late Future<List<RecordingSessionSummary>> _sessions;
 
@@ -98,10 +99,7 @@ class _SessionListSheetState extends State<_SessionListSheet> {
                   trailing: IconButton(
                     tooltip: 'Delete session',
                     icon: const Icon(Icons.delete_outline),
-                    onPressed: () async {
-                      await widget.recorder.deleteSession(summary.id);
-                      _reload();
-                    },
+                    onPressed: () => _delete(summary),
                   ),
                   onTap: () => _replay(summary),
                 ),
@@ -110,6 +108,15 @@ class _SessionListSheetState extends State<_SessionListSheet> {
         },
       ),
     );
+  }
+
+  Future<void> _delete(RecordingSessionSummary summary) async {
+    // A replay must not outlive its session.
+    if (widget.recorder.replaySession?.id == summary.id) {
+      widget.recorder.stopReplay();
+    }
+    await widget.recorder.deleteSession(summary.id);
+    if (mounted) _reload();
   }
 
   Future<void> _replay(RecordingSessionSummary summary) async {

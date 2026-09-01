@@ -9,17 +9,20 @@ class FakeRequestHandler extends RequestInterceptorHandler {
   Response? resolved;
   DioException? rejected;
   RequestOptions? forwarded;
+  bool? callFollowing;
 
   @override
   void resolve(Response response,
       [bool callFollowingResponseInterceptor = false]) {
     resolved = response;
+    callFollowing = callFollowingResponseInterceptor;
   }
 
   @override
   void reject(DioException error,
       [bool callFollowingErrorInterceptor = false]) {
     rejected = error;
+    callFollowing = callFollowingErrorInterceptor;
   }
 
   @override
@@ -89,6 +92,22 @@ void main() {
       expect(request.source, 'http');
       expect(request.operation, 'GET');
       expect(request.target, '/users?a=1&b=2');
+    });
+
+    test('records a payload that is not JSON data as its string form', () {
+      final upload = RecorderInterceptor.describe(RequestOptions(
+        path: 'https://api.test/upload',
+        method: 'POST',
+        data: FormData.fromMap({'field': 'value'}),
+      ));
+      expect(upload.payload, isA<String>());
+
+      final json = RecorderInterceptor.describe(RequestOptions(
+        path: 'https://api.test/users',
+        method: 'POST',
+        data: {'name': 'Ada'},
+      ));
+      expect(json.payload, {'name': 'Ada'});
     });
 
     test('drops the host so environments can differ', () {
@@ -199,6 +218,49 @@ void main() {
 
       expect(handler.resolved!.statusCode, 200);
       expect(handler.resolved!.data, {'users': []});
+    });
+
+    test('tags replayed responses and resolves through the response chain',
+        () async {
+      final session = await recordOneInteraction();
+      await recorder.startReplay(session.id);
+
+      final handler = FakeRequestHandler();
+      interceptor.onRequest(
+        RequestOptions(path: 'https://api.test/users'),
+        handler,
+      );
+
+      expect(
+        handler.resolved!.headers.value(RecorderInterceptor.replayedHeader),
+        session.interactions.single.recordedAt.toIso8601String(),
+      );
+      expect(handler.callFollowing, isTrue);
+    });
+
+    test('a replayed error status rejects the way the live one did', () async {
+      recorder.startRecording();
+      final options = RequestOptions(path: 'https://api.test/missing');
+      interceptor.onError(
+        DioException(
+          requestOptions: options,
+          response: responseFor(options, statusCode: 404, data: 'gone'),
+        ),
+        FakeErrorHandler(),
+      );
+      final session = (await recorder.stopRecording())!;
+      await recorder.startReplay(session.id);
+
+      final handler = FakeRequestHandler();
+      interceptor.onRequest(
+        RequestOptions(path: 'https://api.test/missing'),
+        handler,
+      );
+
+      expect(handler.resolved, isNull);
+      expect(handler.rejected?.type, DioExceptionType.badResponse);
+      expect(handler.rejected?.response?.statusCode, 404);
+      expect(handler.rejected?.response?.data, 'gone');
     });
 
     test('does not replay the stale content-length header', () async {

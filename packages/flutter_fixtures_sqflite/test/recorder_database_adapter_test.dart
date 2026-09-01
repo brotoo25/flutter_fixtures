@@ -103,14 +103,14 @@ class FakeDatabaseAdapter implements DatabaseAdapter {
 void main() {
   late FixtureRecorder recorder;
   late FakeDatabaseAdapter inner;
-  late RecordingDatabaseAdapter db;
+  late RecorderDatabaseAdapter db;
 
   setUp(() {
     recorder = FixtureRecorder(store: MemoryRecordingSessionStore());
     inner = FakeDatabaseAdapter(rows: [
       {'id': 1, 'name': 'Ada'},
     ]);
-    db = RecordingDatabaseAdapter(inner: inner, recorder: recorder);
+    db = RecorderDatabaseAdapter(inner: inner, recorder: recorder);
   });
 
   group('while idle', () {
@@ -209,7 +209,7 @@ void main() {
     });
 
     test('rejects unrecorded operations when configured to', () async {
-      db = RecordingDatabaseAdapter(
+      db = RecorderDatabaseAdapter(
         inner: inner,
         recorder: recorder,
         onReplayMiss: ReplayMissBehavior.reject,

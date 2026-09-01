@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-* New `RecordingDatabaseAdapter`: a record-and-replay decorator over any
+* New `RecorderDatabaseAdapter`: a record-and-replay decorator over any
   `DatabaseAdapter`, capturing reads and mutations through core's
   `TrafficRecorder` seam (engine: `flutter_fixtures_recorder`). A
   replayed `insert` returns the recorded row id without writing anywhere.
