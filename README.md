@@ -268,7 +268,7 @@ Simulate network latency to test loading states:
 dataSelectorDelay: DataSelectorDelay.moderate  // 500ms delay
 
 // Or create custom delays
-dataSelectorDelay: DataSelectorDelay.custom(1500)  // 1.5 second delay
+dataSelectorDelay: const Duration(milliseconds: 1500)  // 1.5 second delay
 ```
 
 Available options:
@@ -276,7 +276,7 @@ Available options:
 - `DataSelectorDelay.fast` - ~100ms
 - `DataSelectorDelay.moderate` - ~500ms
 - `DataSelectorDelay.slow` - ~2000ms
-- `DataSelectorDelay.custom(ms)` - Custom delay
+- any `Duration` - Custom delay
 
 ### Creating a Custom Fixture Provider
 

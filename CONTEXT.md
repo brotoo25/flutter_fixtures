@@ -114,7 +114,7 @@ The behavior behind `FixtureSelector.select`, owned entirely by core:
 strategy dispatch (`DataSelectorType`: pick / defaultValue / random),
 auto-selecting single-option collections, Selection Memory (read and
 write), single-flight deduplication of concurrent interactive picks, and
-response delays (`DataSelectorDelay`). Its state is scoped to the
+response delays (plain `Duration`s; `DataSelectorDelay` names the presets). Its state is scoped to the
 mixing-in instance and keyed by one collection signature. `serve` runs
 the full pipeline — find, select, load payload — and reports a Fixture
 Outcome.

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+* **BREAKING**: delays are plain `Duration`s. `DataSelectorDelay` keeps the
+  four presets (`instant`, `fast`, `moderate`, `slow`) as `Duration`
+  constants; `DataSelectorDelay.custom(ms)`, `duration`, and `apply` are
+  gone — pass any `Duration` directly.
+
 * **BREAKING**: one fixture-source seam for every domain. `FixtureSource<TRequest>`
   is now the abstract seam (`resolve(request)` + `data(document)`), and
   `HttpFixtureSource` is an alias for `FixtureSource<HttpFixtureRequest>`.

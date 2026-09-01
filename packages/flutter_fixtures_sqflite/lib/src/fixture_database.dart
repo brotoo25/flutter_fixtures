@@ -52,7 +52,7 @@ class FixtureDatabaseAdapter with FixtureSelector implements DatabaseAdapter {
   final DataSelectorView? dataSelectorView;
 
   /// Optional delay to simulate database latency
-  final DataSelectorDelay delay;
+  final Duration delay;
 
   bool _isOpen = true;
 

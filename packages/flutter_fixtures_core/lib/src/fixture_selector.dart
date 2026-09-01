@@ -40,28 +40,28 @@ mixin FixtureSelector {
   /// [view] configured, [DataSelectorType.pick] falls back to the first item.
   ///
   /// The optional [delay] parameter allows simulating response delays.
-  /// Defaults to [DataSelectorDelay.instant] (no delay).
+  /// Defaults to [DataSelectorDelay.instant] (no delay); any [Duration] works.
   Future<FixtureDocument?> select(
     FixtureCollection fixture,
     DataSelectorView? view,
     DataSelectorType selector, {
-    DataSelectorDelay delay = DataSelectorDelay.instant,
+    Duration delay = DataSelectorDelay.instant,
   }) async {
     // If there's only one option, skip any UI and return it directly.
     if (fixture.items.length == 1) {
-      await delay.apply();
+      await Future<void>.delayed(delay);
       return fixture.items.first;
     }
 
     if (selector == DataSelectorType.pick) {
       final remembered = _getRemembered(fixture);
       if (remembered != null) {
-        await delay.apply();
+        await Future<void>.delayed(delay);
         return remembered;
       }
 
       if (view == null) {
-        await delay.apply();
+        await Future<void>.delayed(delay);
         return fixture.items.first;
       }
 
@@ -73,7 +73,7 @@ mixin FixtureSelector {
       if (choice.remember) {
         _remembered[_signature(fixture)] = choice.document.identifier;
       }
-      await delay.apply();
+      await Future<void>.delayed(delay);
       return choice.document;
     }
 
@@ -85,7 +85,7 @@ mixin FixtureSelector {
       DataSelectorType.pick => throw StateError('handled above'),
     };
 
-    await delay.apply();
+    await Future<void>.delayed(delay);
     return selectedOption;
   }
 
@@ -100,7 +100,7 @@ mixin FixtureSelector {
     required Future<Object?> Function(FixtureDocument document) data,
     DataSelectorView? view,
     required DataSelectorType selector,
-    DataSelectorDelay delay = DataSelectorDelay.instant,
+    Duration delay = DataSelectorDelay.instant,
   }) async {
     final collection = await find();
     if (collection == null) {

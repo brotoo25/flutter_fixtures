@@ -393,11 +393,11 @@ dio.interceptors.add(
 - `DataSelectorDelay.fast` - ~100ms (fast 4G/5G)
 - `DataSelectorDelay.moderate` - ~500ms (3G)
 - `DataSelectorDelay.slow` - ~2000ms (2G/EDGE)
-- `DataSelectorDelay.custom(milliseconds)` - Custom delay
+- any `Duration` - Custom delay
 
 ```dart
 // Custom delay example
-dataSelectorDelay: DataSelectorDelay.custom(1500) // 1.5 second delay
+dataSelectorDelay: const Duration(milliseconds: 1500) // 1.5 second delay
 ```
 
 ### Custom Fixture Providers

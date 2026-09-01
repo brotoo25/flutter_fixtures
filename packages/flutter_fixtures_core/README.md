@@ -42,7 +42,7 @@ This package defines the core contracts and data models used by all Flutter Fixt
 
 ### Response Delays
 
-- **`DataSelectorDelay`**: Class for simulating response delays
+- **`DataSelectorDelay`**: Named `Duration` presets for simulating response delays
   - `instant`: No delay (0ms)
   - `fast`: Fast response (~100ms)
   - `moderate`: Moderate response (~500ms)
@@ -104,7 +104,7 @@ choices, pick deduplication, and delays come with the mixin for free.
 
 ## ⏱️ Simulating Response Delays
 
-Use `DataSelectorDelay` to simulate network latency or other delays:
+Delays are plain `Duration`s; `DataSelectorDelay` names four presets:
 
 ```dart
 // Use predefined delays
@@ -120,7 +120,7 @@ await selector.select(
   fixture,
   view,
   DataSelectorType.random,
-  delay: DataSelectorDelay.custom(1500), // 1.5 second delay
+  delay: const Duration(milliseconds: 1500), // 1.5 second delay
 );
 
 // Default is instant (no delay)
@@ -138,7 +138,7 @@ await selector.select(
 - **`DataSelectorDelay.fast`** - Fast response (~100ms, comparable to fast 4G/5G)
 - **`DataSelectorDelay.moderate`** - Moderate response (~500ms, comparable to 3G)
 - **`DataSelectorDelay.slow`** - Slow response (~2000ms, comparable to 2G/EDGE)
-- **`DataSelectorDelay.custom(ms)`** - Custom delay with specified milliseconds
+- **any `Duration`** - Custom delay, e.g. `Duration(milliseconds: 1500)`
 
 ## 📋 Data Model Reference
 
