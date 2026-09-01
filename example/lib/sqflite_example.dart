@@ -30,7 +30,7 @@ class _SqfliteExamplePageState extends State<SqfliteExamplePage> {
   DatabaseAdapter _createDatabase() {
     // Use FixtureDatabaseAdapter for development
     return FixtureDatabaseAdapter(
-      dataQuery: SqfliteDataQuery(),
+      dataQuery: SqfliteFileFixtureSource(),
       dataSelector: _getDataSelectorType(),
       dataSelectorView: FixturesDialogView(
         contextProvider: () => widget.navigatorKey.currentContext!,

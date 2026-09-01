@@ -10,7 +10,7 @@ class FakeFixtureSource implements SqfliteFixtureSource {
   final Object? payload;
 
   @override
-  Future<FixtureCollection?> find(SqfliteQuery query) async => collection;
+  Future<FixtureCollection?> resolve(SqfliteQuery query) async => collection;
 
   @override
   Future<Object?> data(FixtureDocument document) async => payload;

@@ -295,7 +295,7 @@ class DataService {
 
     // Database queries with fixtures (flutter_fixtures_sqflite)
     _db = FixtureDatabaseAdapter(
-      dataQuery: SqfliteDataQuery(),
+      dataQuery: SqfliteFileFixtureSource(),
       dataSelector: DataSelectorType.defaultValue,
     );
   }
@@ -403,10 +403,11 @@ dataSelectorDelay: DataSelectorDelay.custom(1500) // 1.5 second delay
 ### Custom Fixture Providers
 
 A fixture provider is a source: it turns a domain request into a
-`FixtureCollection` and materializes a document's payload. HTTP providers
-implement `HttpFixtureSource` and join the interceptor's `sources` list;
-sqflite providers implement `SqfliteFixtureSource`. For any other domain,
-define a seam of the same shape and drive it with `FixtureSelector.serve`
+`FixtureCollection` and materializes a document's payload. Every domain
+shares one seam, `FixtureSource<TRequest>` (`HttpFixtureSource` and
+`SqfliteFixtureSource` are aliases), and file-backed sources reuse
+`FixtureFileSource` with their own naming convention; drive the source
+with `FixtureSelector.serve`
 — see the [core package README](https://pub.dev/packages/flutter_fixtures_core)
 for a worked example.
 

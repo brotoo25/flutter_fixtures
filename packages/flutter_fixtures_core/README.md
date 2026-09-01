@@ -28,6 +28,7 @@ This package defines the core contracts and data models used by all Flutter Fixt
 
 - **`FixtureSource`**: Fixture-file IO — candidate resolution, JSON decoding, payload loading
 - **`HttpFixtureSource`**: Seam for providing HTTP fixtures; adapters consult an ordered list of sources per `HttpFixtureRequest`
+- **`FixtureSource<TRequest>`** / **`FixtureFileSource`**: The fixture-source seam for any request type, and the one file-backed adapter every domain reuses through its naming convention
 - **`HttpFileFixtureSource`**: The file-backed source — maps a request to fixture-file candidates and delegates to `FixtureSource`
 - **`OpenApiFixtureSource`**: The OpenAPI-backed source — a 3.x JSON document's response documentation and payload examples become fixtures
 - **`FixtureAssetLoader`**: Seam for reading fixture assets (`BundleAssetLoader` in production)
@@ -60,48 +61,32 @@ dependencies:
 ## 🛠️ Creating Custom Fixture Providers
 
 A fixture provider is a **source**: something that turns a domain request
-into a `FixtureCollection` and materializes a document's payload. HTTP
-sources implement `HttpFixtureSource` (see `HttpFileFixtureSource` and
-`OpenApiFixtureSource` for the built-ins); for any other domain, define a
-seam of the same shape and drive it with `FixtureSelector.serve`:
+into a `FixtureCollection` and materializes a document's payload. Every
+domain shares one seam, `FixtureSource<TRequest>`, typed by its request
+model (`HttpFixtureSource` and `SqfliteFixtureSource` are aliases). For
+fixture files, the built-in `FixtureFileSource` does all the IO — a domain
+contributes only its naming convention:
 
 ```dart
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
-/// The seam: your domain request in, model objects out.
-abstract class CacheFixtureSource {
-  Future<FixtureCollection?> find(String cacheKey);
-  Future<Object?> data(FixtureDocument document);
-}
-
-/// A file-backed adapter built on core's fixture-file IO.
-class FileCacheFixtureSource implements CacheFixtureSource {
-  FileCacheFixtureSource({String mockFolder = 'assets/fixtures/cache'})
-      : _source = FixtureSource(mockFolder: mockFolder);
-
-  final FixtureSource _source;
-
-  @override
-  Future<FixtureCollection?> find(String cacheKey) async {
-    final json = await _source.resolve(['$cacheKey.json']);
-    return json == null ? null : FixtureCollection.fromJson(json);
-  }
-
-  @override
-  Future<Object?> data(FixtureDocument document) => _source.data(document);
+/// A file-backed source for a cache domain: the request is a cache key.
+class CacheFixtureSource extends FixtureFileSource<String> {
+  CacheFixtureSource({String mockFolder = 'assets/fixtures/cache'})
+      : super(mockFolder: mockFolder, candidates: (key) => ['$key.json']);
 }
 
 /// The consumer mixes in FixtureSelector and runs the pipeline.
 class FixtureCache with FixtureSelector {
   FixtureCache({required this.source, required this.selector, this.view});
 
-  final CacheFixtureSource source;
+  final FixtureSource<String> source;
   final DataSelectorType selector;
   final DataSelectorView? view;
 
   Future<Object?> read(String cacheKey) async {
     final outcome = await serve(
-      find: () => source.find(cacheKey),
+      find: () => source.resolve(cacheKey),
       data: source.data,
       view: view,
       selector: selector,

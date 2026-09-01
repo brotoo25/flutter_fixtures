@@ -28,7 +28,7 @@ import 'sqflite_query.dart';
 ///
 /// // In development/testing:
 /// final db = FixtureDatabaseAdapter(
-///   dataQuery: SqfliteDataQuery(),
+///   dataQuery: SqfliteFileFixtureSource(),
 ///   dataSelector: DataSelectorType.pick,
 /// );
 ///
@@ -216,7 +216,7 @@ class FixtureDatabaseAdapter with FixtureSelector implements DatabaseAdapter {
   /// degrades to `null` here; callers substitute their operation's default.
   Future<Object?> _payloadFor(SqfliteQuery query) async {
     final outcome = await serve(
-      find: () => dataQuery.find(query),
+      find: () => dataQuery.resolve(query),
       data: dataQuery.data,
       view: dataSelectorView,
       selector: dataSelector,

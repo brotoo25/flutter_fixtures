@@ -29,10 +29,11 @@ lives in one place.
 
 ## Sqflite Fixture Source
 
-The seam for providing sqflite fixtures (`SqfliteFixtureSource`): `find`
-takes a database query and returns a Fixture Collection, or `null` when
-the source has none; `data` materializes a document's payload.
-`SqfliteDataQuery` is the built-in file-backed adapter.
+The sqflite-typed **Fixture Source** (`SqfliteFixtureSource`, an alias for
+`FixtureSource<SqfliteQuery>`): `resolve` takes a statement and returns a
+Fixture Collection, or `null` when the source has none. The built-in
+adapter is `SqfliteFileFixtureSource` — core's file source with the sqflite
+naming convention.
 
 Statement identity is one model: `SqfliteQuery` carries every field a
 `DatabaseAdapter` operation takes, with two projections —
@@ -42,20 +43,36 @@ canonical JSON for record & replay, so differing arguments never match).
 
 ## Fixture Source
 
-The core module owning fixture-file IO (`FixtureSource`): tries candidate
-file names in order, decodes JSON, loads document payloads. Consumers only
-build candidate names for their domain and delegate here — the HTTP File
-Source for HTTP requests, the sqflite Data Query for database queries.
-A missing candidate is skipped; a matched candidate with malformed JSON
-fails loudly.
+The seam for providing fixtures for one kind of request
+(`FixtureSource<TRequest>`, core): `resolve` turns a domain request into a
+Fixture Collection — or `null` when the source has none — and `data`
+materializes a document's payload. One seam serves every domain; the
+request type is the only thing that varies (`HttpFixtureRequest`,
+`SqfliteQuery`, anything custom). Sources build model objects — the wire
+format belongs to the Fixture Collection and Fixture Document alone.
+
+Precedence is owned by the composite `FixtureSources` (itself a Fixture
+Source): sources are consulted in order, the first that resolves wins,
+and that source alone provides the selected document's payload. Documents
+are routed back to their resolving source by identity, so sources hand out
+their own document instances.
+
+## Fixture File Source
+
+The one file-backed adapter (`FixtureFileSource<TRequest>`, core), owning
+fixture-file IO for every domain: tries candidate file names in order,
+decodes JSON, loads document payloads. A missing candidate is skipped; a
+matched candidate with malformed JSON fails loudly. A domain contributes
+only its **naming convention** — a function from request to ordered
+candidate names — so `HttpFileFixtureSource` and
+`SqfliteFileFixtureSource` are exactly that and nothing more.
 
 ## HTTP Fixture Source
 
-The seam for providing HTTP fixtures (`HttpFixtureSource`): `resolve` takes
-an `HttpFixtureRequest` (method, path, query parameters) and returns a
-Fixture Collection, or `null` when the source has none; `data` materializes
-a document's payload. Sources build model objects — the wire format belongs
-to the Fixture Collection and Fixture Document alone.
+The HTTP-typed **Fixture Source** (`HttpFixtureSource`, an alias for
+`FixtureSource<HttpFixtureRequest>`): `resolve` takes an
+`HttpFixtureRequest` (method, path, query parameters) and returns a
+Fixture Collection, or `null` when the source has none.
 
 Request normalization is owned by `HttpFixtureRequest.fromUri`, the
 canonical constructor HTTP adapters use: scheme and host dropped, the URL's
@@ -64,11 +81,10 @@ and never compensate for raw request fields. `canonicalTarget` renders the
 normalized request as one escaped, sorted string — the HTTP identity used
 by record & replay, identical whichever HTTP client built the request.
 
-Precedence is owned by the composite `HttpFixtureSources` (itself an HTTP
-Fixture Source): sources are consulted in order, the first that resolves
-wins, and that source alone provides the selected document's payload.
-Built-ins: `HttpFileFixtureSource` (fixture files, owning the HTTP file
-naming convention) and `OpenApiFixtureSource`.
+Built-ins: `HttpFileFixtureSource` (the Fixture File Source with the HTTP
+naming convention, `HttpFileFixtureSource.candidateNames`) and
+`OpenApiFixtureSource`; `HttpFixtureSources` is the composite, typed for
+HTTP.
 
 ## OpenAPI Source
 

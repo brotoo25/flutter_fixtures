@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+* **BREAKING**: `SqfliteFixtureSource` is now an alias for core's
+  `FixtureSource<SqfliteQuery>`, so its lookup method is `resolve` (was
+  `find`). `SqfliteDataQuery` is renamed `SqfliteFileFixtureSource` — core's
+  `FixtureFileSource` with the sqflite naming convention — with a deprecated
+  alias kept for one release.
+
 * New `RecorderDatabaseAdapter`: a record-and-replay decorator over any
   `DatabaseAdapter`, capturing reads and mutations through core's
   `TrafficRecorder` seam (engine: `flutter_fixtures_recorder`). A

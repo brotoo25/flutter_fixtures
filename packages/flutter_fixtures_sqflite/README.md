@@ -19,9 +19,9 @@ This package provides a fixture-backed `DatabaseAdapter` for SQLite, allowing yo
 
 A drop-in replacement for sqflite's `Database` that returns fixture data. Provides the same familiar API (`query`, `insert`, `update`, `delete`) so you can swap between fixture and real databases easily.
 
-### SqfliteDataQuery
+### SqfliteFileFixtureSource
 
-The file-backed `SqfliteFixtureSource`: loads fixture files from your app's assets and returns them as fixture collections. Implement `SqfliteFixtureSource` yourself to provide fixtures from anywhere else.
+The file-backed `SqfliteFixtureSource` (core's `FixtureSource<SqfliteQuery>`): loads fixture files from your app's assets and returns them as fixture collections. Implement `FixtureSource<SqfliteQuery>` yourself to provide fixtures from anywhere else.
 
 ### SqfliteQuery
 
@@ -93,7 +93,7 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
 // Create a fixture database (same API as sqflite's Database)
 final db = FixtureDatabase(
-  dataQuery: SqfliteDataQuery(),
+  dataQuery: SqfliteFileFixtureSource(),
   dataSelector: DataSelectorType.defaultValue,
 );
 
@@ -115,7 +115,7 @@ add it to your dev dependencies alongside this one.
 
 ```dart
 final db = FixtureDatabase(
-  dataQuery: SqfliteDataQuery(),
+  dataQuery: SqfliteFileFixtureSource(),
   dataSelector: DataSelectorType.pick,
   dataSelectorView: FixturesDialogView.of(context),
   delay: DataSelectorDelay.fast,
@@ -127,10 +127,10 @@ final users = await db.query('users');
 
 ### Low-Level API
 
-For more control, use `SqfliteDataQuery` directly:
+For more control, use `SqfliteFileFixtureSource` directly:
 
 ```dart
-final dataQuery = SqfliteDataQuery();
+final dataQuery = SqfliteFileFixtureSource();
 
 // Create a query
 final query = SqfliteQuery.table(
@@ -139,7 +139,7 @@ final query = SqfliteQuery.table(
 );
 
 // Find and parse fixtures
-final fixtureData = await dataQuery.find(query);
+final collection = await source.resolve(query);
 if (fixtureData != null) {
   final collection = await dataQuery.parse(fixtureData);
   final selected = await dataQuery.select(

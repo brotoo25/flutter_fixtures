@@ -124,7 +124,7 @@ class UserRepository {
 
 // In development/testing - use fixtures:
 final db = FixtureDatabaseAdapter(
-  dataQuery: SqfliteDataQuery(),
+  dataQuery: SqfliteFileFixtureSource(),
   dataSelector: DataSelectorType.pick,
   dataSelectorView: FixturesDialogView.of(context),
 );
@@ -281,10 +281,10 @@ Available options:
 ### Creating a Custom Fixture Provider
 
 A fixture provider is a source: it turns a domain request into a
-`FixtureCollection` and materializes a document's payload. HTTP providers
-implement `HttpFixtureSource` from core and join the interceptor's
-`sources` list; for other domains, define a seam of the same shape and
-drive it with `FixtureSelector.serve` — see the
+`FixtureCollection` and materializes a document's payload. Every domain
+shares one seam, `FixtureSource<TRequest>` from core; file-backed sources
+reuse `FixtureFileSource` with their own naming convention. Drive the
+source with `FixtureSelector.serve` — see the
 [core package README](packages/flutter_fixtures_core/README.md) for a
 worked example.
 

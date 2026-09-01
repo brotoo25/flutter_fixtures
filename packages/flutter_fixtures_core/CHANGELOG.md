@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+* **BREAKING**: one fixture-source seam for every domain. `FixtureSource<TRequest>`
+  is now the abstract seam (`resolve(request)` + `data(document)`), and
+  `HttpFixtureSource` is an alias for `FixtureSource<HttpFixtureRequest>`.
+  The composite is the generic `FixtureSources<TRequest>` (`HttpFixtureSources`
+  aliases it for HTTP). The former concrete `FixtureSource` (fixture-file IO)
+  is now `FixtureFileSource<TRequest>`, parameterized by the domain's naming
+  convention; `HttpFileFixtureSource` extends it and exposes that convention
+  as `HttpFileFixtureSource.candidateNames`.
+
 * New thin record-and-replay seam: `TrafficRecorder` (`decide` + `record`)
   with its contract types — `RecordedRequest`, `RecordedInteraction`,
   sealed `ReplayDecision` (`Replayed` / `ForwardToSource` /
