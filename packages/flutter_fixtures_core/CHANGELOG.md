@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1
 
 * `TrafficRecorder.run` (an extension on the seam) owns the record-and-replay
   choreography for call/return sources — lazy description, decide, replay

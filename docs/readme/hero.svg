@@ -12,7 +12,7 @@
     <text x="0" y="252" font-size="26" fill="#CBC5DC">from fixture files, an OpenAPI spec, or a</text>
     <text x="0" y="288" font-size="26" fill="#CBC5DC">recorded session. No backend required.</text>
     <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" fill="#8B86A0">
-      <text x="0" y="356">pub.dev  v0.3.0</text>
+      <text x="0" y="356">pub.dev  v0.3.1</text>
       <text x="176" y="356">·</text>
       <text x="204" y="356">MIT</text>
       <text x="262" y="356">·</text>

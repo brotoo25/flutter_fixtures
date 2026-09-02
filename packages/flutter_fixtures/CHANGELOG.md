@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+* The package README now mirrors the repository README: quick start, how a request is answered, sqflite, OpenAPI, record & replay, and the package map.
+* Documents the `FixturePipeline` API introduced in `flutter_fixtures_core` / `flutter_fixtures_dio` 0.3.1.
+
 ## 0.3.0
 
 * Update to `flutter_fixtures_core`, `flutter_fixtures_dio`, and `flutter_fixtures_ui` 0.3.0 (see their changelogs for the breaking source-seam changes and the new record & replay adapters).
