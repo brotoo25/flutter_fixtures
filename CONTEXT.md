@@ -243,6 +243,18 @@ Replay Decision. Progress is the engine's knowledge, not a UI's:
 Recorder as `replayedCount` / `replayServeOrder`, which notifies on every
 hit) — nothing outside the engine re-derives keys or cursors.
 
+## Response Origin
+
+Where a Dio response came from (`ResponseOrigin`, flutter_fixtures_dio),
+stamped by the package's interceptors and read once through
+`ResponseOrigin.of(response)`: `FixtureOrigin` (the served Fixture
+Document's identifier and external file path, from `FixturesInterceptor`'s
+`x-fixture-document` / `x-fixture-file-path` headers), `ReplayOrigin` (the
+capture time, from `RecorderInterceptor`'s `x-fixture-replayed` header), or
+`LiveOrigin`. Requests that never produced a response carry their case in
+`DioException.error` (a **Fixture Miss**, a replay rejection) — consumers
+never parse header strings or error text.
+
 ## Recorder Toolbar
 
 The built-in recorder UI (`RecorderToolbar`, the sessions sheet, and the

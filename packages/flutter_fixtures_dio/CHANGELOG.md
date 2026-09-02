@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+* `ResponseOrigin.of(response)` names where a response came from —
+  `FixtureOrigin` (document identifier + external file path),
+  `ReplayOrigin` (capture time), or `LiveOrigin` — so apps and logging
+  read one value instead of combining header strings. `FixturesInterceptor`
+  now stamps every served response with `x-fixture-document`
+  (`FixturesInterceptor.documentHeader`) alongside the existing
+  `x-fixture-file-path` (`filePathHeader`).
+
 * **BREAKING**: `FixturesInterceptor` takes one `pipeline`
   (`FixturePipeline<HttpFixtureRequest>`) instead of `sources` /
   `mockFolder` / `assetLoader` / `dataSelector` / `dataSelectorView` /

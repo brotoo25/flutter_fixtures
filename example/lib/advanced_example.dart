@@ -153,10 +153,9 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
           throw Exception('Unknown scenario: $_selectedScenario');
       }
 
-      String filePath = '';
-      if (response.headers.map.containsKey('x-fixture-file-path')) {
-        filePath = response.headers.value('x-fixture-file-path') ?? '';
-      }
+      // The interceptor stamps where the response came from.
+      final origin = ResponseOrigin.of(response);
+      final filePath = origin is FixtureOrigin ? origin.filePath ?? '' : '';
 
       setState(() {
         responseCode = response.statusCode?.toString() ?? '';

@@ -43,8 +43,7 @@ class RecorderInterceptor extends Interceptor {
   static const String source = 'http';
 
   /// Set on every replayed response, with the interaction's capture time as
-  /// value, so callers (logging, provenance UIs) can tell replayed responses
-  /// from live ones — the counterpart of `x-fixture-file-path`.
+  /// value. Read it through `ResponseOrigin.of`.
   static const String replayedHeader = 'x-fixture-replayed';
 
   /// The recorder this interceptor feeds and reads.

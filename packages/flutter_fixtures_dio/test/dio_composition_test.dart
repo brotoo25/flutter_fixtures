@@ -122,6 +122,12 @@ void main() {
     final replayed = await dio.get('/users');
     expect(replayed.data, {'from': 'network'});
     expect(network.hits, 1); // the wire was not touched again
+    expect(ResponseOrigin.of(replayed), isA<ReplayOrigin>());
+  });
+
+  test('a live response has a live origin', () async {
+    final response = await buildDio().get('/users');
+    expect(ResponseOrigin.of(response), isA<LiveOrigin>());
   });
 
   test('replay wins over a following FixturesInterceptor', () async {
@@ -140,6 +146,7 @@ void main() {
     final dio = buildDio(withFixtures: true);
     final response = await dio.get('/users');
     expect(response.data, {'from': 'fixture'});
+    expect(ResponseOrigin.of(response), isA<FixtureOrigin>());
     expect(recorder.recordedCount, 0);
     expect(network.hits, 0);
   });

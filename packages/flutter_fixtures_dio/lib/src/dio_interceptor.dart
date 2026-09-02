@@ -22,8 +22,18 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 /// ```
 ///
 /// Build the pipeline once, next to the Dio instance: remembered choices
-/// live in it.
+/// live in it. Served responses are stamped with [documentHeader] (and
+/// [filePathHeader] when the payload is an external file); read them
+/// through `ResponseOrigin.of`.
 class FixturesInterceptor extends Interceptor {
+  /// Set on every fixture-served response, with the served document's
+  /// identifier as value. Read it through `ResponseOrigin.of`.
+  static const String documentHeader = 'x-fixture-document';
+
+  /// Set on fixture-served responses whose document has an external
+  /// payload file, with that file's path as value.
+  static const String filePathHeader = 'x-fixture-file-path';
+
   /// The pipeline every request is served through.
   final FixturePipeline<HttpFixtureRequest> pipeline;
 
@@ -68,10 +78,12 @@ class FixturesInterceptor extends Interceptor {
             headers: Headers(),
           );
 
-          // Add file content to headers if available
+          // Stamp the origin, so consumers read it once instead of
+          // re-deriving it (see ResponseOrigin).
+          response.headers.set(documentHeader, document.identifier);
           final filePath = document.dataPath;
           if (filePath != null && filePath.isNotEmpty) {
-            response.headers.set('x-fixture-file-path', filePath);
+            response.headers.set(filePathHeader, filePath);
           }
 
           // Resolve through the response-interceptor stage, so interceptors

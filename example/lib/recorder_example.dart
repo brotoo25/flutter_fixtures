@@ -160,20 +160,19 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
     Stopwatch stopwatch,
   ) {
     stopwatch.stop();
-    // Replayed responses are tagged by the interceptor; anything else came
-    // through the fixtures pipeline (captured while recording).
-    final replayed =
-        response.headers.value(RecorderInterceptor.replayedHeader) != null;
+    // The interceptors stamp where a response came from; "recorded" is
+    // this page's own note that a fixture response was captured.
     return _LogEntry(
       method: method,
       path: pathAndQuery,
       status: '${response.statusCode}',
       milliseconds: stopwatch.elapsedMilliseconds,
-      provenance: replayed
-          ? _Provenance.replayed
-          : recorder.isRecording
-              ? _Provenance.recorded
-              : _Provenance.fixture,
+      provenance: switch (ResponseOrigin.of(response)) {
+        ReplayOrigin() => _Provenance.replayed,
+        FixtureOrigin() ||
+        LiveOrigin() =>
+          recorder.isRecording ? _Provenance.recorded : _Provenance.fixture,
+      },
       body: _prettifyJson(response.data),
     );
   }

@@ -86,11 +86,9 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
         data: {'username': 'admin', 'password': '123456'},
       );
 
-      // Extract file path from response headers if available
-      String filePath = '';
-      if (response.headers.map.containsKey('x-fixture-file-path')) {
-        filePath = response.headers.value('x-fixture-file-path') ?? '';
-      }
+      // The interceptor stamps where the response came from.
+      final origin = ResponseOrigin.of(response);
+      final filePath = origin is FixtureOrigin ? origin.filePath ?? '' : '';
 
       setState(() {
         responseCode = response.statusCode.toString();

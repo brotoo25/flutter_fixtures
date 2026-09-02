@@ -245,6 +245,32 @@ void main() {
         handler.resolved!.headers.value('x-fixture-file-path'),
         equals('data/users.json'),
       );
+      final origin = ResponseOrigin.of(handler.resolved!);
+      expect(origin, isA<FixtureOrigin>());
+      expect((origin as FixtureOrigin).document, 'list');
+      expect(origin.filePath, 'data/users.json');
+    });
+
+    test('stamps the origin on inline-payload responses too', () async {
+      final interceptor = FixturesInterceptor(
+        pipeline: FixturePipeline(
+          source: FakeSource(
+            collection: FixtureCollection(
+              description: 'Users',
+              items: [doc('inline', '200 OK', defaultOption: true, data: {})],
+            ),
+            payload: {},
+          ),
+          selector: DataSelectorType.defaultValue,
+        ),
+      );
+
+      final handler = await run(interceptor);
+
+      final origin = ResponseOrigin.of(handler.resolved!);
+      expect(origin, isA<FixtureOrigin>());
+      expect((origin as FixtureOrigin).document, 'inline');
+      expect(origin.filePath, isNull);
     });
 
     group('source ordering', () {
