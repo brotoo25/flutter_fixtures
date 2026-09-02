@@ -33,7 +33,7 @@ Add the package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_fixtures_sqflite: ^0.1.0
+  flutter_fixtures_sqflite: ^0.3.0
   sqflite: ^2.4.1
 ```
 

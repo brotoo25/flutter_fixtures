@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+
+* Update to `flutter_fixtures_core`, `flutter_fixtures_dio`, and `flutter_fixtures_ui` 0.3.0 (see their changelogs for the breaking source-seam changes and the new record & replay adapters).
+* Record & replay ships as the opt-in `flutter_fixtures_recorder` package; the Dio and sqflite adapters for it live in their transport packages.
+
 ## 0.2.0
 
 * Update to `flutter_fixtures_core`, `flutter_fixtures_dio`, and `flutter_fixtures_ui` 0.2.0 (see their changelogs for the breaking selection-flow and dialog API changes).

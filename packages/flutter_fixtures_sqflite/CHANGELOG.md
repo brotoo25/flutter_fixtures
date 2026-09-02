@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 * New `RecorderDatabaseAdapter`: a record-and-replay decorator over any
   `DatabaseAdapter`, capturing reads and mutations through core's

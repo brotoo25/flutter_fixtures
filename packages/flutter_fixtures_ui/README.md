@@ -28,9 +28,9 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_fixtures_ui: ^0.1.0
-  flutter_fixtures_dio: ^0.1.0
-  flutter_fixtures_core: ^0.1.0
+  flutter_fixtures_ui: ^0.3.0
+  flutter_fixtures_dio: ^0.3.0
+  flutter_fixtures_core: ^0.3.0
 ```
 
 ## 🎨 Dialog Features

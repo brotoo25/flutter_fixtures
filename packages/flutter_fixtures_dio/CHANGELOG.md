@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 * New `RecorderInterceptor`: captures real HTTP traffic and replays it
   through core's `TrafficRecorder` seam (engine:

@@ -54,7 +54,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_fixtures_core: ^0.1.0
+  flutter_fixtures_core: ^0.3.0
 ```
 
 ## 🛠️ Creating Custom Fixture Providers

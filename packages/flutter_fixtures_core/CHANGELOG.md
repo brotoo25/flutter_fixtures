@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 * New thin record-and-replay seam: `TrafficRecorder` (`decide` + `record`)
   with its contract types — `RecordedRequest`, `RecordedInteraction`,
