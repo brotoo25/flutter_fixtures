@@ -125,6 +125,21 @@ void main() {
     expect(ResponseOrigin.of(replayed), isA<ReplayOrigin>());
   });
 
+  test('a malformed replay stamp never makes origin inspection throw',
+      () async {
+    final response = Response<void>(
+      requestOptions: RequestOptions(path: '/x'),
+      headers: Headers.fromMap({
+        RecorderInterceptor.replayedHeader: ['not-a-timestamp'],
+      }),
+    );
+
+    final origin = ResponseOrigin.of(response);
+
+    expect(origin, isA<ReplayOrigin>());
+    expect((origin as ReplayOrigin).recordedAt, isNull);
+  });
+
   test('a live response has a live origin', () async {
     final response = await buildDio().get('/users');
     expect(ResponseOrigin.of(response), isA<LiveOrigin>());
