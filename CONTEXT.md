@@ -146,7 +146,9 @@ and ask how to handle each request (`decide`, which answers with a
 **Replay Decision**). Source-agnostic: one recorder serves HTTP,
 database, and custom sources at once, and a session can hold them side by
 side. Persistence is owned outright — the Session Store is private,
-reached only through `sessions`/`deleteSession` and the save on stop.
+reached only through `sessions`/`deleteSession` and the save on stop. A
+save the store rejects loses nothing: the recorder returns to recording
+with every captured interaction so the stop can be retried or discarded.
 Idle traffic passes through untouched; apps that never record simply
 don't depend on this package.
 

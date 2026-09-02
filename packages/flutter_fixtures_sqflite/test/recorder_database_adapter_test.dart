@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
 import 'package:flutter_fixtures_sqflite/flutter_fixtures_sqflite.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -121,6 +124,28 @@ void main() {
       ]);
       expect(inner.calls, 1);
       expect(recorder.recordedCount, 0);
+    });
+  });
+
+  group('blob arguments', () {
+    final blob = Uint8List.fromList([0, 1, 2, 255]);
+
+    test('pass through untouched while idle', () async {
+      await db.insert('files', {'name': 'a.bin', 'bytes': blob});
+      await db.query('files', where: 'bytes = ?', whereArgs: [blob]);
+      expect(inner.calls, 2);
+      expect(recorder.recordedCount, 0);
+    });
+
+    test('are described and recorded while recording', () async {
+      recorder.startRecording();
+      await db.insert('files', {'name': 'a.bin', 'bytes': blob});
+      final session = (await recorder.stopRecording())!;
+
+      final target = session.interactions.single.request.target;
+      expect(target, contains('"bytes":[0,1,2,255]'));
+      // The session survives the file store's JSON round trip.
+      expect(() => jsonEncode(session.toJson()), returnsNormally);
     });
   });
 

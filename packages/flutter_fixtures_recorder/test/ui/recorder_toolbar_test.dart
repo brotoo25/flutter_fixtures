@@ -112,6 +112,23 @@ void main() {
     expect(await recorder.sessions(), isEmpty);
   });
 
+  testWidgets('a save the store rejects is reported and keeps recording',
+      (tester) async {
+    recorder = FixtureRecorder(store: _FailingStore());
+    recorder.startRecording();
+    recorder.record(() => interaction());
+    await tester.pumpWidget(app(recorder));
+
+    await tester.tap(find.byTooltip('Stop recording'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Could not save the recording'), findsOneWidget);
+    expect(recorder.isRecording, isTrue);
+    expect(recorder.recordedCount, 1);
+  });
+
   testWidgets('saving with a blank name falls back to the default',
       (tester) async {
     recorder.startRecording();
@@ -155,4 +172,11 @@ void main() {
     final decision = recorder.decide(request);
     expect((decision as Replayed).interaction.response, 'first');
   });
+}
+
+class _FailingStore extends MemoryRecordingSessionStore {
+  @override
+  Future<void> save(RecordingSession session) async {
+    throw StateError('disk full');
+  }
 }

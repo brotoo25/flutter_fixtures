@@ -101,7 +101,13 @@ class FixtureRecorder extends ChangeNotifier implements TrafficRecorder {
   /// not recording, [discard] was set, or no traffic was captured.
   ///
   /// Capture stops immediately; listeners are notified once the session is
-  /// saved (or the save fails), so [sessions] already reflects it.
+  /// saved, so [sessions] already reflects it.
+  ///
+  /// If the store fails to save, nothing is lost: the recorder returns to
+  /// [RecorderMode.recording] with every captured interaction still in
+  /// place (traffic during the failed attempt is not captured), the error
+  /// propagates, and the caller can retry — with a different name or
+  /// store — or [discard].
   Future<RecordingSession?> stopRecording({
     String? name,
     bool discard = false,
@@ -124,7 +130,15 @@ class FixtureRecorder extends ChangeNotifier implements TrafficRecorder {
         recordedAt: recordedAt,
         interactions: interactions,
       );
-      await _store.save(session);
+      try {
+        await _store.save(session);
+      } catch (_) {
+        // Keep the recording so the caller can retry or discard it.
+        _buffer.addAll(interactions);
+        _pendingName = pendingName;
+        _mode = RecorderMode.recording;
+        rethrow;
+      }
       return session;
     } finally {
       notifyListeners();

@@ -2,6 +2,22 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('canonicalTarget keeps distinct requests distinct', () {
+    String target(String url) =>
+        HttpFixtureRequest.fromUri('GET', Uri.parse(url)).canonicalTarget;
+
+    test('an escaped comma in one value is not two values', () {
+      expect(target('/s?q=a%2Cb'), '/s?q=a%2Cb');
+      expect(target('/s?q=a&q=b'), '/s?q=a&q=b');
+      expect(target('/s?q=a%2Cb'), isNot(target('/s?q=a&q=b')));
+    });
+
+    test('an escaped ampersand or equals in a value stays escaped', () {
+      expect(target('/s?q=a%26b%3Dc'), '/s?q=a%26b%3Dc');
+      expect(target('/s?q=a%26b%3Dc'), isNot(target('/s?q=a&b=c')));
+    });
+  });
+
   group('HttpFixtureRequest.fromUri', () {
     test('drops scheme and host from an absolute URL', () {
       final request = HttpFixtureRequest.fromUri(

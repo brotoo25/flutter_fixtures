@@ -108,18 +108,39 @@ void main() {
       expect(listedOnIdle?.map((s) => s.id), [saved!.id]);
     });
 
-    test('a failed save still returns the recorder to idle and notifies',
-        () async {
-      recorder = FixtureRecorder(store: _FailingStore());
-      var notified = false;
-      recorder.addListener(() => notified = recorder.mode == RecorderMode.idle);
+    test('a failed save keeps the recording so it can be retried', () async {
+      final store = _FailingStore();
+      recorder = FixtureRecorder(store: store);
+      var notifications = 0;
+      recorder.addListener(() => notifications++);
 
+      recorder.startRecording(name: 'Keep me');
+      recorder.record(() => interaction('GET', '/users'));
+      recorder.record(() => interaction('POST', '/login'));
+      await expectLater(recorder.stopRecording(), throwsStateError);
+
+      // Nothing lost, still recording, listeners told.
+      expect(recorder.mode, RecorderMode.recording);
+      expect(recorder.recordedCount, 2);
+      expect(notifications, 4); // start, 2 captures, failed stop
+
+      // Retrying once the store works saves everything captured so far.
+      store.failing = false;
+      final session = await recorder.stopRecording();
+      expect(session?.name, 'Keep me');
+      expect(session?.interactions, hasLength(2));
+      expect(recorder.mode, RecorderMode.idle);
+    });
+
+    test('a failed save can be discarded instead of retried', () async {
+      recorder = FixtureRecorder(store: _FailingStore());
       recorder.startRecording();
       recorder.record(() => interaction('GET', '/users'));
       await expectLater(recorder.stopRecording(), throwsStateError);
 
+      expect(await recorder.stopRecording(discard: true), isNull);
       expect(recorder.mode, RecorderMode.idle);
-      expect(notified, isTrue);
+      expect(recorder.recordedCount, 0);
     });
   });
 
@@ -353,8 +374,11 @@ void main() {
 }
 
 class _FailingStore extends MemoryRecordingSessionStore {
+  bool failing = true;
+
   @override
-  Future<void> save(RecordingSession session) async {
-    throw StateError('disk full');
+  Future<void> save(RecordingSession session) {
+    if (failing) throw StateError('disk full');
+    return super.save(session);
   }
 }
