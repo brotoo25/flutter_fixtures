@@ -17,6 +17,8 @@
   remembered choices survive. A miss rejects with a `DioException` whose
   `error` is the typed `FixtureMiss` (`message` carries the text).
 
+## 0.3.0
+
 * New `RecorderInterceptor`: captures real HTTP traffic and replays it
   through core's `TrafficRecorder` seam (engine:
   `flutter_fixtures_recorder`). Replay wins over later

@@ -15,7 +15,7 @@ Add the dependency to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_fixtures_dio: ^0.1.0
+  flutter_fixtures_dio: ^0.3.0
   dio: ^5.4.3+1
 ```
 
@@ -56,7 +56,7 @@ A Dio interceptor that automatically intercepts HTTP requests and returns mock r
 
 ```yaml
 dependencies:
-  flutter_fixtures_dio: ^0.1.0
+  flutter_fixtures_dio: ^0.3.0
   dio: ^5.4.3+1
 ```
 

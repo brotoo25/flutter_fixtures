@@ -31,6 +31,8 @@
   convention; `HttpFileFixtureSource` extends it and exposes that convention
   as `HttpFileFixtureSource.candidateNames`.
 
+## 0.3.0
+
 * New thin record-and-replay seam: `TrafficRecorder` (`decide` + `record`)
   with its contract types — `RecordedRequest`, `RecordedInteraction`,
   sealed `ReplayDecision` (`Replayed` / `ForwardToSource` /

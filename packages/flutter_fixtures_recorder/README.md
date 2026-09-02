@@ -26,8 +26,8 @@ package ships its own implementation of the capture/replay side:
 
 ```yaml
 dependencies:
-  flutter_fixtures_recorder: ^0.1.0  # the engine + UI tools
-  flutter_fixtures_dio: ^0.2.0       # ships RecorderInterceptor
+  flutter_fixtures_recorder: ^0.3.0  # the engine + UI tools
+  flutter_fixtures_dio: ^0.3.0       # ships RecorderInterceptor
 ```
 
 Create one recorder, hand it to the adapters for the sources you use, and

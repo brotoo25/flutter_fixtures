@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+* Version aligned with the rest of the Flutter Fixtures packages. No functional changes since 0.1.0.
+
 ## 0.1.0
 
 * Initial release: record real request/response traffic from any data source and replay it later, in order.

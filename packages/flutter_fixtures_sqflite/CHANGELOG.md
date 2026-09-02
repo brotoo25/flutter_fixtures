@@ -24,6 +24,8 @@
   `FixtureFileSource` with the sqflite naming convention — with a deprecated
   alias kept for one release.
 
+## 0.3.0
+
 * New `RecorderDatabaseAdapter`: a record-and-replay decorator over any
   `DatabaseAdapter`, capturing reads and mutations through core's
   `TrafficRecorder` seam (engine: `flutter_fixtures_recorder`). A
