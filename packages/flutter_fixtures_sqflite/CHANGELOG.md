@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+* `RecorderDatabaseAdapter` runs statements through core's
+  `TrafficRecorder.run`; its behaviour is unchanged.
+
+* **BREAKING**: new `StatementDatabaseAdapter` base — the nine sqflite-shaped
+  operations are translated into a `SqfliteQuery` statement once, and an
+  adapter implements a single `run(statement)`. `RealDatabaseAdapter`,
+  `FixtureDatabaseAdapter` and `RecorderDatabaseAdapter` all extend it;
+  `RecorderDatabaseAdapter.inner` is now typed `StatementDatabaseAdapter`.
+  A custom adapter is one `run` instead of nine forwards.
+
+* **BREAKING**: `FixtureDatabaseAdapter` takes one `pipeline`
+  (`FixturePipeline<SqfliteQuery>`) instead of `dataQuery` / `dataSelector`
+  / `dataSelectorView` / `delay`. A cancelled pick now throws
+  `FixtureCancelled` instead of silently returning the operation's default;
+  not-found and empty still degrade to the default.
+
+* **BREAKING**: `SqfliteFixtureSource` is now an alias for core's
+  `FixtureSource<SqfliteQuery>`, so its lookup method is `resolve` (was
+  `find`). `SqfliteDataQuery` is renamed `SqfliteFileFixtureSource` — core's
+  `FixtureFileSource` with the sqflite naming convention — with a deprecated
+  alias kept for one release.
+
 * New `RecorderDatabaseAdapter`: a record-and-replay decorator over any
   `DatabaseAdapter`, capturing reads and mutations through core's
   `TrafficRecorder` seam (engine: `flutter_fixtures_recorder`). A

@@ -20,17 +20,17 @@ class InMemoryAssetLoader implements FixtureAssetLoader {
 }
 
 void main() {
-  group('SqfliteDataQuery', () {
-    group('find', () {
+  group('SqfliteFileFixtureSource', () {
+    group('resolve', () {
       const collectionJson = '{"description": "found", "values": []}';
 
       test('matches {operation}_{table} for table queries', () async {
         final loader = InMemoryAssetLoader({
           'assets/fixtures/database/query_users.json': collectionJson,
         });
-        final dataQuery = SqfliteDataQuery(assetLoader: loader);
+        final dataQuery = SqfliteFileFixtureSource(assetLoader: loader);
 
-        final result = await dataQuery.find(const SqfliteQuery.table(
+        final result = await dataQuery.resolve(const SqfliteQuery.table(
           table: 'users',
           operation: SqfliteOperation.query,
         ));
@@ -48,9 +48,9 @@ void main() {
         final loader = InMemoryAssetLoader({
           'assets/fixtures/database/query_users.json': collectionJson,
         });
-        final dataQuery = SqfliteDataQuery(assetLoader: loader);
+        final dataQuery = SqfliteFileFixtureSource(assetLoader: loader);
 
-        final result = await dataQuery.find(const SqfliteQuery.table(
+        final result = await dataQuery.resolve(const SqfliteQuery.table(
           table: 'users',
           operation: SqfliteOperation.query,
           where: 'id = 1',
@@ -67,11 +67,11 @@ void main() {
       });
 
       test('returns null when nothing matches', () async {
-        final dataQuery = SqfliteDataQuery(
+        final dataQuery = SqfliteFileFixtureSource(
           assetLoader: InMemoryAssetLoader({}),
         );
 
-        final result = await dataQuery.find(const SqfliteQuery.table(
+        final result = await dataQuery.resolve(const SqfliteQuery.table(
           table: 'missing',
           operation: SqfliteOperation.query,
         ));
@@ -82,7 +82,7 @@ void main() {
 
     group('data', () {
       test('returns null when document has no data or dataPath', () async {
-        final dataQuery = SqfliteDataQuery(
+        final dataQuery = SqfliteFileFixtureSource(
           assetLoader: InMemoryAssetLoader({}),
         );
 
@@ -96,7 +96,7 @@ void main() {
       });
 
       test('returns inline data as-is', () async {
-        final dataQuery = SqfliteDataQuery(
+        final dataQuery = SqfliteFileFixtureSource(
           assetLoader: InMemoryAssetLoader({}),
         );
 
@@ -117,7 +117,7 @@ void main() {
         final loader = InMemoryAssetLoader({
           'assets/fixtures/database/data/users.json': '[{"id": 1}]',
         });
-        final dataQuery = SqfliteDataQuery(assetLoader: loader);
+        final dataQuery = SqfliteFileFixtureSource(assetLoader: loader);
 
         final result = await dataQuery.data(FixtureDocument(
           identifier: 'test',

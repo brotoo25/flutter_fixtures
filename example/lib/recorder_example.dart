@@ -73,10 +73,13 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
   late final Dio dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
     ..interceptors.add(RecorderInterceptor(recorder: recorder))
     ..interceptors.add(FixturesInterceptor(
-      dataSelectorView: FixturesDialogView(
-        contextProvider: () => widget.navigatorKey.currentContext!,
+      pipeline: FixturePipeline(
+        source: HttpFileFixtureSource(),
+        selector: DataSelectorType.pick,
+        view: FixturesDialogView(
+          contextProvider: () => widget.navigatorKey.currentContext!,
+        ),
       ),
-      dataSelector: DataSelectorType.pick,
     ));
 
   final List<_LogEntry> _log = [];
@@ -133,7 +136,7 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
         entry = _entryFor(method, pathAndQuery, response, stopwatch);
       } else {
         stopwatch.stop();
-        final cancelled = '${e.error}'.contains('No fixture selected');
+        final cancelled = e.error is FixtureCancelled;
         entry = _LogEntry(
           method: method,
           path: pathAndQuery,
@@ -157,20 +160,19 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
     Stopwatch stopwatch,
   ) {
     stopwatch.stop();
-    // Replayed responses are tagged by the interceptor; anything else came
-    // through the fixtures pipeline (captured while recording).
-    final replayed =
-        response.headers.value(RecorderInterceptor.replayedHeader) != null;
+    // The interceptors stamp where a response came from; "recorded" is
+    // this page's own note that a fixture response was captured.
     return _LogEntry(
       method: method,
       path: pathAndQuery,
       status: '${response.statusCode}',
       milliseconds: stopwatch.elapsedMilliseconds,
-      provenance: replayed
-          ? _Provenance.replayed
-          : recorder.isRecording
-              ? _Provenance.recorded
-              : _Provenance.fixture,
+      provenance: switch (ResponseOrigin.of(response)) {
+        ReplayOrigin() => _Provenance.replayed,
+        FixtureOrigin() ||
+        LiveOrigin() =>
+          recorder.isRecording ? _Provenance.recorded : _Provenance.fixture,
+      },
       body: _prettifyJson(response.data),
     );
   }

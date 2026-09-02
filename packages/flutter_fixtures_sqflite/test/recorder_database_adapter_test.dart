@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// An in-memory stand-in for the real database: canned rows for reads,
 /// counted calls so tests can assert whether the inner adapter was touched.
-class FakeDatabaseAdapter implements DatabaseAdapter {
+class FakeDatabaseAdapter extends StatementDatabaseAdapter {
   List<Map<String, dynamic>> rows;
   int nextId;
   int calls = 0;
@@ -15,85 +15,14 @@ class FakeDatabaseAdapter implements DatabaseAdapter {
   FakeDatabaseAdapter({this.rows = const [], this.nextId = 1});
 
   @override
-  Future<List<Map<String, dynamic>>> query(
-    String table, {
-    bool? distinct,
-    List<String>? columns,
-    String? where,
-    List<Object?>? whereArgs,
-    String? groupBy,
-    String? having,
-    String? orderBy,
-    int? limit,
-    int? offset,
-  }) async {
+  Future<Object?> run(SqfliteQuery statement) async {
     calls++;
-    return rows;
-  }
-
-  @override
-  Future<List<Map<String, dynamic>>> rawQuery(
-    String sql, [
-    List<Object?>? arguments,
-  ]) async {
-    calls++;
-    return rows;
-  }
-
-  @override
-  Future<int> insert(
-    String table,
-    Map<String, Object?> values, {
-    String? nullColumnHack,
-    conflictAlgorithm,
-  }) async {
-    calls++;
-    return nextId++;
-  }
-
-  @override
-  Future<int> update(
-    String table,
-    Map<String, Object?> values, {
-    String? where,
-    List<Object?>? whereArgs,
-    conflictAlgorithm,
-  }) async {
-    calls++;
-    return 1;
-  }
-
-  @override
-  Future<int> delete(
-    String table, {
-    String? where,
-    List<Object?>? whereArgs,
-  }) async {
-    calls++;
-    return 1;
-  }
-
-  @override
-  Future<int> rawInsert(String sql, [List<Object?>? arguments]) async {
-    calls++;
-    return nextId++;
-  }
-
-  @override
-  Future<int> rawUpdate(String sql, [List<Object?>? arguments]) async {
-    calls++;
-    return 1;
-  }
-
-  @override
-  Future<int> rawDelete(String sql, [List<Object?>? arguments]) async {
-    calls++;
-    return 1;
-  }
-
-  @override
-  Future<void> execute(String sql, [List<Object?>? arguments]) async {
-    calls++;
+    return switch (statement.operation) {
+      SqfliteOperation.query || SqfliteOperation.rawQuery => rows,
+      SqfliteOperation.insert || SqfliteOperation.rawInsert => nextId++,
+      SqfliteOperation.execute => null,
+      _ => 1,
+    };
   }
 
   @override

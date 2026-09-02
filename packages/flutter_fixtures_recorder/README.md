@@ -97,40 +97,43 @@ source receives the same responses in the same order.
 
 ## Any source
 
-An adapter is just code that (1) describes its requests as
-`RecordedRequest`s, (2) asks `decide` how each one should be handled, and
-(3) renders the decision in its own types. That works for an in-memory
-cache, a platform channel, a GraphQL client — anything:
+An adapter is code that (1) describes its requests as `RecordedRequest`s,
+(2) asks the recorder how each one should be handled, and (3) renders the
+decision in its own types. For a call/return source — one call, one
+result: an in-memory cache, a platform channel, a GraphQL client — the
+whole choreography is owned by `TrafficRecorder.run`, so an adapter is a
+description plus its live call:
 
 ```dart
-Future<Object?> loadPreferences(FixtureRecorder recorder) async {
-  final request = RecordedRequest(
-    source: 'memory',
-    operation: 'read',
-    target: 'user_preferences',
+Future<Object?> loadPreferences(FixtureRecorder recorder) {
+  return recorder.run(
+    describe: () => RecordedRequest(
+      source: 'memory',
+      operation: 'read',
+      target: 'user_preferences',
+    ),
+    live: realPreferenceLookup,
+    // decode: (recorded) => ...   // if the native type is not JSON-shaped
+    // onMiss: ReplayMissBehavior.reject,
   );
-
-  switch (recorder.decide(() => request)) {
-    case Replayed(:final interaction):
-      return interaction.response;
-    case RejectRequest(:final message):
-      throw StateError(message);
-    case ForwardToSource():
-      final value = await realPreferenceLookup();
-      recorder.record(() => RecordedInteraction(
-            request: request,
-            response: value,
-            recordedAt: DateTime.now(),
-          )); // the builder runs only while recording
-      return value;
-  }
 }
 ```
 
-Mode checks, ordered replay, and the miss policy all live behind `decide` —
-an adapter never needs to ask the recorder what mode it is in. Both calls
-take builder functions the recorder invokes only when its mode needs them,
-so idle traffic costs nothing.
+`run` describes lazily (only when the recorder's mode needs it), serves a
+replay through `decode` (identity by default), throws a rejection (a
+`StateError` unless you pass `reject:`), and on forward runs the live call
+and records its result — only while recording, so idle traffic costs
+nothing. Transports that split request and response stages (Dio's
+interceptor chain) render the sealed `ReplayDecision` by hand instead —
+see `RecorderInterceptor`:
+
+```dart
+switch (recorder.decide(() => request)) {
+  case Replayed(:final interaction): // serve interaction.response
+  case RejectRequest(:final message): // fail with message
+  case ForwardToSource(): // continue, then recorder.record(() => ...)
+}
+```
 
 Keep the target **normalized** (the same logical request must always
 produce the same target) and the response **JSON-encodable** — a

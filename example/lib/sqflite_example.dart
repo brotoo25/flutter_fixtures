@@ -20,6 +20,11 @@ class _SqfliteExamplePageState extends State<SqfliteExamplePage> {
   String fixtureInfo = '';
   String errorText = '';
 
+  /// The adapter lives as long as this page: the pipeline inside it holds
+  /// the choices you asked the dialog to remember, so it must not be
+  /// rebuilt per query. It is rebuilt only when the selector type changes.
+  late DatabaseAdapter db = _createDatabase();
+
   /// Creates a DatabaseAdapter configured with current settings.
   ///
   /// The key benefit of DatabaseAdapter is that you can swap implementations:
@@ -30,12 +35,14 @@ class _SqfliteExamplePageState extends State<SqfliteExamplePage> {
   DatabaseAdapter _createDatabase() {
     // Use FixtureDatabaseAdapter for development
     return FixtureDatabaseAdapter(
-      dataQuery: SqfliteDataQuery(),
-      dataSelector: _getDataSelectorType(),
-      dataSelectorView: FixturesDialogView(
-        contextProvider: () => widget.navigatorKey.currentContext!,
+      pipeline: FixturePipeline(
+        source: SqfliteFileFixtureSource(),
+        selector: _getDataSelectorType(),
+        view: FixturesDialogView(
+          contextProvider: () => widget.navigatorKey.currentContext!,
+        ),
+        delay: DataSelectorDelay.fast,
       ),
-      delay: DataSelectorDelay.fast,
     );
 
     // In production, you would use:
@@ -59,6 +66,7 @@ class _SqfliteExamplePageState extends State<SqfliteExamplePage> {
     if (value != null) {
       setState(() {
         _selectedSelectorType = value;
+        db = _createDatabase();
       });
     }
   }
@@ -87,9 +95,6 @@ class _SqfliteExamplePageState extends State<SqfliteExamplePage> {
     });
 
     try {
-      // Create a fixture database - works just like sqflite's Database!
-      final db = _createDatabase();
-
       // Query the database using sqflite-like API
       // This is exactly how you'd query a real sqflite database:
       //   final rows = await db.query('users');

@@ -18,18 +18,31 @@ class InMemoryAssetLoader implements FixtureAssetLoader {
   }
 }
 
+/// A file source whose naming convention is the request itself: the test
+/// hands it the candidate list directly.
+FixtureFileSource<List<String>> fileSource(
+  InMemoryAssetLoader loader, {
+  String mockFolder = 'fixtures',
+}) {
+  return FixtureFileSource(
+    mockFolder: mockFolder,
+    assetLoader: loader,
+    candidates: (names) => names,
+  );
+}
+
 void main() {
-  group('FixtureSource.resolve', () {
+  group('FixtureFileSource.resolve', () {
     test('returns the first candidate that exists', () async {
       final loader = InMemoryAssetLoader({
         'fixtures/b.json': '{"description": "B", "values": []}',
         'fixtures/c.json': '{"description": "C", "values": []}',
       });
-      final source = FixtureSource(mockFolder: 'fixtures', assetLoader: loader);
+      final source = fileSource(loader);
 
       final result = await source.resolve(['a.json', 'b.json', 'c.json']);
 
-      expect(result!['description'], equals('B'));
+      expect(result!.description, equals('B'));
       expect(
         loader.requestedPaths,
         equals(['fixtures/a.json', 'fixtures/b.json']),
@@ -37,10 +50,7 @@ void main() {
     });
 
     test('returns null when no candidate exists', () async {
-      final source = FixtureSource(
-        mockFolder: 'fixtures',
-        assetLoader: InMemoryAssetLoader({}),
-      );
+      final source = fileSource(InMemoryAssetLoader({}));
 
       expect(await source.resolve(['a.json', 'b.json']), isNull);
     });
@@ -49,7 +59,7 @@ void main() {
       final loader = InMemoryAssetLoader({
         'fixtures/a.json': '{not json',
       });
-      final source = FixtureSource(mockFolder: 'fixtures', assetLoader: loader);
+      final source = fileSource(loader);
 
       expect(
         () => source.resolve(['a.json']),
@@ -58,12 +68,9 @@ void main() {
     });
   });
 
-  group('FixtureSource.data', () {
+  group('FixtureFileSource.data', () {
     test('returns inline data as-is', () async {
-      final source = FixtureSource(
-        mockFolder: 'fixtures',
-        assetLoader: InMemoryAssetLoader({}),
-      );
+      final source = fileSource(InMemoryAssetLoader({}));
       final document = FixtureDocument(
         identifier: 'inline',
         description: '200',
@@ -78,7 +85,7 @@ void main() {
       final loader = InMemoryAssetLoader({
         'fixtures/data/users.json': '[{"id": 1}, {"id": 2}]',
       });
-      final source = FixtureSource(mockFolder: 'fixtures', assetLoader: loader);
+      final source = fileSource(loader);
       final document = FixtureDocument(
         identifier: 'external',
         description: '200',
@@ -92,10 +99,7 @@ void main() {
     });
 
     test('returns null for a document with no payload', () async {
-      final source = FixtureSource(
-        mockFolder: 'fixtures',
-        assetLoader: InMemoryAssetLoader({}),
-      );
+      final source = fileSource(InMemoryAssetLoader({}));
       final document = FixtureDocument(
         identifier: 'empty',
         description: '204',

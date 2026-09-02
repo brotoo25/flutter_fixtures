@@ -1,137 +1,70 @@
 import 'package:sqflite/sqflite.dart' as sqflite;
 
-import 'database_adapter.dart';
+import 'sqflite_query.dart';
+import 'statement_database_adapter.dart';
 
-/// A [DatabaseAdapter] that wraps a real sqflite [Database].
-///
-/// Use this in production to interact with an actual SQLite database.
-///
-/// ## Usage
+/// The production [StatementDatabaseAdapter]: runs each statement against
+/// a real sqflite [sqflite.Database].
 ///
 /// ```dart
-/// final database = await openDatabase('app.db');
-/// final adapter = RealDatabaseAdapter(database);
-///
-/// // Use the adapter in your repositories
-/// final users = await adapter.query('users');
+/// final db = RealDatabaseAdapter(await openDatabase('app.db'));
+/// final repo = UserRepository(db);
 /// ```
-class RealDatabaseAdapter implements DatabaseAdapter {
-  /// The underlying sqflite database.
+class RealDatabaseAdapter extends StatementDatabaseAdapter {
   final sqflite.Database _database;
 
-  /// Creates an adapter wrapping a real sqflite database.
   RealDatabaseAdapter(this._database);
 
-  /// Access the underlying sqflite Database for advanced operations.
-  ///
-  /// Use this for features not covered by [DatabaseAdapter], such as
-  /// transactions and batch operations.
+  /// The underlying sqflite database.
   sqflite.Database get database => _database;
 
   @override
-  Future<List<Map<String, dynamic>>> query(
-    String table, {
-    bool? distinct,
-    List<String>? columns,
-    String? where,
-    List<Object?>? whereArgs,
-    String? groupBy,
-    String? having,
-    String? orderBy,
-    int? limit,
-    int? offset,
-  }) {
-    return _database.query(
-      table,
-      distinct: distinct,
-      columns: columns,
-      where: where,
-      whereArgs: whereArgs,
-      groupBy: groupBy,
-      having: having,
-      orderBy: orderBy,
-      limit: limit,
-      offset: offset,
-    );
+  Future<Object?> run(SqfliteQuery statement) {
+    final s = statement;
+    return switch (s.operation) {
+      SqfliteOperation.query => _database.query(
+          s.table!,
+          distinct: s.distinct,
+          columns: s.columns,
+          where: s.where,
+          whereArgs: s.arguments,
+          groupBy: s.groupBy,
+          having: s.having,
+          orderBy: s.orderBy,
+          limit: s.limit,
+          offset: s.offset,
+        ),
+      SqfliteOperation.rawQuery => _database.rawQuery(s.sql!, s.arguments),
+      SqfliteOperation.insert => _database.insert(
+          s.table!,
+          s.values!,
+          nullColumnHack: s.nullColumnHack,
+          conflictAlgorithm: _conflict(s.conflictAlgorithm),
+        ),
+      SqfliteOperation.update => _database.update(
+          s.table!,
+          s.values!,
+          where: s.where,
+          whereArgs: s.arguments,
+          conflictAlgorithm: _conflict(s.conflictAlgorithm),
+        ),
+      SqfliteOperation.delete => _database.delete(
+          s.table!,
+          where: s.where,
+          whereArgs: s.arguments,
+        ),
+      SqfliteOperation.rawInsert => _database.rawInsert(s.sql!, s.arguments),
+      SqfliteOperation.rawUpdate => _database.rawUpdate(s.sql!, s.arguments),
+      SqfliteOperation.rawDelete => _database.rawDelete(s.sql!, s.arguments),
+      SqfliteOperation.execute => _database.execute(s.sql!, s.arguments),
+    };
   }
 
-  @override
-  Future<List<Map<String, dynamic>>> rawQuery(
-    String sql, [
-    List<Object?>? arguments,
-  ]) {
-    return _database.rawQuery(sql, arguments);
-  }
+  static sqflite.ConflictAlgorithm? _conflict(String? name) =>
+      name == null ? null : sqflite.ConflictAlgorithm.values.byName(name);
 
   @override
-  Future<int> insert(
-    String table,
-    Map<String, Object?> values, {
-    String? nullColumnHack,
-    sqflite.ConflictAlgorithm? conflictAlgorithm,
-  }) {
-    return _database.insert(
-      table,
-      values,
-      nullColumnHack: nullColumnHack,
-      conflictAlgorithm: conflictAlgorithm,
-    );
-  }
-
-  @override
-  Future<int> update(
-    String table,
-    Map<String, Object?> values, {
-    String? where,
-    List<Object?>? whereArgs,
-    sqflite.ConflictAlgorithm? conflictAlgorithm,
-  }) {
-    return _database.update(
-      table,
-      values,
-      where: where,
-      whereArgs: whereArgs,
-      conflictAlgorithm: conflictAlgorithm,
-    );
-  }
-
-  @override
-  Future<int> delete(
-    String table, {
-    String? where,
-    List<Object?>? whereArgs,
-  }) {
-    return _database.delete(
-      table,
-      where: where,
-      whereArgs: whereArgs,
-    );
-  }
-
-  @override
-  Future<int> rawInsert(String sql, [List<Object?>? arguments]) {
-    return _database.rawInsert(sql, arguments);
-  }
-
-  @override
-  Future<int> rawUpdate(String sql, [List<Object?>? arguments]) {
-    return _database.rawUpdate(sql, arguments);
-  }
-
-  @override
-  Future<int> rawDelete(String sql, [List<Object?>? arguments]) {
-    return _database.rawDelete(sql, arguments);
-  }
-
-  @override
-  Future<void> execute(String sql, [List<Object?>? arguments]) {
-    return _database.execute(sql, arguments);
-  }
-
-  @override
-  Future<void> close() {
-    return _database.close();
-  }
+  Future<void> close() => _database.close();
 
   @override
   bool get isOpen => _database.isOpen;

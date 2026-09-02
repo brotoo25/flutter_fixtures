@@ -50,6 +50,18 @@ class ThrowingSource implements HttpFixtureSource {
   Future<Object?> data(FixtureDocument document) async => null;
 }
 
+/// Picks the second option and asks for it to be remembered.
+class _RememberingView implements DataSelectorView {
+  _RememberingView(this.onPick);
+  final void Function() onPick;
+
+  @override
+  Future<FixtureChoice?> pick(FixtureCollection fixture) async {
+    onPick();
+    return FixtureChoice(document: fixture.items[1], remember: true);
+  }
+}
+
 class CancellingView implements DataSelectorView {
   @override
   Future<FixtureChoice?> pick(FixtureCollection fixture) async => null;
@@ -118,10 +130,38 @@ Future<RecordingHandler> run(
 
 void main() {
   group('FixturesInterceptor', () {
+    test('remembered choices survive across requests on one pipeline',
+        () async {
+      var picks = 0;
+      final view = _RememberingView(() => picks++);
+      final interceptor = FixturesInterceptor(
+        pipeline: FixturePipeline(
+          source: FakeSource(
+            collection: FixtureCollection(
+              description: 'Users',
+              items: [
+                doc('a', '200 OK', defaultOption: true, data: {'v': 'a'}),
+                doc('b', '404 Not Found', data: {'v': 'b'}),
+              ],
+            ),
+            payload: {'v': 'b'},
+          ),
+          selector: DataSelectorType.pick,
+          view: view,
+        ),
+      );
+
+      await run(interceptor);
+      final second = await run(interceptor);
+
+      expect(picks, 1);
+      expect(second.resolved!.statusCode, 404);
+    });
+
     test('serves the resolved document as a response', () async {
       final interceptor = FixturesInterceptor(
-        sources: [
-          FakeSource(
+        pipeline: FixturePipeline(
+          source: FakeSource(
             collection: FixtureCollection(
               description: 'Users',
               items: [
@@ -130,8 +170,8 @@ void main() {
             ),
             payload: {'id': 1},
           ),
-        ],
-        dataSelector: DataSelectorType.defaultValue,
+          selector: DataSelectorType.defaultValue,
+        ),
       );
 
       final handler = await run(interceptor, method: 'POST');
@@ -158,8 +198,10 @@ void main() {
         ''',
       });
       final interceptor = FixturesInterceptor(
-        assetLoader: loader,
-        dataSelector: DataSelectorType.defaultValue,
+        pipeline: FixturePipeline(
+          source: HttpFileFixtureSource(assetLoader: loader),
+          selector: DataSelectorType.defaultValue,
+        ),
       );
 
       final handler = await run(interceptor);
@@ -186,8 +228,10 @@ void main() {
         'assets/fixtures/data/users.json': '[{"id": 1}]',
       });
       final interceptor = FixturesInterceptor(
-        assetLoader: loader,
-        dataSelector: DataSelectorType.defaultValue,
+        pipeline: FixturePipeline(
+          source: HttpFileFixtureSource(assetLoader: loader),
+          selector: DataSelectorType.defaultValue,
+        ),
       );
 
       final handler = await run(interceptor);
@@ -201,6 +245,32 @@ void main() {
         handler.resolved!.headers.value('x-fixture-file-path'),
         equals('data/users.json'),
       );
+      final origin = ResponseOrigin.of(handler.resolved!);
+      expect(origin, isA<FixtureOrigin>());
+      expect((origin as FixtureOrigin).document, 'list');
+      expect(origin.filePath, 'data/users.json');
+    });
+
+    test('stamps the origin on inline-payload responses too', () async {
+      final interceptor = FixturesInterceptor(
+        pipeline: FixturePipeline(
+          source: FakeSource(
+            collection: FixtureCollection(
+              description: 'Users',
+              items: [doc('inline', '200 OK', defaultOption: true, data: {})],
+            ),
+            payload: {},
+          ),
+          selector: DataSelectorType.defaultValue,
+        ),
+      );
+
+      final handler = await run(interceptor);
+
+      final origin = ResponseOrigin.of(handler.resolved!);
+      expect(origin, isA<FixtureOrigin>());
+      expect((origin as FixtureOrigin).document, 'inline');
+      expect(origin.filePath, isNull);
     });
 
     group('source ordering', () {
@@ -238,8 +308,10 @@ void main() {
           'assets/fixtures/openapi.json': spec,
         });
         final interceptor = FixturesInterceptor(
-          sources: sourcesWith(loader),
-          dataSelector: DataSelectorType.defaultValue,
+          pipeline: FixturePipeline(
+            source: HttpFixtureSources(sourcesWith(loader)),
+            selector: DataSelectorType.defaultValue,
+          ),
         );
 
         final handler = await run(interceptor, path: '/users/42');
@@ -266,8 +338,10 @@ void main() {
           'assets/fixtures/openapi.json': spec,
         });
         final interceptor = FixturesInterceptor(
-          sources: sourcesWith(loader),
-          dataSelector: DataSelectorType.defaultValue,
+          pipeline: FixturePipeline(
+            source: HttpFixtureSources(sourcesWith(loader)),
+            selector: DataSelectorType.defaultValue,
+          ),
         );
 
         final handler = await run(interceptor, path: '/users/42');
@@ -293,8 +367,10 @@ void main() {
           payload: null,
         );
         final interceptor = FixturesInterceptor(
-          sources: [wrongSource, winningSource],
-          dataSelector: DataSelectorType.defaultValue,
+          pipeline: FixturePipeline(
+            source: HttpFixtureSources([wrongSource, winningSource]),
+            selector: DataSelectorType.defaultValue,
+          ),
         );
 
         final handler = await run(interceptor);
@@ -308,40 +384,37 @@ void main() {
     group('error handling', () {
       test('rejects when no source resolves', () async {
         final interceptor = FixturesInterceptor(
-          sources: [FakeSource()],
-          dataSelector: DataSelectorType.defaultValue,
+          pipeline: FixturePipeline(
+            source: FakeSource(),
+            selector: DataSelectorType.defaultValue,
+          ),
         );
 
         final handler = await run(interceptor);
 
-        expect(
-          handler.rejected!.error,
-          equals('No fixture found for request.'),
-        );
+        expect(handler.rejected!.error, isA<FixtureNotFound>());
+        expect(handler.rejected!.message, 'No fixture found for request.');
       });
 
       test('rejects when the collection has no options', () async {
         final interceptor = FixturesInterceptor(
-          sources: [
-            FakeSource(
+          pipeline: FixturePipeline(
+            source: FakeSource(
               collection: FixtureCollection(description: 'Empty', items: []),
             ),
-          ],
-          dataSelector: DataSelectorType.defaultValue,
+            selector: DataSelectorType.defaultValue,
+          ),
         );
 
         final handler = await run(interceptor);
 
-        expect(
-          handler.rejected!.error,
-          equals('No fixture options found for request.'),
-        );
+        expect(handler.rejected!.error, isA<FixtureEmpty>());
       });
 
       test('rejects when the user cancels an interactive pick', () async {
         final interceptor = FixturesInterceptor(
-          sources: [
-            FakeSource(
+          pipeline: FixturePipeline(
+            source: FakeSource(
               collection: FixtureCollection(
                 description: 'Users',
                 items: [
@@ -350,23 +423,21 @@ void main() {
                 ],
               ),
             ),
-          ],
-          dataSelectorView: CancellingView(),
-          dataSelector: DataSelectorType.pick,
+            selector: DataSelectorType.pick,
+            view: CancellingView(),
+          ),
         );
 
         final handler = await run(interceptor);
 
-        expect(
-          handler.rejected!.error,
-          equals('No fixture selected for request.'),
-        );
+        expect(handler.rejected!.error, isA<FixtureCancelled>());
+        expect(handler.rejected!.message, 'No fixture selected for request.');
       });
 
       test('rejects when the description carries no status code', () async {
         final interceptor = FixturesInterceptor(
-          sources: [
-            FakeSource(
+          pipeline: FixturePipeline(
+            source: FakeSource(
               collection: FixtureCollection(
                 description: 'Users',
                 items: [
@@ -374,8 +445,8 @@ void main() {
                 ],
               ),
             ),
-          ],
-          dataSelector: DataSelectorType.defaultValue,
+            selector: DataSelectorType.defaultValue,
+          ),
         );
 
         final handler = await run(interceptor);
@@ -388,8 +459,10 @@ void main() {
 
       test('rejects when a source throws', () async {
         final interceptor = FixturesInterceptor(
-          sources: [ThrowingSource()],
-          dataSelector: DataSelectorType.defaultValue,
+          pipeline: FixturePipeline(
+            source: ThrowingSource(),
+            selector: DataSelectorType.defaultValue,
+          ),
         );
 
         final handler = await run(interceptor);

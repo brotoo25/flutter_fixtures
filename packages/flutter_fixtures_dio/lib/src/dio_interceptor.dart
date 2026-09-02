@@ -1,49 +1,43 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
-/// Dio interceptor that provides mock responses using fixtures.
+/// Dio interceptor that serves fixture responses through a
+/// [FixturePipeline].
 ///
-/// Maps each request to an [HttpFixtureRequest] and consults [sources] in
-/// order; the first source that resolves wins, and that same source provides
-/// the selected document's payload. By default requests are served from
-/// fixture files (see [HttpFileFixtureSource] for the file naming
-/// convention). Add an [OpenApiFixtureSource] (or any custom
-/// [HttpFixtureSource]) to derive fixtures for requests no earlier source
-/// covers.
-class FixturesInterceptor extends Interceptor with FixtureSelector {
-  /// The fixture sources consulted for each request, in order.
-  final HttpFixtureSources sources;
+/// Every request is normalized into an [HttpFixtureRequest] and served by
+/// the pipeline — sources, selection strategy, picker, memory and delay all
+/// live there. This interceptor only renders the outcome in Dio's terms: a
+/// [FixtureServed] becomes a [Response] whose status comes from the
+/// document's description, and a [FixtureMiss] rejects with a
+/// [DioException] whose `error` is the miss itself, so callers can branch
+/// on [FixtureNotFound], [FixtureEmpty], or [FixtureCancelled].
+///
+/// ```dart
+/// final pipeline = FixturePipeline(
+///   source: HttpFileFixtureSource(),
+///   selector: DataSelectorType.pick,
+///   view: FixturesDialogView.of(context),
+/// );
+/// dio.interceptors.add(FixturesInterceptor(pipeline: pipeline));
+/// ```
+///
+/// Build the pipeline once, next to the Dio instance: remembered choices
+/// live in it. Served responses are stamped with [documentHeader] (and
+/// [filePathHeader] when the payload is an external file); read them
+/// through `ResponseOrigin.of`.
+class FixturesInterceptor extends Interceptor {
+  /// Set on every fixture-served response, with the served document's
+  /// identifier as value. Read it through `ResponseOrigin.of`.
+  static const String documentHeader = 'x-fixture-document';
 
-  /// The view used for user selection of fixtures
-  final DataSelectorView? dataSelectorView;
+  /// Set on fixture-served responses whose document has an external
+  /// payload file, with that file's path as value.
+  static const String filePathHeader = 'x-fixture-file-path';
 
-  /// The strategy for selecting fixtures
-  final DataSelectorType dataSelector;
+  /// The pipeline every request is served through.
+  final FixturePipeline<HttpFixtureRequest> pipeline;
 
-  /// The delay to apply when selecting fixtures
-  ///
-  /// Defaults to [DataSelectorDelay.instant] (no delay).
-  /// Can be used to simulate network latency for testing loading states.
-  final DataSelectorDelay dataSelectorDelay;
-
-  /// Creates a new FixturesInterceptor.
-  ///
-  /// [mockFolder] and [assetLoader] configure the default
-  /// [HttpFileFixtureSource] and are ignored when [sources] is given.
-  FixturesInterceptor({
-    List<HttpFixtureSource>? sources,
-    String mockFolder = 'assets/fixtures',
-    FixtureAssetLoader assetLoader = const BundleAssetLoader(),
-    this.dataSelectorView,
-    required this.dataSelector,
-    this.dataSelectorDelay = DataSelectorDelay.instant,
-  }) : sources = HttpFixtureSources(sources ??
-            [
-              HttpFileFixtureSource(
-                mockFolder: mockFolder,
-                assetLoader: assetLoader,
-              ),
-            ]);
+  FixturesInterceptor({required this.pipeline});
 
   @override
   void onRequest(
@@ -55,34 +49,13 @@ class FixturesInterceptor extends Interceptor with FixtureSelector {
       // against the base URL; fromUri owns the normalization from there.
       final request = HttpFixtureRequest.fromUri(options.method, options.uri);
 
-      final outcome = await serve(
-        find: () => sources.resolve(request),
-        data: sources.data,
-        view: dataSelectorView,
-        selector: dataSelector,
-        delay: dataSelectorDelay,
-      );
-
-      switch (outcome) {
-        case FixtureNotFound():
+      switch (await pipeline.serve(request)) {
+        case FixtureMiss miss:
           return handler.reject(
             DioException(
               requestOptions: options,
-              error: 'No fixture found for request.',
-            ),
-          );
-        case FixtureEmpty():
-          return handler.reject(
-            DioException(
-              requestOptions: options,
-              error: 'No fixture options found for request.',
-            ),
-          );
-        case FixtureCancelled():
-          return handler.reject(
-            DioException(
-              requestOptions: options,
-              error: 'No fixture selected for request.',
+              error: miss,
+              message: miss.message,
             ),
           );
         case FixtureServed(:final document, :final payload):
@@ -105,10 +78,12 @@ class FixturesInterceptor extends Interceptor with FixtureSelector {
             headers: Headers(),
           );
 
-          // Add file content to headers if available
+          // Stamp the origin, so consumers read it once instead of
+          // re-deriving it (see ResponseOrigin).
+          response.headers.set(documentHeader, document.identifier);
           final filePath = document.dataPath;
           if (filePath != null && filePath.isNotEmpty) {
-            response.headers.set('x-fixture-file-path', filePath);
+            response.headers.set(filePathHeader, filePath);
           }
 
           // Resolve through the response-interceptor stage, so interceptors

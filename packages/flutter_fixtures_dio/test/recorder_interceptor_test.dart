@@ -235,6 +235,10 @@ void main() {
         handler.resolved!.headers.value(RecorderInterceptor.replayedHeader),
         session.interactions.single.recordedAt.toIso8601String(),
       );
+      final origin = ResponseOrigin.of(handler.resolved!);
+      expect(origin, isA<ReplayOrigin>());
+      expect((origin as ReplayOrigin).recordedAt,
+          session.interactions.single.recordedAt);
       expect(handler.callFollowing, isTrue);
     });
 

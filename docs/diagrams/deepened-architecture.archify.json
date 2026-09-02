@@ -1,0 +1,336 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Flutter Fixtures Deepened Seams",
+    "subtitle": "refact/deepen-seams \u2014 one fixture-source seam, one owned pipeline, one statement translation, one recorder choreography",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "serving",
+        "label": "Serving fixtures",
+        "focus": [
+          "app",
+          "fixtures_interceptor",
+          "fixture_db",
+          "pipeline",
+          "source_seam",
+          "file_source",
+          "view"
+        ],
+        "note": "Both transports hold one FixturePipeline and only render Fixture Outcomes; memory lives in the pipeline."
+      },
+      {
+        "id": "sources",
+        "label": "Fixture sources",
+        "focus": [
+          "pipeline",
+          "source_seam",
+          "file_source"
+        ],
+        "note": "One generic seam for every request type; one file-backed adapter parameterized by naming."
+      },
+      {
+        "id": "recording",
+        "label": "Record & replay",
+        "focus": [
+          "app",
+          "recorder_interceptor",
+          "recorder_db",
+          "recorder_seam"
+        ],
+        "note": "TrafficRecorder.run owns the call/return dance; Dio renders the decision by hand."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "app",
+      "type": "external",
+      "label": "Your app",
+      "sublabel": "Dio client + repositories",
+      "pos": [
+        40,
+        320
+      ],
+      "size": [
+        170,
+        64
+      ]
+    },
+    {
+      "id": "recorder_interceptor",
+      "type": "backend",
+      "label": "RecorderInterceptor",
+      "sublabel": "renders ReplayDecision, stamps origin",
+      "pos": [
+        280,
+        120
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "flutter_fixtures_dio"
+    },
+    {
+      "id": "fixtures_interceptor",
+      "type": "backend",
+      "label": "FixturesInterceptor",
+      "sublabel": "renders Fixture Outcome, stamps origin",
+      "pos": [
+        520,
+        120
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "flutter_fixtures_dio"
+    },
+    {
+      "id": "recorder_db",
+      "type": "backend",
+      "label": "RecorderDatabaseAdapter",
+      "sublabel": "one run(): recorder.run(...)",
+      "pos": [
+        280,
+        520
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "flutter_fixtures_sqflite"
+    },
+    {
+      "id": "fixture_db",
+      "type": "backend",
+      "label": "FixtureDatabaseAdapter",
+      "sublabel": "one run(): pipeline.serve(...)",
+      "pos": [
+        520,
+        520
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "flutter_fixtures_sqflite"
+    },
+    {
+      "id": "recorder_seam",
+      "type": "security",
+      "label": "TrafficRecorder",
+      "sublabel": "decide \u00b7 record \u00b7 run",
+      "pos": [
+        280,
+        320
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "flutter_fixtures_core"
+    },
+    {
+      "id": "view",
+      "type": "frontend",
+      "label": "FixturesDialogView",
+      "sublabel": "Selector View",
+      "pos": [
+        520,
+        320
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "flutter_fixtures_ui"
+    },
+    {
+      "id": "pipeline",
+      "type": "backend",
+      "label": "FixturePipeline<TRequest>",
+      "sublabel": "serve: find \u2192 select \u2192 load; owns memory",
+      "pos": [
+        760,
+        320
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "flutter_fixtures_core"
+    },
+    {
+      "id": "source_seam",
+      "type": "security",
+      "label": "FixtureSource<TRequest>",
+      "sublabel": "resolve + data; FixtureSources composite",
+      "pos": [
+        1000,
+        320
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "flutter_fixtures_core"
+    },
+    {
+      "id": "file_source",
+      "type": "database",
+      "label": "FixtureFileSource",
+      "sublabel": "one file IO; naming per domain",
+      "pos": [
+        1240,
+        320
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "tag": "flutter_fixtures_core"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "flutter_fixtures_dio",
+      "wraps": [
+        "recorder_interceptor",
+        "fixtures_interceptor"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "flutter_fixtures_sqflite \u00b7 StatementDatabaseAdapter",
+      "wraps": [
+        "recorder_db",
+        "fixture_db"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "flutter_fixtures_core",
+      "wraps": [
+        "pipeline",
+        "source_seam",
+        "file_source"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "app-http",
+      "from": "app",
+      "to": "recorder_interceptor",
+      "label": "HTTP",
+      "variant": "emphasis"
+    },
+    {
+      "id": "app-sql",
+      "from": "app",
+      "to": "recorder_db",
+      "label": "SQL",
+      "variant": "emphasis"
+    },
+    {
+      "id": "http-chain",
+      "from": "recorder_interceptor",
+      "to": "fixtures_interceptor",
+      "label": "next",
+      "variant": "emphasis"
+    },
+    {
+      "id": "sql-chain",
+      "from": "recorder_db",
+      "to": "fixture_db",
+      "label": "delegate",
+      "variant": "emphasis"
+    },
+    {
+      "id": "http-record",
+      "from": "recorder_interceptor",
+      "to": "recorder_seam",
+      "label": "decide / record",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "sql-record",
+      "from": "recorder_db",
+      "to": "recorder_seam",
+      "label": "run",
+      "variant": "dashed",
+      "labelDy": -30
+    },
+    {
+      "id": "http-serve",
+      "from": "fixtures_interceptor",
+      "to": "pipeline",
+      "label": "serve",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "sql-serve",
+      "from": "fixture_db",
+      "to": "pipeline",
+      "label": "serve",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pick",
+      "from": "pipeline",
+      "to": "view",
+      "label": "pick"
+    },
+    {
+      "id": "resolve",
+      "from": "pipeline",
+      "to": "source_seam",
+      "label": "resolve",
+      "variant": "emphasis"
+    },
+    {
+      "id": "candidates",
+      "from": "source_seam",
+      "to": "file_source",
+      "label": "candidates",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Fixture Pipeline",
+      "items": [
+        "One serve(request) owns source, strategy, view, delay, Selection Memory",
+        "Adapters hold one pipeline and render outcomes",
+        "FixtureMiss is a throwable outcome: no error-text parsing"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "One seam per concept",
+      "items": [
+        "FixtureSource<TRequest>: HTTP and sqflite are aliases",
+        "FixtureFileSource: file IO once, naming per domain",
+        "StatementDatabaseAdapter: nine operations become a statement once",
+        "TrafficRecorder.run: the call/return dance, once"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Read once",
+      "items": [
+        "ResponseOrigin.of: fixture / replayed / live",
+        "DataSelectorDelay: four Duration presets, nothing else",
+        "RecordedSources: source names owned by core"
+      ]
+    }
+  ]
+}
