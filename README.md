@@ -27,7 +27,7 @@ Use it to build screens before the API exists, demo without a network, and repro
 flutter pub add flutter_fixtures
 ```
 
-**2. Register the interceptor** on the Dio instance your app already uses.
+**2. Register the interceptor** on the Dio instance your app already uses. The pipeline is where fixtures come from, how one is chosen, and who asks. Build it once, next to the Dio instance, so remembered choices survive.
 
 ```dart
 import 'package:dio/dio.dart';
@@ -36,9 +36,12 @@ import 'package:flutter_fixtures/flutter_fixtures.dart';
 final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
   ..interceptors.add(
     FixturesInterceptor(
-      dataSelector: DataSelectorType.pick,
-      dataSelectorView: FixturesDialogView(
-        contextProvider: () => navigatorKey.currentContext!,
+      pipeline: FixturePipeline(
+        source: HttpFileFixtureSource(),
+        selector: DataSelectorType.pick,
+        view: FixturesDialogView(
+          contextProvider: () => navigatorKey.currentContext!,
+        ),
       ),
     ),
   );
@@ -81,7 +84,7 @@ final response = await dio.get('/users');
 
 **1. The request becomes a file name.** `GET /users` looks for `GET_users.json`; slashes become underscores. Query values are tried in sorted-key order: `GET_search_2_test.json` for `/search?q=test&page=2`, then wildcards `GET_search_*_*.json` or `GET_search_{{page}}_{{q}}.json`. The first file that exists wins.
 
-**2. Sources are consulted in order.** Fixture files first, then an OpenAPI spec if you add one, then any `HttpFixtureSource` of your own. The first source that resolves the request provides the collection.
+**2. Sources are consulted in order.** Fixture files first, then an OpenAPI spec if you add one, then any `FixtureSource` of your own, combined with `HttpFixtureSources`. The first source that resolves the request provides the collection.
 
 **3. One response is selected.**
 
@@ -91,7 +94,7 @@ final response = await dio.get('/users');
 | `DataSelectorType.random` | Returns any entry at random |
 | `DataSelectorType.pick` | Shows a dialog and returns what you chose. Choices can be remembered per request. |
 
-**4. The answer is delayed, then returned.** Pass `dataSelectorDelay` to test loading states: `instant` (default), `fast` (~100 ms), `moderate` (~500 ms), `slow` (~2 s), or `custom(1500)`.
+**4. The answer is delayed, then returned.** Pass `delay` to the pipeline to test loading states: the presets `DataSelectorDelay.instant` (default), `fast` (~100 ms), `moderate` (~500 ms) and `slow` (~2 s), or any `Duration`.
 
 ### Anatomy of a fixture file
 
@@ -116,9 +119,11 @@ import 'package:flutter_fixtures_sqflite/flutter_fixtures_sqflite.dart';
 
 // Development: answer queries from assets/fixtures/database/
 final db = FixtureDatabaseAdapter(
-  dataQuery: SqfliteDataQuery(),
-  dataSelector: DataSelectorType.pick,
-  dataSelectorView: FixturesDialogView.of(context),
+  pipeline: FixturePipeline(
+    source: SqfliteFileFixtureSource(),
+    selector: DataSelectorType.pick,
+    view: FixturesDialogView.of(context),
+  ),
 );
 
 // Production: the real thing
@@ -139,11 +144,13 @@ If your API ships an OpenAPI 3.x document, drop it in your assets and every docu
 
 ```dart
 FixturesInterceptor(
-  sources: [
-    HttpFileFixtureSource(),
-    OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
-  ],
-  dataSelector: DataSelectorType.pick,
+  pipeline: FixturePipeline(
+    source: HttpFixtureSources([
+      HttpFileFixtureSource(),
+      OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
+    ]),
+    selector: DataSelectorType.pick,
+  ),
 )
 ```
 
@@ -197,10 +204,10 @@ dependencies:
   flutter_fixtures_dio: ^0.3.0      # HTTP via Dio
   flutter_fixtures_ui: ^0.3.0       # the pick dialog
   flutter_fixtures_sqflite: ^0.3.0  # SQLite
-  flutter_fixtures_recorder: ^0.1.0 # record & replay
+  flutter_fixtures_recorder: ^0.3.0 # record & replay
 ```
 
-To support another data source, depend on core alone and implement its interfaces. The [core package](packages/flutter_fixtures_core/README.md) walks through a custom source, and a custom selector UI is one method:
+To support another data source, depend on core alone: every domain shares one `FixtureSource<TRequest>` seam, file-backed sources reuse `FixtureFileSource` with their own naming convention, and a `FixturePipeline` drives it. The [core package](packages/flutter_fixtures_core/README.md) walks through a custom source, and a custom selector UI is one method:
 
 ```dart
 class MySelectorView implements DataSelectorView {

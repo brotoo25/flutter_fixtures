@@ -21,18 +21,28 @@ conventionally starts with a 3-digit status code, exposed as the typed
 
 ## Fixture Outcome
 
-The result of serving one fixture request through the Selection Flow's
-`serve` pipeline (`FixtureOutcome`): not found, empty, cancelled, or
-served (the selected Fixture Document plus its payload). Adapters map
-outcomes to their own domain and error policy — the choreography itself
-lives in one place.
+The result of serving one request through the **Fixture Pipeline**
+(`FixtureOutcome`): served (`FixtureServed`, the selected Fixture Document
+plus its payload) or a **Fixture Miss**. Adapters map outcomes to their
+own domain and error policy — the choreography itself lives in one place.
+
+## Fixture Miss
+
+A request the pipeline could not serve (`FixtureMiss`): not found, empty,
+or cancelled. A miss is both an outcome and an `Exception` carrying its
+own message, so an adapter that fails on a miss throws (or wraps) the
+outcome itself and consumers branch on the case — `FixtureCancelled` —
+never on message text. The Dio adapter rejects with the miss as the
+`DioException.error`; the sqflite adapter degrades not-found and empty to
+the operation's default and throws only on cancel.
 
 ## Sqflite Fixture Source
 
-The seam for providing sqflite fixtures (`SqfliteFixtureSource`): `find`
-takes a database query and returns a Fixture Collection, or `null` when
-the source has none; `data` materializes a document's payload.
-`SqfliteDataQuery` is the built-in file-backed adapter.
+The sqflite-typed **Fixture Source** (`SqfliteFixtureSource`, an alias for
+`FixtureSource<SqfliteQuery>`): `resolve` takes a statement and returns a
+Fixture Collection, or `null` when the source has none. The built-in
+adapter is `SqfliteFileFixtureSource` — core's file source with the sqflite
+naming convention.
 
 Statement identity is one model: `SqfliteQuery` carries every field a
 `DatabaseAdapter` operation takes, with two projections —
@@ -42,20 +52,36 @@ canonical JSON for record & replay, so differing arguments never match).
 
 ## Fixture Source
 
-The core module owning fixture-file IO (`FixtureSource`): tries candidate
-file names in order, decodes JSON, loads document payloads. Consumers only
-build candidate names for their domain and delegate here — the HTTP File
-Source for HTTP requests, the sqflite Data Query for database queries.
-A missing candidate is skipped; a matched candidate with malformed JSON
-fails loudly.
+The seam for providing fixtures for one kind of request
+(`FixtureSource<TRequest>`, core): `resolve` turns a domain request into a
+Fixture Collection — or `null` when the source has none — and `data`
+materializes a document's payload. One seam serves every domain; the
+request type is the only thing that varies (`HttpFixtureRequest`,
+`SqfliteQuery`, anything custom). Sources build model objects — the wire
+format belongs to the Fixture Collection and Fixture Document alone.
+
+Precedence is owned by the composite `FixtureSources` (itself a Fixture
+Source): sources are consulted in order, the first that resolves wins,
+and that source alone provides the selected document's payload. Documents
+are routed back to their resolving source by identity, so sources hand out
+their own document instances.
+
+## Fixture File Source
+
+The one file-backed adapter (`FixtureFileSource<TRequest>`, core), owning
+fixture-file IO for every domain: tries candidate file names in order,
+decodes JSON, loads document payloads. A missing candidate is skipped; a
+matched candidate with malformed JSON fails loudly. A domain contributes
+only its **naming convention** — a function from request to ordered
+candidate names — so `HttpFileFixtureSource` and
+`SqfliteFileFixtureSource` are exactly that and nothing more.
 
 ## HTTP Fixture Source
 
-The seam for providing HTTP fixtures (`HttpFixtureSource`): `resolve` takes
-an `HttpFixtureRequest` (method, path, query parameters) and returns a
-Fixture Collection, or `null` when the source has none; `data` materializes
-a document's payload. Sources build model objects — the wire format belongs
-to the Fixture Collection and Fixture Document alone.
+The HTTP-typed **Fixture Source** (`HttpFixtureSource`, an alias for
+`FixtureSource<HttpFixtureRequest>`): `resolve` takes an
+`HttpFixtureRequest` (method, path, query parameters) and returns a
+Fixture Collection, or `null` when the source has none.
 
 Request normalization is owned by `HttpFixtureRequest.fromUri`, the
 canonical constructor HTTP adapters use: scheme and host dropped, the URL's
@@ -64,11 +90,10 @@ and never compensate for raw request fields. `canonicalTarget` renders the
 normalized request as one escaped, sorted string — the HTTP identity used
 by record & replay, identical whichever HTTP client built the request.
 
-Precedence is owned by the composite `HttpFixtureSources` (itself an HTTP
-Fixture Source): sources are consulted in order, the first that resolves
-wins, and that source alone provides the selected document's payload.
-Built-ins: `HttpFileFixtureSource` (fixture files, owning the HTTP file
-naming convention) and `OpenApiFixtureSource`.
+Built-ins: `HttpFileFixtureSource` (the Fixture File Source with the HTTP
+naming convention, `HttpFileFixtureSource.candidateNames`) and
+`OpenApiFixtureSource`; `HttpFixtureSources` is the composite, typed for
+HTTP.
 
 ## OpenAPI Source
 
@@ -92,16 +117,18 @@ The IO seam under Fixture Source (`FixtureAssetLoader`): how fixture file
 content is read. `BundleAssetLoader` (root asset bundle) in production;
 in-memory fakes in tests.
 
-## Selection Flow
+## Fixture Pipeline
 
-The behavior behind `FixtureSelector.select`, owned entirely by core:
-strategy dispatch (`DataSelectorType`: pick / defaultValue / random),
-auto-selecting single-option collections, Selection Memory (read and
-write), single-flight deduplication of concurrent interactive picks, and
-response delays (`DataSelectorDelay`). Its state is scoped to the
-mixing-in instance and keyed by one collection signature. `serve` runs
-the full pipeline — find, select, load payload — and reports a Fixture
-Outcome.
+The module behind `FixturePipeline<TRequest>.serve` (core): everything
+between "here is a request" and "here is the payload", owned entirely in
+one place — find the collection through the pipeline's **Fixture
+Source**, select a document (strategy dispatch via `DataSelectorType`:
+pick / defaultValue / random, auto-selecting single-option collections,
+Selection Memory read and write, single-flight deduplication of concurrent
+interactive picks, response delays), load the payload, and report a
+**Fixture Outcome**. A transport adapter holds one pipeline and only
+renders outcomes in its native types; the pipeline's constructor is the
+whole configuration surface (source, selector, view, delay).
 
 ## Selector View
 
@@ -119,10 +146,12 @@ it is never silently converted into a selection.
 
 ## Selection Memory
 
-The runtime-only store of remembered choices, owned by the Selection Flow
-and scoped to a selector instance. Written when a Fixture Choice asks to
+The runtime-only store of remembered choices, owned by the Fixture
+Pipeline and scoped to a pipeline instance — build the pipeline once, for
+the lifetime you want choices remembered, and hand the same instance to
+the adapter. Written when a Fixture Choice asks to
 be remembered; cleared via `clearRememberedSelectionFor` /
-`clearRememberedSelections` on the selector.
+`clearRememberedSelections` on the pipeline.
 
 ## Traffic Recorder
 
@@ -135,6 +164,16 @@ contract only (`RecorderInterceptor` in flutter_fixtures_dio,
 `RecorderDatabaseAdapter` in flutter_fixtures_sqflite), so they never
 depend on the recorder engine. All heavy lifting sits behind the seam in
 the **Fixture Recorder**.
+
+For call/return sources — one call, one result: a database statement, a
+cache lookup — the whole choreography (describe lazily, decide, serve a
+replay, throw a rejection, run live then record) is owned once by
+`TrafficRecorder.run`; an adapter supplies only its description, its live
+call, and how a recorded response decodes. `RecorderDatabaseAdapter` is one
+`run` call; only transports that split request and response stages (Dio)
+render the decision by hand. Source names (`RecordedSources.http`,
+`RecordedSources.sqlite`) are core's constants, so every adapter's
+sessions agree on them.
 
 ## Fixture Recorder
 
@@ -216,6 +255,18 @@ Replay Decision. Progress is the engine's knowledge, not a UI's:
 Recorder as `replayedCount` / `replayServeOrder`, which notifies on every
 hit) — nothing outside the engine re-derives keys or cursors.
 
+## Response Origin
+
+Where a Dio response came from (`ResponseOrigin`, flutter_fixtures_dio),
+stamped by the package's interceptors and read once through
+`ResponseOrigin.of(response)`: `FixtureOrigin` (the served Fixture
+Document's identifier and external file path, from `FixturesInterceptor`'s
+`x-fixture-document` / `x-fixture-file-path` headers), `ReplayOrigin` (the
+capture time, from `RecorderInterceptor`'s `x-fixture-replayed` header), or
+`LiveOrigin`. Requests that never produced a response carry their case in
+`DioException.error` (a **Fixture Miss**, a replay rejection) — consumers
+never parse header strings or error text.
+
 ## Recorder Toolbar
 
 The built-in recorder UI (`RecorderToolbar`, the sessions sheet, and the
@@ -228,3 +279,15 @@ the same public API and can reuse the prompt and the sheet as-is.
 The sqflite-shaped consumer seam (`DatabaseAdapter`), mirroring sqflite's
 `Database` API so repositories swap between `RealDatabaseAdapter`
 (production) and `FixtureDatabaseAdapter` (fixtures) with no code changes.
+
+## Statement Database Adapter
+
+The one place the nine sqflite-shaped operations become a statement
+(`StatementDatabaseAdapter`): the base every built-in Database Adapter
+extends, translating each call into a `SqfliteQuery` once and handing it
+to a single `run(statement)`. `RealDatabaseAdapter` dispatches the
+statement to sqflite, `FixtureDatabaseAdapter` serves it through the
+Fixture Pipeline, `RecorderDatabaseAdapter` wraps an inner statement
+adapter with decide/record — each is one `run`, and so is a custom
+adapter. Results are normalized back to sqflite's return shapes in the
+base (`decodeRows` also restores rows that crossed a JSON round trip).

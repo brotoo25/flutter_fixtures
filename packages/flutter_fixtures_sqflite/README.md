@@ -19,9 +19,13 @@ This package provides a fixture-backed `DatabaseAdapter` for SQLite, allowing yo
 
 A drop-in replacement for sqflite's `Database` that returns fixture data. Provides the same familiar API (`query`, `insert`, `update`, `delete`) so you can swap between fixture and real databases easily.
 
-### SqfliteDataQuery
+### SqfliteFileFixtureSource
 
-The file-backed `SqfliteFixtureSource`: loads fixture files from your app's assets and returns them as fixture collections. Implement `SqfliteFixtureSource` yourself to provide fixtures from anywhere else.
+The file-backed `SqfliteFixtureSource` (core's `FixtureSource<SqfliteQuery>`): loads fixture files from your app's assets and returns them as fixture collections. Implement `FixtureSource<SqfliteQuery>` yourself to provide fixtures from anywhere else.
+
+### StatementDatabaseAdapter
+
+The base every adapter extends: the nine sqflite-shaped operations are translated into a `SqfliteQuery` statement once, and an adapter implements a single `run(statement)`. `RealDatabaseAdapter`, `FixtureDatabaseAdapter` and `RecorderDatabaseAdapter` are each one `run`; so is a custom adapter (a canned-rows fake, a logging decorator).
 
 ### SqfliteQuery
 
@@ -85,16 +89,18 @@ assets/
 
 ### Using FixtureDatabase (Recommended)
 
-Use `FixtureDatabase` as a drop-in replacement for sqflite's `Database`:
+Use `FixtureDatabaseAdapter` as a drop-in replacement for sqflite's `Database`:
 
 ```dart
 import 'package:flutter_fixtures_sqflite/flutter_fixtures_sqflite.dart';
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
 // Create a fixture database (same API as sqflite's Database)
-final db = FixtureDatabase(
-  dataQuery: SqfliteDataQuery(),
-  dataSelector: DataSelectorType.defaultValue,
+final db = FixtureDatabaseAdapter(
+  pipeline: FixturePipeline(
+    source: SqfliteFileFixtureSource(),
+    selector: DataSelectorType.defaultValue,
+  ),
 );
 
 // Query just like a real sqflite database!
@@ -114,11 +120,14 @@ await db.delete('users', where: 'id = ?');
 add it to your dev dependencies alongside this one.
 
 ```dart
-final db = FixtureDatabase(
-  dataQuery: SqfliteDataQuery(),
-  dataSelector: DataSelectorType.pick,
-  dataSelectorView: FixturesDialogView.of(context),
-  delay: DataSelectorDelay.fast,
+// Build the pipeline once, for the lifetime you want choices remembered.
+final db = FixtureDatabaseAdapter(
+  pipeline: FixturePipeline(
+    source: SqfliteFileFixtureSource(),
+    selector: DataSelectorType.pick,
+    view: FixturesDialogView.of(context),
+    delay: DataSelectorDelay.fast,
+  ),
 );
 
 // When querying, a dialog will let you pick which fixture to return
@@ -127,10 +136,10 @@ final users = await db.query('users');
 
 ### Low-Level API
 
-For more control, use `SqfliteDataQuery` directly:
+For more control, use `SqfliteFileFixtureSource` directly:
 
 ```dart
-final dataQuery = SqfliteDataQuery();
+final dataQuery = SqfliteFileFixtureSource();
 
 // Create a query
 final query = SqfliteQuery.table(
@@ -139,7 +148,7 @@ final query = SqfliteQuery.table(
 );
 
 // Find and parse fixtures
-final fixtureData = await dataQuery.find(query);
+final collection = await source.resolve(query);
 if (fixtureData != null) {
   final collection = await dataQuery.parse(fixtureData);
   final selected = await dataQuery.select(

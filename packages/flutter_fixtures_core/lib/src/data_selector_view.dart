@@ -8,7 +8,7 @@ import 'fixture_collection.dart';
 ///
 /// Implementations only present options and report the user's answer.
 /// Remembering choices, deduplicating concurrent requests, and applying
-/// delays are handled by the selection logic in core ([FixtureSelector]),
+/// delays are handled by the selection logic in core ([FixturePipeline]),
 /// so custom views get those behaviors for free.
 abstract class DataSelectorView {
   /// Show a UI for picking a fixture from the collection

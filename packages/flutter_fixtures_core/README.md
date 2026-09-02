@@ -17,7 +17,7 @@ This package defines the core contracts and data models used by all Flutter Fixt
 ### Interfaces
 
 - **`DataSelectorView`**: Interface for fixture selection components
-- **`FixtureSelector`**: Mixin owning the selection flow — strategy dispatch, remembered choices, pick deduplication, delays — and the `serve` pipeline (find → select → data), reported as a `FixtureOutcome`
+- **`FixturePipeline`**: The module owning the whole serve flow — source lookup, strategy dispatch, remembered choices, pick deduplication, delays — behind one `serve` call, delays — and the `serve` pipeline (find → select → data), reported as a `FixtureOutcome`
 
 ### Data Models
 
@@ -28,6 +28,7 @@ This package defines the core contracts and data models used by all Flutter Fixt
 
 - **`FixtureSource`**: Fixture-file IO — candidate resolution, JSON decoding, payload loading
 - **`HttpFixtureSource`**: Seam for providing HTTP fixtures; adapters consult an ordered list of sources per `HttpFixtureRequest`
+- **`FixtureSource<TRequest>`** / **`FixtureFileSource`**: The fixture-source seam for any request type, and the one file-backed adapter every domain reuses through its naming convention
 - **`HttpFileFixtureSource`**: The file-backed source — maps a request to fixture-file candidates and delegates to `FixtureSource`
 - **`OpenApiFixtureSource`**: The OpenAPI-backed source — a 3.x JSON document's response documentation and payload examples become fixtures
 - **`FixtureAssetLoader`**: Seam for reading fixture assets (`BundleAssetLoader` in production)
@@ -41,7 +42,7 @@ This package defines the core contracts and data models used by all Flutter Fixt
 
 ### Response Delays
 
-- **`DataSelectorDelay`**: Class for simulating response delays
+- **`DataSelectorDelay`**: Named `Duration` presets for simulating response delays
   - `instant`: No delay (0ms)
   - `fast`: Fast response (~100ms)
   - `moderate`: Moderate response (~500ms)
@@ -60,66 +61,55 @@ dependencies:
 ## 🛠️ Creating Custom Fixture Providers
 
 A fixture provider is a **source**: something that turns a domain request
-into a `FixtureCollection` and materializes a document's payload. HTTP
-sources implement `HttpFixtureSource` (see `HttpFileFixtureSource` and
-`OpenApiFixtureSource` for the built-ins); for any other domain, define a
-seam of the same shape and drive it with `FixtureSelector.serve`:
+into a `FixtureCollection` and materializes a document's payload. Every
+domain shares one seam, `FixtureSource<TRequest>`, typed by its request
+model (`HttpFixtureSource` and `SqfliteFixtureSource` are aliases). For
+fixture files, the built-in `FixtureFileSource` does all the IO — a domain
+contributes only its naming convention:
 
 ```dart
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
-/// The seam: your domain request in, model objects out.
-abstract class CacheFixtureSource {
-  Future<FixtureCollection?> find(String cacheKey);
-  Future<Object?> data(FixtureDocument document);
+/// A file-backed source for a cache domain: the request is a cache key.
+class CacheFixtureSource extends FixtureFileSource<String> {
+  CacheFixtureSource({String mockFolder = 'assets/fixtures/cache'})
+      : super(mockFolder: mockFolder, candidates: (key) => ['$key.json']);
 }
 
-/// A file-backed adapter built on core's fixture-file IO.
-class FileCacheFixtureSource implements CacheFixtureSource {
-  FileCacheFixtureSource({String mockFolder = 'assets/fixtures/cache'})
-      : _source = FixtureSource(mockFolder: mockFolder);
+/// The consumer holds one pipeline and renders outcomes for its domain.
+class FixtureCache {
+  FixtureCache({required this.pipeline});
 
-  final FixtureSource _source;
-
-  @override
-  Future<FixtureCollection?> find(String cacheKey) async {
-    final json = await _source.resolve(['$cacheKey.json']);
-    return json == null ? null : FixtureCollection.fromJson(json);
-  }
-
-  @override
-  Future<Object?> data(FixtureDocument document) => _source.data(document);
-}
-
-/// The consumer mixes in FixtureSelector and runs the pipeline.
-class FixtureCache with FixtureSelector {
-  FixtureCache({required this.source, required this.selector, this.view});
-
-  final CacheFixtureSource source;
-  final DataSelectorType selector;
-  final DataSelectorView? view;
+  final FixturePipeline<String> pipeline;
 
   Future<Object?> read(String cacheKey) async {
-    final outcome = await serve(
-      find: () => source.find(cacheKey),
-      data: source.data,
-      view: view,
-      selector: selector,
-    );
-    // Map the outcome to your domain's defaults and error policy.
-    return outcome is FixtureServed ? outcome.payload : null;
+    return switch (await pipeline.serve(cacheKey)) {
+      FixtureServed(:final payload) => payload,
+      FixtureCancelled cancelled => throw cancelled,
+      FixtureMiss() => null, // your domain's default
+    };
   }
 }
+
+final cache = FixtureCache(
+  pipeline: FixturePipeline(
+    source: CacheFixtureSource(),
+    selector: DataSelectorType.pick,
+    view: myView,
+  ),
+);
 ```
 
-`serve` owns the find → select → data choreography and returns a
-`FixtureOutcome`: `FixtureNotFound`, `FixtureEmpty`, `FixtureCancelled`, or
-`FixtureServed` (the selected document plus its payload). Remembered
-choices, pick deduplication, and delays come with the mixin for free.
+`FixturePipeline.serve` owns the find → select → load choreography and
+returns a `FixtureOutcome`: `FixtureServed` (the selected document plus its
+payload) or a `FixtureMiss` — `FixtureNotFound`, `FixtureEmpty`,
+`FixtureCancelled` — which is also an `Exception`, so adapters throw the
+outcome itself. Remembered choices, pick deduplication, and delays live in
+the pipeline; build it once for the lifetime you want choices remembered.
 
 ## ⏱️ Simulating Response Delays
 
-Use `DataSelectorDelay` to simulate network latency or other delays:
+Delays are plain `Duration`s; `DataSelectorDelay` names four presets:
 
 ```dart
 // Use predefined delays
@@ -135,7 +125,7 @@ await selector.select(
   fixture,
   view,
   DataSelectorType.random,
-  delay: DataSelectorDelay.custom(1500), // 1.5 second delay
+  delay: const Duration(milliseconds: 1500), // 1.5 second delay
 );
 
 // Default is instant (no delay)
@@ -153,7 +143,7 @@ await selector.select(
 - **`DataSelectorDelay.fast`** - Fast response (~100ms, comparable to fast 4G/5G)
 - **`DataSelectorDelay.moderate`** - Moderate response (~500ms, comparable to 3G)
 - **`DataSelectorDelay.slow`** - Slow response (~2000ms, comparable to 2G/EDGE)
-- **`DataSelectorDelay.custom(ms)`** - Custom delay with specified milliseconds
+- **any `Duration`** - Custom delay, e.g. `Duration(milliseconds: 1500)`
 
 ## 📋 Data Model Reference
 

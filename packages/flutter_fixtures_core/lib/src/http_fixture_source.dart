@@ -1,5 +1,6 @@
 import 'fixture_collection.dart';
-import 'fixture_document.dart';
+import 'fixture_source.dart';
+import 'fixture_sources.dart';
 
 /// The HTTP request shape fixture sources resolve against.
 ///
@@ -61,18 +62,13 @@ class HttpFixtureRequest {
   }
 }
 
-/// Seam for providing HTTP fixtures.
+/// The HTTP-typed [FixtureSource]: `resolve` takes an [HttpFixtureRequest]
+/// and returns a [FixtureCollection], or `null` when the source has none.
 ///
-/// Implementations turn a request into a [FixtureCollection] — from fixture
-/// files (`HttpFileFixtureSource`), an OpenAPI spec (`OpenApiFixtureSource`),
-/// a Postman collection, or any custom format. HTTP adapters consult an
-/// ordered list of sources; the first one that resolves wins.
-abstract class HttpFixtureSource {
-  /// Returns the fixture collection for [request], or `null` when this
-  /// source has no fixture for it.
-  Future<FixtureCollection?> resolve(HttpFixtureRequest request);
+/// Built-ins: `HttpFileFixtureSource` (fixture files) and
+/// `OpenApiFixtureSource` (fixtures derived from an OpenAPI document);
+/// `HttpFixtureSources` composes several in precedence order.
+typedef HttpFixtureSource = FixtureSource<HttpFixtureRequest>;
 
-  /// Returns a document's payload, or `null` when this source cannot
-  /// provide it.
-  Future<Object?> data(FixtureDocument document);
-}
+/// The ordered composite of HTTP sources — see [FixtureSources].
+typedef HttpFixtureSources = FixtureSources<HttpFixtureRequest>;

@@ -1,55 +1,28 @@
-import 'fixture_asset_loader.dart';
-import 'fixture_collection.dart';
-import 'fixture_document.dart';
 import 'fixture_source.dart';
 import 'http_fixture_source.dart';
 
-/// The [HttpFixtureSource] backed by fixture files.
+/// The file-backed HTTP fixture source: core's [FixtureFileSource] with the
+/// HTTP file naming convention.
 ///
-/// Maps a request to fixture-file candidates and delegates loading to
-/// [FixtureSource].
+/// This class owns exactly one thing — how an HTTP request maps to fixture
+/// file names ([candidateNames]); file IO belongs to [FixtureFileSource].
+/// Candidates, most specific first:
 ///
-/// ## File Naming Convention
-///
-/// The base name is `{METHOD}{PATH}` with `/` replaced by `_`
-/// (e.g. `GET_users.json` for `GET /users`). For requests with query
-/// parameters, candidates are tried in this order (query values are ordered
-/// by sorted key name, not URL order):
-///
-/// 1. Exact, ignoring query params: `GET_search.json`
-/// 2. Values appended: `GET_search_2_foo.json`
-/// 3. Literal `*` per value: `GET_search_*_*.json`
-/// 4. `{{key}}` per sorted key: `GET_search_{{page}}_{{q}}.json`
-///
-/// The `*` and `{{key}}` forms are literal file names, not globs — they
-/// match any values with the same arity.
-class HttpFileFixtureSource implements HttpFixtureSource {
-  /// The folder where fixture files are stored.
-  final String mockFolder;
-
-  final FixtureSource _source;
-
-  /// [assetLoader] substitutes how fixture files are read; it defaults to
-  /// the root asset bundle.
+/// 1. `{METHOD}_{path}.json` — exact path, query ignored
+///    (`GET_users.json`);
+/// 2. `{METHOD}_{path}_{values}.json` — query values appended, sorted by
+///    key (`GET_search_2_test.json` for `?q=test&page=2`);
+/// 3. `{METHOD}_{path}_*_*.json` — one wildcard per query value;
+/// 4. `{METHOD}_{path}_{{key}}_{{key}}.json` — mustache placeholders named
+///    by the sorted query keys.
+class HttpFileFixtureSource extends FixtureFileSource<HttpFixtureRequest> {
   HttpFileFixtureSource({
-    this.mockFolder = 'assets/fixtures',
-    FixtureAssetLoader assetLoader = const BundleAssetLoader(),
-  }) : _source =
-            FixtureSource(mockFolder: mockFolder, assetLoader: assetLoader);
+    super.mockFolder = 'assets/fixtures',
+    super.assetLoader,
+  }) : super(candidates: candidateNames);
 
-  @override
-  Future<FixtureCollection?> resolve(HttpFixtureRequest request) async {
-    final json = await _source.resolve(_candidateNames(request));
-    return json == null ? null : FixtureCollection.fromJson(json);
-  }
-
-  @override
-  Future<Object?> data(FixtureDocument document) {
-    return _source.data(document);
-  }
-
-  /// Builds the ordered fixture-file candidates for a request.
-  List<String> _candidateNames(HttpFixtureRequest request) {
+  /// The HTTP fixture-file naming convention, as an ordered candidate list.
+  static List<String> candidateNames(HttpFixtureRequest request) {
     // Base file name from method and path (slashes replaced by underscores)
     final base = '${request.method}${request.path.replaceAll('/', '_')}';
 
