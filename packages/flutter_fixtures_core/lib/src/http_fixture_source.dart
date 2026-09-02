@@ -38,6 +38,27 @@ class HttpFixtureRequest {
       },
     );
   }
+
+  /// The canonical string rendering of this request's identity:
+  /// `path?key=value&key=value`, pairs sorted by key then value, both
+  /// escaped.
+  ///
+  /// One request always produces one target, whichever HTTP client built
+  /// it and however that client ordered its query parameters — so recorded
+  /// sessions match across adapters. Escaping keeps distinct requests
+  /// distinct (`?a=1&a=2` never collides with `?a=1%2C2`).
+  String get canonicalTarget {
+    final pairs = <String>[];
+    for (final entry in queryParameters.entries) {
+      final values = entry.value is List ? entry.value as List : [entry.value];
+      for (final value in values) {
+        pairs.add('${Uri.encodeQueryComponent(entry.key)}='
+            '${Uri.encodeQueryComponent('${value ?? ''}')}');
+      }
+    }
+    pairs.sort();
+    return pairs.isEmpty ? path : '$path?${pairs.join('&')}';
+  }
 }
 
 /// Seam for providing HTTP fixtures.

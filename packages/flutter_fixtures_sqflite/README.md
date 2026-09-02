@@ -176,3 +176,22 @@ Files should be named based on the query operation and table:
 
 MIT License - see [LICENSE](LICENSE) for details.
 
+
+## Record & replay
+
+This package also ships `RecorderDatabaseAdapter`, a record & replay
+decorator over any `DatabaseAdapter`: capture real query results and
+mutations while exercising the app, then replay them later in recorded
+order — without touching the database. The engine and UI tools live in
+[`flutter_fixtures_recorder`](../flutter_fixtures_recorder); this
+adapter only talks to the thin `TrafficRecorder` seam in core.
+
+```dart
+final db = RecorderDatabaseAdapter(
+  inner: RealDatabaseAdapter(await openDatabase("app.db")),
+  recorder: recorder,
+);
+```
+
+See the recorder package README for sessions, storage, and ordering
+semantics.

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+* New `RecorderDatabaseAdapter`: a record-and-replay decorator over any
+  `DatabaseAdapter`, capturing reads and mutations through core's
+  `TrafficRecorder` seam (engine: `flutter_fixtures_recorder`). A
+  replayed `insert` returns the recorded row id without writing anywhere.
+  Statements are described and encoded lazily, so idle traffic costs
+  nothing.
+* `SqfliteQuery` is now the single statement-identity model: it carries
+  every `DatabaseAdapter` field (arguments, values, modifiers) with two
+  projections — `fixtureCandidates` (lossy fixture-file names, unchanged
+  for table operations) and `recordingTarget` (total canonical JSON for
+  record & replay). `SqfliteOperation` covers all eleven operations.
+* **BREAKING**: raw writes and `execute` now use their own operation in
+  fixture file names — `rawInsert_*`, `rawUpdate_*`, `rawDelete_*`,
+  `execute_*` instead of collapsing to `rawQuery_*`. Rename affected
+  fixture files.
+
 * **BREAKING**: `SqfliteDataQuery` implements the new `SqfliteFixtureSource`
   seam (`find` returns a `FixtureCollection`, `data` returns the payload
   as-is): `parse` is gone (the wire format lives in core's models), list

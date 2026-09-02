@@ -2,6 +2,22 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('canonicalTarget keeps distinct requests distinct', () {
+    String target(String url) =>
+        HttpFixtureRequest.fromUri('GET', Uri.parse(url)).canonicalTarget;
+
+    test('an escaped comma in one value is not two values', () {
+      expect(target('/s?q=a%2Cb'), '/s?q=a%2Cb');
+      expect(target('/s?q=a&q=b'), '/s?q=a&q=b');
+      expect(target('/s?q=a%2Cb'), isNot(target('/s?q=a&q=b')));
+    });
+
+    test('an escaped ampersand or equals in a value stays escaped', () {
+      expect(target('/s?q=a%26b%3Dc'), '/s?q=a%26b%3Dc');
+      expect(target('/s?q=a%26b%3Dc'), isNot(target('/s?q=a&b=c')));
+    });
+  });
+
   group('HttpFixtureRequest.fromUri', () {
     test('drops scheme and host from an absolute URL', () {
       final request = HttpFixtureRequest.fromUri(
@@ -35,6 +51,34 @@ void main() {
     test('a relative path stays as-is', () {
       final request = HttpFixtureRequest.fromUri('GET', Uri.parse('/users'));
       expect(request.path, '/users');
+    });
+  });
+
+  group('canonicalTarget', () {
+    test('renders path plus sorted, escaped query pairs', () {
+      final request = HttpFixtureRequest.fromUri(
+          'GET', Uri.parse('/search?q=hello world&page=2'));
+      expect(request.canonicalTarget, '/search?page=2&q=hello+world');
+    });
+
+    test('is independent of query parameter order', () {
+      final ab = HttpFixtureRequest.fromUri('GET', Uri.parse('/u?a=1&b=2'));
+      final ba = HttpFixtureRequest.fromUri('GET', Uri.parse('/u?b=2&a=1'));
+      expect(ab.canonicalTarget, ba.canonicalTarget);
+    });
+
+    test('keeps distinct requests distinct through escaping', () {
+      final repeated =
+          HttpFixtureRequest.fromUri('GET', Uri.parse('/u?a=1&a=2'));
+      final literal =
+          HttpFixtureRequest.fromUri('GET', Uri.parse('/u?a=1%2C2'));
+      expect(repeated.canonicalTarget, isNot(literal.canonicalTarget));
+    });
+
+    test('a query-less request is just the path', () {
+      final request = HttpFixtureRequest.fromUri(
+          'GET', Uri.parse('https://api.test/users'));
+      expect(request.canonicalTarget, '/users');
     });
   });
 

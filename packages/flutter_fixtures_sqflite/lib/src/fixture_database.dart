@@ -85,11 +85,20 @@ class FixtureDatabaseAdapter with FixtureSelector implements DatabaseAdapter {
     int? limit,
     int? offset,
   }) async {
+    // The statement carries full fidelity; fixture matching stays
+    // deliberately lossy through its fixtureCandidates projection.
     final query = SqfliteQuery.table(
       table: table,
       operation: SqfliteOperation.query,
       where: where,
       columns: columns,
+      arguments: whereArgs,
+      distinct: distinct,
+      groupBy: groupBy,
+      having: having,
+      orderBy: orderBy,
+      limit: limit,
+      offset: offset,
     );
 
     return _executeQuery(query);
@@ -100,7 +109,7 @@ class FixtureDatabaseAdapter with FixtureSelector implements DatabaseAdapter {
     String sql, [
     List<Object?>? arguments,
   ]) async {
-    final query = SqfliteQuery.raw(sql: sql);
+    final query = SqfliteQuery.raw(sql: sql, arguments: arguments);
     return _executeQuery(query);
   }
 
@@ -112,7 +121,13 @@ class FixtureDatabaseAdapter with FixtureSelector implements DatabaseAdapter {
     sqflite.ConflictAlgorithm? conflictAlgorithm,
   }) {
     return _executeWrite(
-      SqfliteQuery.table(table: table, operation: SqfliteOperation.insert),
+      SqfliteQuery.table(
+        table: table,
+        operation: SqfliteOperation.insert,
+        values: values,
+        nullColumnHack: nullColumnHack,
+        conflictAlgorithm: conflictAlgorithm?.name,
+      ),
       resultKey: 'insertId',
     );
   }
@@ -127,7 +142,13 @@ class FixtureDatabaseAdapter with FixtureSelector implements DatabaseAdapter {
   }) {
     return _executeWrite(
       SqfliteQuery.table(
-          table: table, operation: SqfliteOperation.update, where: where),
+        table: table,
+        operation: SqfliteOperation.update,
+        where: where,
+        arguments: whereArgs,
+        values: values,
+        conflictAlgorithm: conflictAlgorithm?.name,
+      ),
       resultKey: 'affectedRows',
     );
   }
@@ -140,30 +161,53 @@ class FixtureDatabaseAdapter with FixtureSelector implements DatabaseAdapter {
   }) {
     return _executeWrite(
       SqfliteQuery.table(
-          table: table, operation: SqfliteOperation.delete, where: where),
+        table: table,
+        operation: SqfliteOperation.delete,
+        where: where,
+        arguments: whereArgs,
+      ),
       resultKey: 'affectedRows',
     );
   }
 
   @override
   Future<int> rawInsert(String sql, [List<Object?>? arguments]) {
-    return _executeWrite(SqfliteQuery.raw(sql: sql), resultKey: 'insertId');
+    return _executeWrite(
+      SqfliteQuery.raw(
+          sql: sql,
+          operation: SqfliteOperation.rawInsert,
+          arguments: arguments),
+      resultKey: 'insertId',
+    );
   }
 
   @override
   Future<int> rawUpdate(String sql, [List<Object?>? arguments]) {
-    return _executeWrite(SqfliteQuery.raw(sql: sql), resultKey: 'affectedRows');
+    return _executeWrite(
+      SqfliteQuery.raw(
+          sql: sql,
+          operation: SqfliteOperation.rawUpdate,
+          arguments: arguments),
+      resultKey: 'affectedRows',
+    );
   }
 
   @override
   Future<int> rawDelete(String sql, [List<Object?>? arguments]) {
-    return _executeWrite(SqfliteQuery.raw(sql: sql), resultKey: 'affectedRows');
+    return _executeWrite(
+      SqfliteQuery.raw(
+          sql: sql,
+          operation: SqfliteOperation.rawDelete,
+          arguments: arguments),
+      resultKey: 'affectedRows',
+    );
   }
 
   @override
   Future<void> execute(String sql, [List<Object?>? arguments]) async {
     // For DDL statements, just load fixture if available
-    await _payloadFor(SqfliteQuery.raw(sql: sql));
+    await _payloadFor(SqfliteQuery.raw(
+        sql: sql, operation: SqfliteOperation.execute, arguments: arguments));
   }
 
   /// Runs the core fixture pipeline for [query].

@@ -1,0 +1,300 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Flutter Fixtures Record & Replay",
+    "subtitle": "feat/record-replay \u2014 transport adapters, the core seam, and the recorder engine",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "http-path",
+        "label": "HTTP path",
+        "focus": [
+          "app",
+          "dio_rec",
+          "http_source",
+          "seam"
+        ],
+        "note": "RecorderInterceptor asks the seam per request and forwards on idle or miss."
+      },
+      {
+        "id": "db-path",
+        "label": "Database path",
+        "focus": [
+          "app",
+          "sqflite_rec",
+          "sqlite",
+          "seam"
+        ],
+        "note": "RecorderDatabaseAdapter decorates any DatabaseAdapter the same way."
+      },
+      {
+        "id": "engine",
+        "label": "Recorder engine",
+        "focus": [
+          "seam",
+          "engine",
+          "replay",
+          "store",
+          "ui"
+        ],
+        "note": "FixtureRecorder is the one implementation of the seam; UI and persistence hang off it."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "app",
+      "type": "external",
+      "label": "Your app",
+      "sublabel": "Dio client + repositories",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "dio_rec",
+      "type": "backend",
+      "label": "RecorderInterceptor",
+      "sublabel": "Dio interceptor",
+      "pos": [
+        280,
+        160
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "tag": "flutter_fixtures_dio"
+    },
+    {
+      "id": "http_source",
+      "type": "external",
+      "label": "Real HTTP source",
+      "sublabel": "network, or FixturesInterceptor",
+      "pos": [
+        280,
+        20
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "sqflite_rec",
+      "type": "backend",
+      "label": "RecorderDatabaseAdapter",
+      "sublabel": "DatabaseAdapter decorator",
+      "pos": [
+        280,
+        460
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "tag": "flutter_fixtures_sqflite"
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "Inner adapter",
+      "sublabel": "real sqflite database",
+      "pos": [
+        280,
+        620
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "seam",
+      "type": "security",
+      "label": "TrafficRecorder",
+      "sublabel": "decide() + record()",
+      "pos": [
+        520,
+        300
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "tag": "flutter_fixtures_core"
+    },
+    {
+      "id": "engine",
+      "type": "backend",
+      "label": "FixtureRecorder",
+      "sublabel": "idle / recording / replaying",
+      "pos": [
+        780,
+        300
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "tag": "ChangeNotifier"
+    },
+    {
+      "id": "replay",
+      "type": "backend",
+      "label": "SessionReplay",
+      "sublabel": "per-key cursors, serve order",
+      "pos": [
+        1040,
+        200
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "RecordingSessionStore",
+      "sublabel": "file (JSON) or memory",
+      "pos": [
+        1040,
+        400
+      ],
+      "size": [
+        160,
+        64
+      ]
+    },
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Recorder UI",
+      "sublabel": "toolbar, sessions sheet, save prompt",
+      "pos": [
+        780,
+        500
+      ],
+      "size": [
+        160,
+        64
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "flutter_fixtures_recorder",
+      "wraps": [
+        "engine",
+        "replay",
+        "store",
+        "ui"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "app-http",
+      "from": "app",
+      "to": "dio_rec",
+      "label": "HTTP",
+      "variant": "emphasis"
+    },
+    {
+      "id": "app-sql",
+      "from": "app",
+      "to": "sqflite_rec",
+      "label": "SQL",
+      "variant": "emphasis"
+    },
+    {
+      "id": "http-forward",
+      "from": "dio_rec",
+      "to": "http_source",
+      "label": "forward",
+      "variant": "dashed"
+    },
+    {
+      "id": "sql-delegate",
+      "from": "sqflite_rec",
+      "to": "sqlite",
+      "label": "delegate",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "http-seam",
+      "from": "dio_rec",
+      "to": "seam",
+      "label": "decide / record"
+    },
+    {
+      "id": "sql-seam",
+      "from": "sqflite_rec",
+      "to": "seam",
+      "label": "decide / record"
+    },
+    {
+      "id": "seam-engine",
+      "from": "seam",
+      "to": "engine",
+      "label": "implements",
+      "variant": "emphasis"
+    },
+    {
+      "id": "engine-replay",
+      "from": "engine",
+      "to": "replay",
+      "label": "next()"
+    },
+    {
+      "id": "engine-store",
+      "from": "engine",
+      "to": "store",
+      "label": "save / load / list"
+    },
+    {
+      "id": "ui-engine",
+      "from": "ui",
+      "to": "engine",
+      "label": "listens, drives"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Adapters",
+      "items": [
+        "RecorderInterceptor tags replays and re-raises error statuses",
+        "RecorderDatabaseAdapter wraps any DatabaseAdapter",
+        "Both call decide/record with lazy builders: idle traffic is free"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Core seam",
+      "items": [
+        "TrafficRecorder is two calls, no mode inspection",
+        "Sealed ReplayDecision: Replayed / ForwardToSource / RejectRequest",
+        "Request identity: canonicalTarget (HTTP), recordingTarget (sqflite)"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Engine",
+      "items": [
+        "FixtureRecorder notifies on mode change, capture, replayed hit, and after save",
+        "SessionReplay serves each recording once; progress is observable",
+        "Stores: FileRecordingSessionStore, MemoryRecordingSessionStore"
+      ]
+    }
+  ]
+}

@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+* New `RecorderInterceptor`: captures real HTTP traffic and replays it
+  through core's `TrafficRecorder` seam (engine:
+  `flutter_fixtures_recorder`). Replay wins over later
+  response-producing interceptors; misses forward to the network or
+  reject (`ReplayMissBehavior`). Request identity comes from core
+  (`HttpFixtureRequest.canonicalTarget`) — no HTTP normalization lives in
+  this package — and capture is lazy, so idle traffic costs nothing.
+  Replayed responses behave like the live ones did: they resolve through
+  the response-interceptor chain, carry an `x-fixture-replayed` header
+  (`RecorderInterceptor.replayedHeader`), and an error status per the
+  request's `validateStatus` surfaces as `DioException.badResponse`.
+  Request payloads that are not JSON data (multipart `FormData`) are
+  recorded as strings so they never block a save.
+* `FixturesInterceptor` resolves through the response-interceptor chain
+  (`callFollowingResponseInterceptor: true`), so interceptors registered
+  before it — logging, `RecorderInterceptor` — observe fixture-served
+  responses. Composed with the recorder, fixture responses chosen by hand
+  can be recorded into a session and replayed without dialogs.
+
 * `FixturesInterceptor` builds requests with `HttpFixtureRequest.fromUri`
   over `options.uri`: absolute request URLs and query parameters embedded
   in the URL string now resolve fixtures correctly.

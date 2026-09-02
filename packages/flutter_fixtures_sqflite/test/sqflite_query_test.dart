@@ -155,6 +155,68 @@ void main() {
         expect(query.fixtureIdentifier, startsWith('rawQuery_'));
         expect(query.fixtureIdentifier, contains('select'));
       });
+
+      test('raw writes carry their own operation in the identifier', () {
+        const insert = SqfliteQuery.raw(
+          sql: 'INSERT INTO users (name) VALUES (?)',
+          operation: SqfliteOperation.rawInsert,
+        );
+        const ddl = SqfliteQuery.raw(
+          sql: 'VACUUM',
+          operation: SqfliteOperation.execute,
+        );
+
+        expect(insert.fixtureIdentifier, startsWith('rawInsert_'));
+        expect(ddl.fixtureIdentifier, startsWith('execute_'));
+      });
+    });
+
+    group('recordingTarget', () {
+      test('omits nulls, so the same logical statement matches', () {
+        const bare = SqfliteQuery.table(
+          table: 'users',
+          operation: SqfliteOperation.query,
+        );
+        const explicit = SqfliteQuery.table(
+          table: 'users',
+          operation: SqfliteOperation.query,
+          where: null,
+          columns: null,
+          arguments: null,
+        );
+
+        expect(bare.recordingTarget, explicit.recordingTarget);
+      });
+
+      test('any differing argument produces a different target', () {
+        const one = SqfliteQuery.table(
+          table: 'users',
+          operation: SqfliteOperation.query,
+          where: 'id = ?',
+          arguments: [1],
+        );
+        const two = SqfliteQuery.table(
+          table: 'users',
+          operation: SqfliteOperation.query,
+          where: 'id = ?',
+          arguments: [2],
+        );
+
+        expect(one.recordingTarget, isNot(two.recordingTarget));
+      });
+
+      test('carries the fields fixture matching deliberately ignores', () {
+        const query = SqfliteQuery.table(
+          table: 'users',
+          operation: SqfliteOperation.query,
+          orderBy: 'name',
+          limit: 10,
+        );
+
+        expect(query.recordingTarget, contains('"orderBy":"name"'));
+        expect(query.recordingTarget, contains('"limit":10'));
+        expect(query.fixtureIdentifier, 'query_users');
+      });
     });
   });
 }

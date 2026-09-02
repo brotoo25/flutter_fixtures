@@ -14,3 +14,8 @@ export 'src/http_file_fixture_source.dart';
 export 'src/http_fixture_source.dart';
 export 'src/http_fixture_sources.dart';
 export 'src/openapi_fixture_source.dart';
+export 'src/recorded_interaction.dart';
+export 'src/recorded_request.dart';
+export 'src/replay_decision.dart';
+export 'src/replay_miss_behavior.dart';
+export 'src/traffic_recorder.dart';

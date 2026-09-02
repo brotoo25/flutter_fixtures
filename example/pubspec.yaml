@@ -35,8 +35,11 @@ dependencies:
   dio: ^5.4.3+1
   flutter_fixtures:
     path: ../packages/flutter_fixtures
+  flutter_fixtures_recorder:
+    path: ../packages/flutter_fixtures_recorder
   flutter_fixtures_sqflite:
     path: ../packages/flutter_fixtures_sqflite
+  path_provider: ^2.1.4
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
