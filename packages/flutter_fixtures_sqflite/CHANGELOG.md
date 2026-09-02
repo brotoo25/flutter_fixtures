@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+* **BREAKING**: new `StatementDatabaseAdapter` base — the nine sqflite-shaped
+  operations are translated into a `SqfliteQuery` statement once, and an
+  adapter implements a single `run(statement)`. `RealDatabaseAdapter`,
+  `FixtureDatabaseAdapter` and `RecorderDatabaseAdapter` all extend it;
+  `RecorderDatabaseAdapter.inner` is now typed `StatementDatabaseAdapter`.
+  A custom adapter is one `run` instead of nine forwards.
+
 * **BREAKING**: `FixtureDatabaseAdapter` takes one `pipeline`
   (`FixturePipeline<SqfliteQuery>`) instead of `dataQuery` / `dataSelector`
   / `dataSelectorView` / `delay`. A cancelled pick now throws

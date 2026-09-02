@@ -23,6 +23,10 @@ A drop-in replacement for sqflite's `Database` that returns fixture data. Provid
 
 The file-backed `SqfliteFixtureSource` (core's `FixtureSource<SqfliteQuery>`): loads fixture files from your app's assets and returns them as fixture collections. Implement `FixtureSource<SqfliteQuery>` yourself to provide fixtures from anywhere else.
 
+### StatementDatabaseAdapter
+
+The base every adapter extends: the nine sqflite-shaped operations are translated into a `SqfliteQuery` statement once, and an adapter implements a single `run(statement)`. `RealDatabaseAdapter`, `FixtureDatabaseAdapter` and `RecorderDatabaseAdapter` are each one `run`; so is a custom adapter (a canned-rows fake, a logging decorator).
+
 ### SqfliteQuery
 
 A model class representing database queries for fixture matching.

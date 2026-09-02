@@ -7,3 +7,4 @@ export 'src/recorder_database_adapter.dart';
 export 'src/sqflite_file_fixture_source.dart';
 export 'src/sqflite_fixture_source.dart';
 export 'src/sqflite_query.dart';
+export 'src/statement_database_adapter.dart';

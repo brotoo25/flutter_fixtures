@@ -267,3 +267,15 @@ the same public API and can reuse the prompt and the sheet as-is.
 The sqflite-shaped consumer seam (`DatabaseAdapter`), mirroring sqflite's
 `Database` API so repositories swap between `RealDatabaseAdapter`
 (production) and `FixtureDatabaseAdapter` (fixtures) with no code changes.
+
+## Statement Database Adapter
+
+The one place the nine sqflite-shaped operations become a statement
+(`StatementDatabaseAdapter`): the base every built-in Database Adapter
+extends, translating each call into a `SqfliteQuery` once and handing it
+to a single `run(statement)`. `RealDatabaseAdapter` dispatches the
+statement to sqflite, `FixtureDatabaseAdapter` serves it through the
+Fixture Pipeline, `RecorderDatabaseAdapter` wraps an inner statement
+adapter with decide/record — each is one `run`, and so is a custom
+adapter. Results are normalized back to sqflite's return shapes in the
+base (`decodeRows` also restores rows that crossed a JSON round trip).
