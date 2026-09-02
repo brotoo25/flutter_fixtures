@@ -89,11 +89,14 @@ final dio = Dio(BaseOptions(baseUrl: 'https://example.com'));
 // Add the FixturesInterceptor
 dio.interceptors.add(
   FixturesInterceptor(
-    dataSelectorView: FixturesDialogView(
+    pipeline: FixturePipeline(
+      source: HttpFileFixtureSource(),
+      selector: DataSelectorType.random,
+      view: FixturesDialogView(
       contextProvider: () => navigatorKey.currentContext!,
     ),
-    dataSelector: DataSelectorType.random,
-    dataSelectorDelay: DataSelectorDelay.moderate, // Optional: simulate network delay
+      delay: DataSelectorDelay.moderate,
+    ),
   ),
 );
 
@@ -124,9 +127,11 @@ class UserRepository {
 
 // In development/testing - use fixtures:
 final db = FixtureDatabaseAdapter(
-  dataQuery: SqfliteDataQuery(),
-  dataSelector: DataSelectorType.pick,
-  dataSelectorView: FixturesDialogView.of(context),
+  pipeline: FixturePipeline(
+    source: SqfliteFileFixtureSource(),
+    selector: DataSelectorType.pick,
+    view: FixturesDialogView.of(context),
+  ),
 );
 
 // In production - use real sqflite:
@@ -176,17 +181,17 @@ The library supports three fixture selection modes:
 
 1. **Random**: Randomly selects a fixture response
    ```dart
-   dataSelector: DataSelectorType.random
+   selector: DataSelectorType.random
    ```
 
 2. **Default**: Always selects the fixture marked as default
    ```dart
-   dataSelector: DataSelectorType.defaultValue
+   selector: DataSelectorType.defaultValue
    ```
 
 3. **Pick**: Shows a dialog for the user to pick the response
    ```dart
-   dataSelector: DataSelectorType.pick
+   selector: DataSelectorType.pick
    ```
 
 ### Fixture Files
@@ -235,11 +240,13 @@ files: paste the spec's JSON into your assets and add an
 ```dart
 dio.interceptors.add(
   FixturesInterceptor(
-    sources: [
+    pipeline: FixturePipeline(
+      source: HttpFixtureSources([
       HttpFileFixtureSource(),
       OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
-    ],
-    dataSelector: DataSelectorType.pick,
+    ]),
+      selector: DataSelectorType.pick,
+    ),
   ),
 );
 ```
@@ -268,7 +275,7 @@ Simulate network latency to test loading states:
 dataSelectorDelay: DataSelectorDelay.moderate  // 500ms delay
 
 // Or create custom delays
-dataSelectorDelay: DataSelectorDelay.custom(1500)  // 1.5 second delay
+dataSelectorDelay: const Duration(milliseconds: 1500)  // 1.5 second delay
 ```
 
 Available options:
@@ -276,15 +283,15 @@ Available options:
 - `DataSelectorDelay.fast` - ~100ms
 - `DataSelectorDelay.moderate` - ~500ms
 - `DataSelectorDelay.slow` - ~2000ms
-- `DataSelectorDelay.custom(ms)` - Custom delay
+- any `Duration` - Custom delay
 
 ### Creating a Custom Fixture Provider
 
 A fixture provider is a source: it turns a domain request into a
-`FixtureCollection` and materializes a document's payload. HTTP providers
-implement `HttpFixtureSource` from core and join the interceptor's
-`sources` list; for other domains, define a seam of the same shape and
-drive it with `FixtureSelector.serve` — see the
+`FixtureCollection` and materializes a document's payload. Every domain
+shares one seam, `FixtureSource<TRequest>` from core; file-backed sources
+reuse `FixtureFileSource` with their own naming convention. Drive the
+source through a `FixturePipeline` — see the
 [core package README](packages/flutter_fixtures_core/README.md) for a
 worked example.
 

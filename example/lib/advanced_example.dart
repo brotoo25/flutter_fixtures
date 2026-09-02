@@ -35,14 +35,16 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
     dio.interceptors.clear();
     dio.interceptors.add(
       FixturesInterceptor(
-        sources: [
-          HttpFileFixtureSource(),
-          OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
-        ],
-        dataSelectorView: FixturesDialogView(
-          contextProvider: () => widget.navigatorKey.currentContext!,
+        pipeline: FixturePipeline(
+          source: HttpFixtureSources([
+            HttpFileFixtureSource(),
+            OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
+          ]),
+          selector: _getDataSelectorType(),
+          view: FixturesDialogView(
+            contextProvider: () => widget.navigatorKey.currentContext!,
+          ),
         ),
-        dataSelector: _getDataSelectorType(),
       ),
     );
   }
@@ -151,10 +153,9 @@ class _AdvancedExamplePageState extends State<AdvancedExamplePage> {
           throw Exception('Unknown scenario: $_selectedScenario');
       }
 
-      String filePath = '';
-      if (response.headers.map.containsKey('x-fixture-file-path')) {
-        filePath = response.headers.value('x-fixture-file-path') ?? '';
-      }
+      // The interceptor stamps where the response came from.
+      final origin = ResponseOrigin.of(response);
+      final filePath = origin is FixtureOrigin ? origin.filePath ?? '' : '';
 
       setState(() {
         responseCode = response.statusCode?.toString() ?? '';

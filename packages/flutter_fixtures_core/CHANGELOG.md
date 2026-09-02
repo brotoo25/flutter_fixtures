@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+* `TrafficRecorder.run` (an extension on the seam) owns the record-and-replay
+  choreography for call/return sources — lazy description, decide, replay
+  through `decode`, rejection via `reject`, live call then record — so a
+  custom adapter is a description plus its live call. `RecordedSources`
+  names the built-in source strings (`http`, `sqlite`).
+
+* **BREAKING**: the Selection Flow is now the `FixturePipeline<TRequest>`
+  module — one object owning source, strategy, view, delay and Selection
+  Memory behind a single `serve(request)`. The `FixtureSelector` mixin is
+  gone; memory is scoped to the pipeline instance you build (once, for the
+  lifetime you want choices remembered) instead of to whichever adapter
+  mixed the flow in. `FixtureMiss` (`FixtureNotFound` / `FixtureEmpty` /
+  `FixtureCancelled`) is a throwable outcome carrying its own message, so
+  adapters raise the case itself and consumers never parse error text.
+
+* **BREAKING**: delays are plain `Duration`s. `DataSelectorDelay` keeps the
+  four presets (`instant`, `fast`, `moderate`, `slow`) as `Duration`
+  constants; `DataSelectorDelay.custom(ms)`, `duration`, and `apply` are
+  gone — pass any `Duration` directly.
+
+* **BREAKING**: one fixture-source seam for every domain. `FixtureSource<TRequest>`
+  is now the abstract seam (`resolve(request)` + `data(document)`), and
+  `HttpFixtureSource` is an alias for `FixtureSource<HttpFixtureRequest>`.
+  The composite is the generic `FixtureSources<TRequest>` (`HttpFixtureSources`
+  aliases it for HTTP). The former concrete `FixtureSource` (fixture-file IO)
+  is now `FixtureFileSource<TRequest>`, parameterized by the domain's naming
+  convention; `HttpFileFixtureSource` extends it and exposes that convention
+  as `HttpFileFixtureSource.candidateNames`.
+
 * New thin record-and-replay seam: `TrafficRecorder` (`decide` + `record`)
   with its contract types — `RecordedRequest`, `RecordedInteraction`,
   sealed `ReplayDecision` (`Replayed` / `ForwardToSource` /

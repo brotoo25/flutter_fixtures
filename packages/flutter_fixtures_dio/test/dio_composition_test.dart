@@ -95,8 +95,10 @@ void main() {
     if (withFixtures) {
       fixtureSource = _FakeFixtureSource();
       dio.interceptors.add(FixturesInterceptor(
-        sources: [fixtureSource],
-        dataSelector: DataSelectorType.defaultValue,
+        pipeline: FixturePipeline(
+          source: fixtureSource,
+          selector: DataSelectorType.defaultValue,
+        ),
       ));
     }
     return dio;
@@ -120,6 +122,27 @@ void main() {
     final replayed = await dio.get('/users');
     expect(replayed.data, {'from': 'network'});
     expect(network.hits, 1); // the wire was not touched again
+    expect(ResponseOrigin.of(replayed), isA<ReplayOrigin>());
+  });
+
+  test('a malformed replay stamp never makes origin inspection throw',
+      () async {
+    final response = Response<void>(
+      requestOptions: RequestOptions(path: '/x'),
+      headers: Headers.fromMap({
+        RecorderInterceptor.replayedHeader: ['not-a-timestamp'],
+      }),
+    );
+
+    final origin = ResponseOrigin.of(response);
+
+    expect(origin, isA<ReplayOrigin>());
+    expect((origin as ReplayOrigin).recordedAt, isNull);
+  });
+
+  test('a live response has a live origin', () async {
+    final response = await buildDio().get('/users');
+    expect(ResponseOrigin.of(response), isA<LiveOrigin>());
   });
 
   test('replay wins over a following FixturesInterceptor', () async {
@@ -138,6 +161,7 @@ void main() {
     final dio = buildDio(withFixtures: true);
     final response = await dio.get('/users');
     expect(response.data, {'from': 'fixture'});
+    expect(ResponseOrigin.of(response), isA<FixtureOrigin>());
     expect(recorder.recordedCount, 0);
     expect(network.hits, 0);
   });

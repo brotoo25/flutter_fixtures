@@ -1,37 +1,71 @@
 import 'dart:convert';
 
 import 'fixture_asset_loader.dart';
+import 'fixture_collection.dart';
 import 'fixture_document.dart';
 
-/// Loads fixture content from a mock folder.
+/// The seam for providing fixtures for one kind of request.
 ///
-/// This is the single home of fixture-file IO: trying candidate file names
-/// in order, decoding JSON, and resolving a document's payload (inline data
-/// or an external file). Fixture sources only build candidate names for
-/// their domain (HTTP requests, database queries) and delegate here.
+/// A source turns a domain request into a [FixtureCollection] — or `null`
+/// when it has none for that request — and materializes a document's
+/// payload. `TRequest` is the domain's request model: an
+/// `HttpFixtureRequest` for HTTP, a `SqfliteQuery` for sqflite, anything
+/// else for a custom domain. Sources build model objects; the wire format
+/// belongs to [FixtureCollection] and [FixtureDocument] alone.
 ///
-/// A candidate that does not exist is skipped; a candidate that exists but
-/// contains malformed JSON throws a [FormatException] so a broken fixture
-/// reports as broken instead of as "no fixture found".
-class FixtureSource {
-  /// The folder fixture files live in. Candidate names and document
-  /// dataPaths are resolved relative to it.
+/// Built-in adapters: [FixtureFileSource] (fixture files, parameterized by
+/// the domain's naming convention), `OpenApiFixtureSource` (HTTP fixtures
+/// derived from an OpenAPI document), and the composite `FixtureSources`
+/// (ordered precedence over several sources).
+abstract class FixtureSource<TRequest> {
+  /// Returns the collection this source has for [request], or `null` if
+  /// it has none — the pipeline then consults the next source, if any.
+  Future<FixtureCollection?> resolve(TRequest request);
+
+  /// Materializes a document's payload: inline data, or a loaded and
+  /// decoded external file.
+  ///
+  /// Only documents returned by this source's [resolve] are valid here.
+  Future<Object?> data(FixtureDocument document);
+}
+
+/// Names the fixture-file candidates for one request, most specific
+/// first. The file source tries them in order and serves the first that
+/// exists.
+typedef FixtureCandidates<TRequest> = List<String> Function(TRequest request);
+
+/// The file-backed [FixtureSource]: fixture files under [mockFolder], read
+/// through a [FixtureAssetLoader].
+///
+/// This module owns fixture-file IO — candidate lookup, JSON decoding, and
+/// document payload loading — for every domain. A domain contributes only
+/// its naming convention through [candidates] (`HttpFileFixtureSource`
+/// and `SqfliteFileFixtureSource` are exactly that), so the rules below
+/// hold everywhere at once:
+///
+/// - a missing candidate is skipped and the next one tried;
+/// - a matched candidate with malformed JSON fails loudly (a
+///   [FormatException]) rather than silently falling through;
+/// - external payloads (`dataPath`) resolve relative to [mockFolder].
+class FixtureFileSource<TRequest> implements FixtureSource<TRequest> {
+  /// The folder fixture files live in, relative to the asset root.
   final String mockFolder;
 
-  /// The seam used to read fixture files.
+  /// How fixture file content is read.
   final FixtureAssetLoader assetLoader;
 
-  const FixtureSource({
+  /// The domain's naming convention.
+  final FixtureCandidates<TRequest> candidates;
+
+  const FixtureFileSource({
     required this.mockFolder,
+    required this.candidates,
     this.assetLoader = const BundleAssetLoader(),
   });
 
-  /// Returns the decoded content of the first candidate that exists.
-  ///
-  /// [candidateNames] are file names relative to [mockFolder], tried in
-  /// order. Returns `null` when none exist.
-  Future<Map<String, dynamic>?> resolve(List<String> candidateNames) async {
-    for (final name in candidateNames) {
+  @override
+  Future<FixtureCollection?> resolve(TRequest request) async {
+    for (final name in candidates(request)) {
       final String content;
       try {
         content = await assetLoader.load('$mockFolder/$name');
@@ -39,14 +73,14 @@ class FixtureSource {
         // Asset not present — try the next candidate.
         continue;
       }
-      return (jsonDecode(content) as Map).cast<String, dynamic>();
+      return FixtureCollection.fromJson(
+        (jsonDecode(content) as Map).cast<String, dynamic>(),
+      );
     }
     return null;
   }
 
-  /// Returns a document's payload: inline [FixtureDocument.data] as-is, or
-  /// the decoded content of [FixtureDocument.dataPath]. Returns `null` when
-  /// the document carries neither.
+  @override
   Future<Object?> data(FixtureDocument document) async {
     if (document.data != null) {
       return document.data;

@@ -33,11 +33,14 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
     dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
     dio.interceptors.add(
       FixturesInterceptor(
-        dataSelectorView: FixturesDialogView(
-          contextProvider: () => widget.navigatorKey.currentContext!,
+        pipeline: FixturePipeline(
+          source: HttpFileFixtureSource(),
+          selector: _getDataSelectorType(),
+          view: FixturesDialogView(
+            contextProvider: () => widget.navigatorKey.currentContext!,
+          ),
+          delay: DataSelectorDelay.moderate,
         ),
-        dataSelector: _getDataSelectorType(),
-        dataSelectorDelay: DataSelectorDelay.moderate,
       ),
     );
   }
@@ -83,11 +86,9 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
         data: {'username': 'admin', 'password': '123456'},
       );
 
-      // Extract file path from response headers if available
-      String filePath = '';
-      if (response.headers.map.containsKey('x-fixture-file-path')) {
-        filePath = response.headers.value('x-fixture-file-path') ?? '';
-      }
+      // The interceptor stamps where the response came from.
+      final origin = ResponseOrigin.of(response);
+      final filePath = origin is FixtureOrigin ? origin.filePath ?? '' : '';
 
       setState(() {
         responseCode = response.statusCode.toString();

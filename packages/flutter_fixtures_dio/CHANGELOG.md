@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+* `ResponseOrigin.of(response)` names where a response came from —
+  `FixtureOrigin` (document identifier + external file path),
+  `ReplayOrigin` (capture time), or `LiveOrigin` — so apps and logging
+  read one value instead of combining header strings. `FixturesInterceptor`
+  now stamps every served response with `x-fixture-document`
+  (`FixturesInterceptor.documentHeader`) alongside the existing
+  `x-fixture-file-path` (`filePathHeader`).
+
+* **BREAKING**: `FixturesInterceptor` takes one `pipeline`
+  (`FixturePipeline<HttpFixtureRequest>`) instead of `sources` /
+  `mockFolder` / `assetLoader` / `dataSelector` / `dataSelectorView` /
+  `dataSelectorDelay`; build the pipeline once next to the Dio instance so
+  remembered choices survive. A miss rejects with a `DioException` whose
+  `error` is the typed `FixtureMiss` (`message` carries the text).
+
 * New `RecorderInterceptor`: captures real HTTP traffic and replays it
   through core's `TrafficRecorder` seam (engine:
   `flutter_fixtures_recorder`). Replay wins over later
