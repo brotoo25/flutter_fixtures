@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://github.com/brotoo25/flutter_fixtures/actions/workflows/ci.yml"><img src="https://github.com/brotoo25/flutter_fixtures/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
   <a href="https://pub.dev/packages/flutter_fixtures"><img src="https://img.shields.io/pub/v/flutter_fixtures.svg" alt="pub.dev version"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
+  <a href="https://github.com/brotoo25/flutter_fixtures/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
 </p>
 
 Flutter Fixtures sits between your app and its data. The requests you already make through Dio or sqflite are answered from JSON fixture files instead of a live backend, and each fixture can hold several responses, so you can switch between success, empty and error states from a dialog inside the running app.
@@ -31,7 +31,11 @@ flutter pub add flutter_fixtures
 
 ```dart
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_fixtures/flutter_fixtures.dart';
+
+// The dialog needs a context. Hand this key to MaterialApp(navigatorKey: ...).
+final navigatorKey = GlobalKey<NavigatorState>();
 
 final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
   ..interceptors.add(

@@ -31,7 +31,11 @@ flutter pub add flutter_fixtures
 
 ```dart
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_fixtures/flutter_fixtures.dart';
+
+// The dialog needs a context. Hand this key to MaterialApp(navigatorKey: ...).
+final navigatorKey = GlobalKey<NavigatorState>();
 
 final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
   ..interceptors.add(
