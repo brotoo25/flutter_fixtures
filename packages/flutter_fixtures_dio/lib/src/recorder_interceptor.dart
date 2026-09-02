@@ -40,7 +40,7 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 /// replays against another.
 class RecorderInterceptor extends Interceptor {
   /// The [RecordedRequest.source] used for HTTP traffic.
-  static const String source = 'http';
+  static const String source = RecordedSources.http;
 
   /// Set on every replayed response, with the interaction's capture time as
   /// value. Read it through `ResponseOrigin.of`.

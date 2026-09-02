@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* `RecorderDatabaseAdapter` runs statements through core's
+  `TrafficRecorder.run`; its behaviour is unchanged.
+
 * **BREAKING**: new `StatementDatabaseAdapter` base — the nine sqflite-shaped
   operations are translated into a `SqfliteQuery` statement once, and an
   adapter implements a single `run(statement)`. `RealDatabaseAdapter`,

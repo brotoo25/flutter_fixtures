@@ -165,6 +165,16 @@ contract only (`RecorderInterceptor` in flutter_fixtures_dio,
 depend on the recorder engine. All heavy lifting sits behind the seam in
 the **Fixture Recorder**.
 
+For call/return sources — one call, one result: a database statement, a
+cache lookup — the whole choreography (describe lazily, decide, serve a
+replay, throw a rejection, run live then record) is owned once by
+`TrafficRecorder.run`; an adapter supplies only its description, its live
+call, and how a recorded response decodes. `RecorderDatabaseAdapter` is one
+`run` call; only transports that split request and response stages (Dio)
+render the decision by hand. Source names (`RecordedSources.http`,
+`RecordedSources.sqlite`) are core's constants, so every adapter's
+sessions agree on them.
+
 ## Fixture Recorder
 
 The record-and-replay engine (`FixtureRecorder`,

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+* `TrafficRecorder.run` (an extension on the seam) owns the record-and-replay
+  choreography for call/return sources — lazy description, decide, replay
+  through `decode`, rejection via `reject`, live call then record — so a
+  custom adapter is a description plus its live call. `RecordedSources`
+  names the built-in source strings (`http`, `sqlite`).
+
 * **BREAKING**: the Selection Flow is now the `FixturePipeline<TRequest>`
   module — one object owning source, strategy, view, delay and Selection
   Memory behind a single `serve(request)`. The `FixtureSelector` mixin is

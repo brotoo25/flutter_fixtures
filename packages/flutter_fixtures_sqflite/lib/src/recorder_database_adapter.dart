@@ -29,7 +29,7 @@ import 'sqflite_query.dart';
 /// the recorded row id without writing anywhere.
 class RecorderDatabaseAdapter extends StatementDatabaseAdapter {
   /// The [RecordedRequest.source] used for database traffic.
-  static const String source = 'sqlite';
+  static const String source = RecordedSources.sqlite;
 
   /// The adapter real traffic is delegated to.
   final StatementDatabaseAdapter inner;
@@ -47,33 +47,22 @@ class RecorderDatabaseAdapter extends StatementDatabaseAdapter {
     this.onReplayMiss = ReplayMissBehavior.forward,
   });
 
-  /// Renders the recorder's decision for one statement: serve the recorded
-  /// response, fail, or run the real statement and capture its result
-  /// while recording. The statement's JSON target is built only when the
-  /// recorder's mode requires it.
+  /// One call/return request: the choreography is core's
+  /// (`TrafficRecorder.run`); this adapter supplies the description and
+  /// the live statement. The JSON target is built only when the recorder's
+  /// mode requires it.
   @override
-  Future<Object?> run(SqfliteQuery statement) async {
-    RecordedRequest describe() => RecordedRequest(
-          source: source,
-          operation: statement.operation.name,
-          target: statement.recordingTarget,
-          payload: statement.values ?? statement.arguments,
-        );
-
-    switch (recorder.decide(describe, onMiss: onReplayMiss)) {
-      case Replayed(:final interaction):
-        return interaction.response;
-      case RejectRequest(:final message):
-        throw StateError(message);
-      case ForwardToSource():
-        final result = await inner.run(statement);
-        recorder.record(() => RecordedInteraction(
-              request: describe(),
-              response: result,
-              recordedAt: DateTime.now(),
-            ));
-        return result;
-    }
+  Future<Object?> run(SqfliteQuery statement) {
+    return recorder.run(
+      describe: () => RecordedRequest(
+        source: source,
+        operation: statement.operation.name,
+        target: statement.recordingTarget,
+        payload: statement.values ?? statement.arguments,
+      ),
+      live: () => inner.run(statement),
+      onMiss: onReplayMiss,
+    );
   }
 
   @override
