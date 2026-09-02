@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1
 
 * `ResponseOrigin.of(response)` names where a response came from —
   `FixtureOrigin` (document identifier + external file path),

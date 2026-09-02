@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1
 
 * `RecorderDatabaseAdapter` runs statements through core's
   `TrafficRecorder.run`; its behaviour is unchanged.
