@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+* **BREAKING**: the Selection Flow is now the `FixturePipeline<TRequest>`
+  module — one object owning source, strategy, view, delay and Selection
+  Memory behind a single `serve(request)`. The `FixtureSelector` mixin is
+  gone; memory is scoped to the pipeline instance you build (once, for the
+  lifetime you want choices remembered) instead of to whichever adapter
+  mixed the flow in. `FixtureMiss` (`FixtureNotFound` / `FixtureEmpty` /
+  `FixtureCancelled`) is a throwable outcome carrying its own message, so
+  adapters raise the case itself and consumers never parse error text.
+
 * **BREAKING**: delays are plain `Duration`s. `DataSelectorDelay` keeps the
   four presets (`instant`, `fast`, `moderate`, `slow`) as `Duration`
   constants; `DataSelectorDelay.custom(ms)`, `duration`, and `apply` are

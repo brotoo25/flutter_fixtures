@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+* **BREAKING**: `FixtureDatabaseAdapter` takes one `pipeline`
+  (`FixturePipeline<SqfliteQuery>`) instead of `dataQuery` / `dataSelector`
+  / `dataSelectorView` / `delay`. A cancelled pick now throws
+  `FixtureCancelled` instead of silently returning the operation's default;
+  not-found and empty still degrade to the default.
+
 * **BREAKING**: `SqfliteFixtureSource` is now an alias for core's
   `FixtureSource<SqfliteQuery>`, so its lookup method is `resolve` (was
   `find`). `SqfliteDataQuery` is renamed `SqfliteFileFixtureSource` — core's

@@ -8,7 +8,6 @@ export 'src/fixture_choice.dart';
 export 'src/fixture_pipeline.dart';
 export 'src/fixture_source.dart';
 export 'src/fixture_sources.dart';
-export 'src/fixture_selector.dart';
 export 'src/fixture_document.dart';
 export 'src/fixture_collection.dart';
 export 'src/http_file_fixture_source.dart';

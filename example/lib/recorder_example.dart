@@ -73,10 +73,13 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
   late final Dio dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
     ..interceptors.add(RecorderInterceptor(recorder: recorder))
     ..interceptors.add(FixturesInterceptor(
-      dataSelectorView: FixturesDialogView(
-        contextProvider: () => widget.navigatorKey.currentContext!,
+      pipeline: FixturePipeline(
+        source: HttpFileFixtureSource(),
+        selector: DataSelectorType.pick,
+        view: FixturesDialogView(
+          contextProvider: () => widget.navigatorKey.currentContext!,
+        ),
       ),
-      dataSelector: DataSelectorType.pick,
     ));
 
   final List<_LogEntry> _log = [];
@@ -133,7 +136,7 @@ class _RecorderExamplePageState extends State<RecorderExamplePage> {
         entry = _entryFor(method, pathAndQuery, response, stopwatch);
       } else {
         stopwatch.stop();
-        final cancelled = '${e.error}'.contains('No fixture selected');
+        final cancelled = e.error is FixtureCancelled;
         entry = _LogEntry(
           method: method,
           path: pathAndQuery,

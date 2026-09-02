@@ -21,11 +21,20 @@ conventionally starts with a 3-digit status code, exposed as the typed
 
 ## Fixture Outcome
 
-The result of serving one fixture request through the Selection Flow's
-`serve` pipeline (`FixtureOutcome`): not found, empty, cancelled, or
-served (the selected Fixture Document plus its payload). Adapters map
-outcomes to their own domain and error policy — the choreography itself
-lives in one place.
+The result of serving one request through the **Fixture Pipeline**
+(`FixtureOutcome`): served (`FixtureServed`, the selected Fixture Document
+plus its payload) or a **Fixture Miss**. Adapters map outcomes to their
+own domain and error policy — the choreography itself lives in one place.
+
+## Fixture Miss
+
+A request the pipeline could not serve (`FixtureMiss`): not found, empty,
+or cancelled. A miss is both an outcome and an `Exception` carrying its
+own message, so an adapter that fails on a miss throws (or wraps) the
+outcome itself and consumers branch on the case — `FixtureCancelled` —
+never on message text. The Dio adapter rejects with the miss as the
+`DioException.error`; the sqflite adapter degrades not-found and empty to
+the operation's default and throws only on cancel.
 
 ## Sqflite Fixture Source
 
@@ -108,16 +117,18 @@ The IO seam under Fixture Source (`FixtureAssetLoader`): how fixture file
 content is read. `BundleAssetLoader` (root asset bundle) in production;
 in-memory fakes in tests.
 
-## Selection Flow
+## Fixture Pipeline
 
-The behavior behind `FixtureSelector.select`, owned entirely by core:
-strategy dispatch (`DataSelectorType`: pick / defaultValue / random),
-auto-selecting single-option collections, Selection Memory (read and
-write), single-flight deduplication of concurrent interactive picks, and
-response delays (plain `Duration`s; `DataSelectorDelay` names the presets). Its state is scoped to the
-mixing-in instance and keyed by one collection signature. `serve` runs
-the full pipeline — find, select, load payload — and reports a Fixture
-Outcome.
+The module behind `FixturePipeline<TRequest>.serve` (core): everything
+between "here is a request" and "here is the payload", owned entirely in
+one place — find the collection through the pipeline's **Fixture
+Source**, select a document (strategy dispatch via `DataSelectorType`:
+pick / defaultValue / random, auto-selecting single-option collections,
+Selection Memory read and write, single-flight deduplication of concurrent
+interactive picks, response delays), load the payload, and report a
+**Fixture Outcome**. A transport adapter holds one pipeline and only
+renders outcomes in its native types; the pipeline's constructor is the
+whole configuration surface (source, selector, view, delay).
 
 ## Selector View
 
@@ -135,10 +146,12 @@ it is never silently converted into a selection.
 
 ## Selection Memory
 
-The runtime-only store of remembered choices, owned by the Selection Flow
-and scoped to a selector instance. Written when a Fixture Choice asks to
+The runtime-only store of remembered choices, owned by the Fixture
+Pipeline and scoped to a pipeline instance — build the pipeline once, for
+the lifetime you want choices remembered, and hand the same instance to
+the adapter. Written when a Fixture Choice asks to
 be remembered; cleared via `clearRememberedSelectionFor` /
-`clearRememberedSelections` on the selector.
+`clearRememberedSelections` on the pipeline.
 
 ## Traffic Recorder
 

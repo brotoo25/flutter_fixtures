@@ -81,8 +81,11 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
 // Add fixtures interceptor
 dio.interceptors.add(
   FixturesInterceptor(
-    dataSelector: DataSelectorType.random,
-    dataSelectorDelay: DataSelectorDelay.moderate, // Optional: simulate network delay
+    pipeline: FixturePipeline(
+      source: HttpFileFixtureSource(),
+      selector: DataSelectorType.random,
+      delay: DataSelectorDelay.moderate,
+    ),
   ),
 );
 
@@ -93,7 +96,7 @@ final response = await dio.get('/users');
 #### Custom Data Sources
 ```dart
 // Create a custom fixture provider for any source: a seam that turns a
-// domain request into a FixtureCollection, driven by FixtureSelector.serve.
+// domain request into a FixtureCollection, served through a FixturePipeline.
 class CacheFixtureSource {
   Future<FixtureCollection?> find(String cacheKey) async {
     // Load a fixture collection for the cache key
@@ -119,13 +122,11 @@ Choose how your app selects fixture responses for any data source:
 
 ```dart
 // Always use the default fixture (marked with "default": true)
-dataSelector: DataSelectorType.defaultValue
-
+selector: DataSelectorType.defaultValue
 // Randomly select from available fixtures
-dataSelector: DataSelectorType.random
-
+selector: DataSelectorType.random
 // Show UI dialog to let users choose
-dataSelector: DataSelectorType.pick
+selector: DataSelectorType.pick
 ```
 
 <div align="center">
@@ -152,8 +153,11 @@ import 'package:flutter/material.dart';
 
 dio.interceptors.add(
   FixturesInterceptor(
-    dataSelectorView: FixturesDialogView.of(context),
-    dataSelector: DataSelectorType.pick, // Enables dialog
+    pipeline: FixturePipeline(
+      source: HttpFileFixtureSource(),
+      selector: DataSelectorType.pick,
+      view: FixturesDialogView.of(context),
+    ),
   ),
 );
 ```
@@ -246,8 +250,10 @@ Organize fixtures in custom directories:
 ```dart
 dio.interceptors.add(
   FixturesInterceptor(
-    mockFolder: 'assets/api_mocks',
-    dataSelector: DataSelectorType.random,
+    pipeline: FixturePipeline(
+      source: HttpFileFixtureSource(mockFolder: 'assets/api_mocks'),
+      selector: DataSelectorType.random,
+    ),
   ),
 );
 ```
@@ -262,7 +268,10 @@ import 'package:flutter/foundation.dart';
 if (kDebugMode) {
   dio.interceptors.add(
     FixturesInterceptor(
-        dataSelector: DataSelectorType.random,
+      pipeline: FixturePipeline(
+        source: HttpFileFixtureSource(),
+        selector: DataSelectorType.random,
+      ),
     ),
   );
 }
@@ -288,15 +297,20 @@ class DataService {
     if (kDebugMode) {
       _dio.interceptors.add(
         FixturesInterceptor(
-          dataSelector: DataSelectorType.defaultValue,
+          pipeline: FixturePipeline(
+            source: HttpFileFixtureSource(),
+            selector: DataSelectorType.defaultValue,
+          ),
         ),
       );
     }
 
     // Database queries with fixtures (flutter_fixtures_sqflite)
     _db = FixtureDatabaseAdapter(
-      dataQuery: SqfliteFileFixtureSource(),
-      dataSelector: DataSelectorType.defaultValue,
+      pipeline: FixturePipeline(
+        source: SqfliteFileFixtureSource(),
+        selector: DataSelectorType.defaultValue,
+      ),
     );
   }
 
@@ -382,8 +396,11 @@ Test loading states and timeouts by simulating network latency:
 ```dart
 dio.interceptors.add(
   FixturesInterceptor(
-    dataSelector: DataSelectorType.random,
-    dataSelectorDelay: DataSelectorDelay.moderate, // 500ms delay
+    pipeline: FixturePipeline(
+      source: HttpFileFixtureSource(),
+      selector: DataSelectorType.random,
+      delay: DataSelectorDelay.moderate,
+    ),
   ),
 );
 ```
@@ -407,7 +424,7 @@ A fixture provider is a source: it turns a domain request into a
 shares one seam, `FixtureSource<TRequest>` (`HttpFixtureSource` and
 `SqfliteFixtureSource` are aliases), and file-backed sources reuse
 `FixtureFileSource` with their own naming convention; drive the source
-with `FixtureSelector.serve`
+through a `FixturePipeline`
 — see the [core package README](https://pub.dev/packages/flutter_fixtures_core)
 for a worked example.
 

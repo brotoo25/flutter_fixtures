@@ -95,8 +95,10 @@ void main() {
     if (withFixtures) {
       fixtureSource = _FakeFixtureSource();
       dio.interceptors.add(FixturesInterceptor(
-        sources: [fixtureSource],
-        dataSelector: DataSelectorType.defaultValue,
+        pipeline: FixturePipeline(
+          source: fixtureSource,
+          selector: DataSelectorType.defaultValue,
+        ),
       ));
     }
     return dio;

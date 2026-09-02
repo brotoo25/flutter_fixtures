@@ -33,11 +33,14 @@ class _BasicExamplePageState extends State<BasicExamplePage> {
     dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
     dio.interceptors.add(
       FixturesInterceptor(
-        dataSelectorView: FixturesDialogView(
-          contextProvider: () => widget.navigatorKey.currentContext!,
+        pipeline: FixturePipeline(
+          source: HttpFileFixtureSource(),
+          selector: _getDataSelectorType(),
+          view: FixturesDialogView(
+            contextProvider: () => widget.navigatorKey.currentContext!,
+          ),
+          delay: DataSelectorDelay.moderate,
         ),
-        dataSelector: _getDataSelectorType(),
-        dataSelectorDelay: DataSelectorDelay.moderate,
       ),
     );
   }

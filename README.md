@@ -89,11 +89,14 @@ final dio = Dio(BaseOptions(baseUrl: 'https://example.com'));
 // Add the FixturesInterceptor
 dio.interceptors.add(
   FixturesInterceptor(
-    dataSelectorView: FixturesDialogView(
+    pipeline: FixturePipeline(
+      source: HttpFileFixtureSource(),
+      selector: DataSelectorType.random,
+      view: FixturesDialogView(
       contextProvider: () => navigatorKey.currentContext!,
     ),
-    dataSelector: DataSelectorType.random,
-    dataSelectorDelay: DataSelectorDelay.moderate, // Optional: simulate network delay
+      delay: DataSelectorDelay.moderate,
+    ),
   ),
 );
 
@@ -124,9 +127,11 @@ class UserRepository {
 
 // In development/testing - use fixtures:
 final db = FixtureDatabaseAdapter(
-  dataQuery: SqfliteFileFixtureSource(),
-  dataSelector: DataSelectorType.pick,
-  dataSelectorView: FixturesDialogView.of(context),
+  pipeline: FixturePipeline(
+    source: SqfliteFileFixtureSource(),
+    selector: DataSelectorType.pick,
+    view: FixturesDialogView.of(context),
+  ),
 );
 
 // In production - use real sqflite:
@@ -176,17 +181,17 @@ The library supports three fixture selection modes:
 
 1. **Random**: Randomly selects a fixture response
    ```dart
-   dataSelector: DataSelectorType.random
+   selector: DataSelectorType.random
    ```
 
 2. **Default**: Always selects the fixture marked as default
    ```dart
-   dataSelector: DataSelectorType.defaultValue
+   selector: DataSelectorType.defaultValue
    ```
 
 3. **Pick**: Shows a dialog for the user to pick the response
    ```dart
-   dataSelector: DataSelectorType.pick
+   selector: DataSelectorType.pick
    ```
 
 ### Fixture Files
@@ -235,11 +240,13 @@ files: paste the spec's JSON into your assets and add an
 ```dart
 dio.interceptors.add(
   FixturesInterceptor(
-    sources: [
+    pipeline: FixturePipeline(
+      source: HttpFixtureSources([
       HttpFileFixtureSource(),
       OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
-    ],
-    dataSelector: DataSelectorType.pick,
+    ]),
+      selector: DataSelectorType.pick,
+    ),
   ),
 );
 ```
@@ -284,7 +291,7 @@ A fixture provider is a source: it turns a domain request into a
 `FixtureCollection` and materializes a document's payload. Every domain
 shares one seam, `FixtureSource<TRequest>` from core; file-backed sources
 reuse `FixtureFileSource` with their own naming convention. Drive the
-source with `FixtureSelector.serve` — see the
+source through a `FixturePipeline` — see the
 [core package README](packages/flutter_fixtures_core/README.md) for a
 worked example.
 

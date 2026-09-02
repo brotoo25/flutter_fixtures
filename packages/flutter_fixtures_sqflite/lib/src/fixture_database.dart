@@ -2,7 +2,6 @@ import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import 'database_adapter.dart';
-import 'sqflite_fixture_source.dart';
 import 'sqflite_query.dart';
 
 /// A [DatabaseAdapter] that returns fixture data instead of querying a real database.
@@ -28,8 +27,10 @@ import 'sqflite_query.dart';
 ///
 /// // In development/testing:
 /// final db = FixtureDatabaseAdapter(
-///   dataQuery: SqfliteFileFixtureSource(),
-///   dataSelector: DataSelectorType.pick,
+///   pipeline: FixturePipeline(
+///     source: SqfliteFileFixtureSource(),
+///     selector: DataSelectorType.pick,
+///   ),
 /// );
 ///
 /// final repo = UserRepository(db); // Same code, different data source!
@@ -41,28 +42,15 @@ import 'sqflite_query.dart';
 /// - `query_users.json` for `db.query('users')`
 /// - `query_products.json` for `db.query('products')`
 /// - `insert_orders.json` for `db.insert('orders', ...)`
-class FixtureDatabaseAdapter with FixtureSelector implements DatabaseAdapter {
-  /// The fixture source consulted for each query
-  final SqfliteFixtureSource dataQuery;
-
-  /// The selector type for choosing which fixture to return
-  final DataSelectorType dataSelector;
-
-  /// Optional view for user-driven fixture selection
-  final DataSelectorView? dataSelectorView;
-
-  /// Optional delay to simulate database latency
-  final Duration delay;
+class FixtureDatabaseAdapter implements DatabaseAdapter {
+  /// The pipeline every statement is served through — source, selection
+  /// strategy, picker, memory and delay all live there. Build it once,
+  /// next to this adapter: remembered choices live in it.
+  final FixturePipeline<SqfliteQuery> pipeline;
 
   bool _isOpen = true;
 
-  /// Creates a new FixtureDatabaseAdapter
-  FixtureDatabaseAdapter({
-    required this.dataQuery,
-    required this.dataSelector,
-    this.dataSelectorView,
-    this.delay = DataSelectorDelay.instant,
-  });
+  FixtureDatabaseAdapter({required this.pipeline});
 
   @override
   bool get isOpen => _isOpen;
@@ -210,19 +198,18 @@ class FixtureDatabaseAdapter with FixtureSelector implements DatabaseAdapter {
         sql: sql, operation: SqfliteOperation.execute, arguments: arguments));
   }
 
-  /// Runs the core fixture pipeline for [query].
+  /// Serves [query] through the pipeline.
   ///
-  /// Every miss — no fixture, an empty collection, a cancelled pick —
-  /// degrades to `null` here; callers substitute their operation's default.
+  /// A missing or empty fixture degrades to `null` — callers substitute
+  /// their operation's default, so an unfixtured table behaves like an
+  /// empty one. A cancelled pick is an explicit user action and is thrown
+  /// as [FixtureCancelled].
   Future<Object?> _payloadFor(SqfliteQuery query) async {
-    final outcome = await serve(
-      find: () => dataQuery.resolve(query),
-      data: dataQuery.data,
-      view: dataSelectorView,
-      selector: dataSelector,
-      delay: delay,
-    );
-    return outcome is FixtureServed ? outcome.payload : null;
+    return switch (await pipeline.serve(query)) {
+      FixtureServed(:final payload) => payload,
+      FixtureCancelled cancelled => throw cancelled,
+      FixtureMiss() => null,
+    };
   }
 
   /// Internal method to execute a query and return list of maps

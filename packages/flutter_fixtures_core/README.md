@@ -17,7 +17,7 @@ This package defines the core contracts and data models used by all Flutter Fixt
 ### Interfaces
 
 - **`DataSelectorView`**: Interface for fixture selection components
-- **`FixtureSelector`**: Mixin owning the selection flow — strategy dispatch, remembered choices, pick deduplication, delays — and the `serve` pipeline (find → select → data), reported as a `FixtureOutcome`
+- **`FixturePipeline`**: The module owning the whole serve flow — source lookup, strategy dispatch, remembered choices, pick deduplication, delays — behind one `serve` call, delays — and the `serve` pipeline (find → select → data), reported as a `FixtureOutcome`
 
 ### Data Models
 
@@ -76,31 +76,36 @@ class CacheFixtureSource extends FixtureFileSource<String> {
       : super(mockFolder: mockFolder, candidates: (key) => ['$key.json']);
 }
 
-/// The consumer mixes in FixtureSelector and runs the pipeline.
-class FixtureCache with FixtureSelector {
-  FixtureCache({required this.source, required this.selector, this.view});
+/// The consumer holds one pipeline and renders outcomes for its domain.
+class FixtureCache {
+  FixtureCache({required this.pipeline});
 
-  final FixtureSource<String> source;
-  final DataSelectorType selector;
-  final DataSelectorView? view;
+  final FixturePipeline<String> pipeline;
 
   Future<Object?> read(String cacheKey) async {
-    final outcome = await serve(
-      find: () => source.resolve(cacheKey),
-      data: source.data,
-      view: view,
-      selector: selector,
-    );
-    // Map the outcome to your domain's defaults and error policy.
-    return outcome is FixtureServed ? outcome.payload : null;
+    return switch (await pipeline.serve(cacheKey)) {
+      FixtureServed(:final payload) => payload,
+      FixtureCancelled cancelled => throw cancelled,
+      FixtureMiss() => null, // your domain's default
+    };
   }
 }
+
+final cache = FixtureCache(
+  pipeline: FixturePipeline(
+    source: CacheFixtureSource(),
+    selector: DataSelectorType.pick,
+    view: myView,
+  ),
+);
 ```
 
-`serve` owns the find → select → data choreography and returns a
-`FixtureOutcome`: `FixtureNotFound`, `FixtureEmpty`, `FixtureCancelled`, or
-`FixtureServed` (the selected document plus its payload). Remembered
-choices, pick deduplication, and delays come with the mixin for free.
+`FixturePipeline.serve` owns the find → select → load choreography and
+returns a `FixtureOutcome`: `FixtureServed` (the selected document plus its
+payload) or a `FixtureMiss` — `FixtureNotFound`, `FixtureEmpty`,
+`FixtureCancelled` — which is also an `Exception`, so adapters throw the
+outcome itself. Remembered choices, pick deduplication, and delays live in
+the pipeline; build it once for the lifetime you want choices remembered.
 
 ## ⏱️ Simulating Response Delays
 

@@ -85,16 +85,18 @@ assets/
 
 ### Using FixtureDatabase (Recommended)
 
-Use `FixtureDatabase` as a drop-in replacement for sqflite's `Database`:
+Use `FixtureDatabaseAdapter` as a drop-in replacement for sqflite's `Database`:
 
 ```dart
 import 'package:flutter_fixtures_sqflite/flutter_fixtures_sqflite.dart';
 import 'package:flutter_fixtures_core/flutter_fixtures_core.dart';
 
 // Create a fixture database (same API as sqflite's Database)
-final db = FixtureDatabase(
-  dataQuery: SqfliteFileFixtureSource(),
-  dataSelector: DataSelectorType.defaultValue,
+final db = FixtureDatabaseAdapter(
+  pipeline: FixturePipeline(
+    source: SqfliteFileFixtureSource(),
+    selector: DataSelectorType.defaultValue,
+  ),
 );
 
 // Query just like a real sqflite database!
@@ -114,11 +116,14 @@ await db.delete('users', where: 'id = ?');
 add it to your dev dependencies alongside this one.
 
 ```dart
-final db = FixtureDatabase(
-  dataQuery: SqfliteFileFixtureSource(),
-  dataSelector: DataSelectorType.pick,
-  dataSelectorView: FixturesDialogView.of(context),
-  delay: DataSelectorDelay.fast,
+// Build the pipeline once, for the lifetime you want choices remembered.
+final db = FixtureDatabaseAdapter(
+  pipeline: FixturePipeline(
+    source: SqfliteFileFixtureSource(),
+    selector: DataSelectorType.pick,
+    view: FixturesDialogView.of(context),
+    delay: DataSelectorDelay.fast,
+  ),
 );
 
 // When querying, a dialog will let you pick which fixture to return

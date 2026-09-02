@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+* **BREAKING**: `FixturesInterceptor` takes one `pipeline`
+  (`FixturePipeline<HttpFixtureRequest>`) instead of `sources` /
+  `mockFolder` / `assetLoader` / `dataSelector` / `dataSelectorView` /
+  `dataSelectorDelay`; build the pipeline once next to the Dio instance so
+  remembered choices survive. A miss rejects with a `DioException` whose
+  `error` is the typed `FixtureMiss` (`message` carries the text).
+
 * New `RecorderInterceptor`: captures real HTTP traffic and replays it
   through core's `TrafficRecorder` seam (engine:
   `flutter_fixtures_recorder`). Replay wins over later

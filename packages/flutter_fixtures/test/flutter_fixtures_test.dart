@@ -17,7 +17,7 @@ void main() {
       );
 
       // Verify that the Fixture mixin is available
-      expect(FixtureSelector, isNotNull);
+      expect(FixturePipeline, isNotNull);
 
       // Verify that the FixtureCollection classes are available
       expect(FixtureCollection, isNotNull);

@@ -24,8 +24,10 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 ///
 /// // In development/testing:
 /// final db = FixtureDatabaseAdapter(
-///   dataQuery: SqfliteFileFixtureSource(),
-///   dataSelector: DataSelectorType.pick,
+///   pipeline: FixturePipeline(
+///     source: SqfliteFileFixtureSource(),
+///     selector: DataSelectorType.pick,
+///   ),
 /// );
 /// final repo = UserRepository(db);
 /// ```

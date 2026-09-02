@@ -28,7 +28,10 @@ import 'package:flutter_fixtures_dio/flutter_fixtures_dio.dart';
 final dio = Dio();
 dio.interceptors.add(
   FixturesInterceptor(
-    dataSelector: DataSelectorType.random,
+    pipeline: FixturePipeline(
+      source: HttpFileFixtureSource(),
+      selector: DataSelectorType.random,
+    ),
   ),
 );
 ```
@@ -84,8 +87,11 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
 // Add the fixtures interceptor
 dio.interceptors.add(
   FixturesInterceptor(
-    dataSelector: DataSelectorType.random, // Randomly select fixtures
-    dataSelectorDelay: DataSelectorDelay.instant, // Optional: simulate network delay
+    pipeline: FixturePipeline(
+      source: HttpFileFixtureSource(),
+      selector: DataSelectorType.random,
+      delay: DataSelectorDelay.instant,
+    ),
   ),
 );
 
@@ -100,13 +106,11 @@ Choose how fixtures are selected:
 
 ```dart
 // Always use the default fixture (marked with "default": true)
-dataSelector: DataSelectorType.defaultValue
-
+selector: DataSelectorType.defaultValue
 // Randomly select from available fixtures
-dataSelector: DataSelectorType.random
-
+selector: DataSelectorType.random
 // Let user pick through UI (requires flutter_fixtures_ui package)
-dataSelector: DataSelectorType.pick
+selector: DataSelectorType.pick
 ```
 
 <div align="center">
@@ -131,8 +135,10 @@ By default, fixtures are loaded from `assets/fixtures/`. You can customize this:
 ```dart
 dio.interceptors.add(
   FixturesInterceptor(
-    mockFolder: 'assets/my_mocks',
-    dataSelector: DataSelectorType.random,
+    pipeline: FixturePipeline(
+      source: HttpFileFixtureSource(mockFolder: 'assets/my_mocks'),
+      selector: DataSelectorType.random,
+    ),
   ),
 );
 ```
@@ -242,11 +248,13 @@ file per endpoint. Drop the spec's JSON in your assets and add an
 ```dart
 dio.interceptors.add(
   FixturesInterceptor(
-    sources: [
+    pipeline: FixturePipeline(
+      source: HttpFixtureSources([
       HttpFileFixtureSource(),
       OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
-    ],
-    dataSelector: DataSelectorType.pick,
+    ]),
+      selector: DataSelectorType.pick,
+    ),
   ),
 );
 ```
@@ -306,8 +314,11 @@ import 'package:flutter_fixtures_ui/flutter_fixtures_ui.dart';
 
 dio.interceptors.add(
   FixturesInterceptor(
-    dataSelectorView: FixturesDialogView.of(context),
-    dataSelector: DataSelectorType.pick, // Enables UI selection
+    pipeline: FixturePipeline(
+      source: HttpFileFixtureSource(),
+      selector: DataSelectorType.pick,
+      view: FixturesDialogView.of(context),
+    ),
   ),
 );
 ```
@@ -337,7 +348,10 @@ class ApiService {
     // Add fixtures interceptor for development/testing
     _dio.interceptors.add(
       FixturesInterceptor(
-        dataSelector: DataSelectorType.defaultValue,
+        pipeline: FixturePipeline(
+          source: HttpFileFixtureSource(),
+          selector: DataSelectorType.defaultValue,
+        ),
       ),
     );
   }
@@ -366,9 +380,7 @@ The main interceptor class that handles request interception.
 - `sources` (optional): Ordered `HttpFixtureSource` list consulted per request; the first that resolves wins and provides the response payload (default: a single `HttpFileFixtureSource`)
 - `mockFolder` (optional): Asset directory for the default file source (default: `'assets/fixtures'`); ignored when `sources` is given
 - `assetLoader` (optional): Seam for reading fixture assets used by the default file source (default: root asset bundle); ignored when `sources` is given
-- `dataSelector` (required): Strategy for selecting which fixture to return
-- `dataSelectorView` (optional): UI component for user-driven fixture selection
-- `dataSelectorDelay` (optional): Delay to apply when selecting fixtures (default: `DataSelectorDelay.instant`)
+- `pipeline` (required): The `FixturePipeline<HttpFixtureRequest>` every request is served through. Its constructor is the whole configuration surface: `source` (an `HttpFixtureSource`, e.g. `HttpFileFixtureSource()` or `HttpFixtureSources([...])`), `selector` (`DataSelectorType`), `view` (optional `DataSelectorView` for user-driven selection), and `delay` (optional `Duration`, default `DataSelectorDelay.instant`). Build the pipeline once next to the Dio instance: remembered choices live in it. A miss rejects with a `DioException` whose `error` is the `FixtureMiss` (`FixtureNotFound`, `FixtureEmpty`, `FixtureCancelled`).
 
 ## Related Packages
 
@@ -407,8 +419,11 @@ choices back in order with no dialogs and no fixture pipeline involved:
 dio.interceptors
   ..add(RecorderInterceptor(recorder: recorder))
   ..add(FixturesInterceptor(
-    dataSelectorView: FixturesDialogView(contextProvider: () => context),
-    dataSelector: DataSelectorType.pick,
+    pipeline: FixturePipeline(
+      source: HttpFileFixtureSource(),
+      selector: DataSelectorType.pick,
+      view: FixturesDialogView(contextProvider: () => context),
+    ),
   ));
 ```
 

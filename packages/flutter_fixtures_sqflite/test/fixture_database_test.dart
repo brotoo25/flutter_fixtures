@@ -16,6 +16,11 @@ class FakeFixtureSource implements SqfliteFixtureSource {
   Future<Object?> data(FixtureDocument document) async => payload;
 }
 
+class _CancellingView implements DataSelectorView {
+  @override
+  Future<FixtureChoice?> pick(FixtureCollection fixture) async => null;
+}
+
 FixtureCollection _singleDocument() => FixtureCollection(
       description: 'db fixture',
       items: [
@@ -32,8 +37,10 @@ FixtureDatabaseAdapter _db({
   Object? payload,
 }) {
   return FixtureDatabaseAdapter(
-    dataQuery: FakeFixtureSource(collection: collection, payload: payload),
-    dataSelector: DataSelectorType.defaultValue,
+    pipeline: FixturePipeline(
+      source: FakeFixtureSource(collection: collection, payload: payload),
+      selector: DataSelectorType.defaultValue,
+    ),
   );
 }
 
@@ -151,6 +158,31 @@ void main() {
         final result = await _db().delete('users', where: 'id = ?');
 
         expect(result, 1);
+      });
+    });
+
+    group('a cancelled pick', () {
+      test('throws FixtureCancelled instead of degrading to a default',
+          () async {
+        final db = FixtureDatabaseAdapter(
+          pipeline: FixturePipeline(
+            source: FakeFixtureSource(
+              collection: FixtureCollection(
+                description: 'two',
+                items: [
+                  FixtureDocument(
+                      identifier: 'a', description: 'A', defaultOption: true),
+                  FixtureDocument(
+                      identifier: 'b', description: 'B', defaultOption: false),
+                ],
+              ),
+            ),
+            selector: DataSelectorType.pick,
+            view: _CancellingView(),
+          ),
+        );
+
+        expect(() => db.query('users'), throwsA(isA<FixtureCancelled>()));
       });
     });
 
