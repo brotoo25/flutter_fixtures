@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="470" viewBox="0 0 1200 470" role="img" aria-labelledby="title desc">
+  <title id="title">How a request is answered</title>
+  <desc id="desc">A request is matched against fixture sources in order: fixture files, then an OpenAPI spec, then your own source; the first match wins. One response is then selected by strategy (default, random, or pick via a dialog), an optional delay is applied, and the response is returned. A separate record and replay lane captures real responses and serves them back in recorded order.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#5D5578"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="470" rx="28" fill="#15121F"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif">
+    <!-- stage labels -->
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" letter-spacing="2" fill="#8B86A0">
+      <text x="64" y="68">1 · REQUEST</text>
+      <text x="284" y="68">2 · SOURCES, FIRST MATCH WINS</text>
+      <text x="774" y="68">3 · SELECT</text>
+      <text x="994" y="68">4 · ANSWER</text>
+    </g>
+
+    <!-- 1 request -->
+    <rect x="64" y="90" width="190" height="122" rx="18" fill="#1E1A2D" stroke="#342E4A" stroke-width="1.5"/>
+    <circle cx="88" cy="122" r="5" fill="#A78BFA"/>
+    <text x="102" y="129" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" fill="#F4F1F8">GET /users</text>
+    <text x="84" y="164" font-size="18" fill="#8B86A0">a Dio request,</text>
+    <text x="84" y="190" font-size="18" fill="#8B86A0">or db.query()</text>
+
+    <path d="M254 151 H280" stroke="#5D5578" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+    <!-- 2 sources -->
+    <rect x="284" y="90" width="460" height="122" rx="18" fill="#1E1A2D" stroke="#342E4A" stroke-width="1.5"/>
+    <g font-size="18">
+      <rect x="299" y="108" width="138" height="44" rx="10" fill="#2B2542" stroke="#A78BFA" stroke-width="1.5"/>
+      <text x="368" y="136" text-anchor="middle" font-weight="600" fill="#F4F1F8">Fixture files</text>
+      <path d="M437 130 H454" stroke="#5D5578" stroke-width="2" marker-end="url(#arrow)"/>
+      <rect x="457" y="108" width="132" height="44" rx="10" fill="#241F35" stroke="#3B3454" stroke-width="1.5"/>
+      <text x="523" y="136" text-anchor="middle" fill="#CBC5DC">OpenAPI spec</text>
+      <path d="M589 130 H606" stroke="#5D5578" stroke-width="2" marker-end="url(#arrow)"/>
+      <rect x="609" y="108" width="120" height="44" rx="10" fill="#241F35" stroke="#3B3454" stroke-width="1.5" stroke-dasharray="6 4"/>
+      <text x="669" y="136" text-anchor="middle" fill="#CBC5DC">Your source</text>
+    </g>
+    <text x="300" y="190" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" fill="#A78BFA">GET_users.json · GET_users_*.json · openapi.json</text>
+
+    <path d="M744 151 H770" stroke="#5D5578" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+    <!-- 3 select -->
+    <rect x="774" y="90" width="190" height="122" rx="18" fill="#1E1A2D" stroke="#342E4A" stroke-width="1.5"/>
+    <g font-size="20" fill="#CBC5DC">
+      <circle cx="800" cy="122" r="8" fill="none" stroke="#5D5578" stroke-width="2"/>
+      <text x="820" y="129">default</text>
+      <circle cx="800" cy="152" r="8" fill="none" stroke="#5D5578" stroke-width="2"/>
+      <text x="820" y="159">random</text>
+      <circle cx="800" cy="182" r="8" fill="none" stroke="#A78BFA" stroke-width="2"/>
+      <circle cx="800" cy="182" r="4" fill="#A78BFA"/>
+      <text x="820" y="189" font-weight="600" fill="#F4F1F8">pick</text>
+      <text x="870" y="189" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" fill="#8B86A0">(dialog)</text>
+    </g>
+
+    <path d="M964 151 H990" stroke="#5D5578" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+    <!-- 4 answer -->
+    <rect x="994" y="90" width="142" height="122" rx="18" fill="#1E1A2D" stroke="#342E4A" stroke-width="1.5"/>
+    <text x="1065" y="138" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="32" font-weight="700" fill="#F4F1F8">200</text>
+    <text x="1065" y="168" text-anchor="middle" font-size="18" fill="#8B86A0">+ delay</text>
+    <text x="1065" y="192" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" fill="#CBC5DC">instant … slow</text>
+
+    <!-- divider -->
+    <path d="M64 258 H1136" stroke="#2B2542" stroke-width="1.5"/>
+
+    <!-- record & replay lane -->
+    <text x="64" y="304" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" letter-spacing="2" fill="#8B86A0">RECORD &amp; REPLAY  ·  OPT-IN, ANY SOURCE</text>
+
+    <rect x="64" y="326" width="500" height="94" rx="18" fill="#1E1A2D" stroke="#342E4A" stroke-width="1.5"/>
+    <circle cx="98" cy="360" r="10" fill="#E5484D"/>
+    <text x="120" y="367" font-size="22" font-weight="600" fill="#F4F1F8">Record</text>
+    <text x="120" y="398" font-size="18" fill="#8B86A0">every response, HTTP and SQL alike</text>
+
+    <path d="M564 373 H602" stroke="#5D5578" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+    <text x="583" y="352" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" fill="#5D5578">save</text>
+
+    <rect x="608" y="326" width="528" height="94" rx="18" fill="#1E1A2D" stroke="#342E4A" stroke-width="1.5"/>
+    <path d="M636 350 L656 360 L636 370 z" fill="#A78BFA"/>
+    <text x="668" y="367" font-size="22" font-weight="600" fill="#F4F1F8">Replay</text>
+    <text x="668" y="398" font-size="18" fill="#8B86A0">the same answers, in the same order, no network</text>
+  </g>
+</svg>

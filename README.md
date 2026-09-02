@@ -1,467 +1,300 @@
-# Flutter Fixtures
+<p align="center">
+  <img src="docs/readme/hero.svg" width="100%" alt="flutter_fixtures: answer your app's HTTP and database requests from fixture files, an OpenAPI spec, or a recorded session. A GET /users request maps to GET_users.json, which offers Success 200, Empty 200 and Error 500 responses to pick from.">
+</p>
 
-[![CI](https://github.com/brotoo25/flutter_fixtures/actions/workflows/ci.yml/badge.svg)](https://github.com/brotoo25/flutter_fixtures/actions/workflows/ci.yml)
+<p align="center">
+  <a href="https://github.com/brotoo25/flutter_fixtures/actions/workflows/ci.yml"><img src="https://github.com/brotoo25/flutter_fixtures/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://pub.dev/packages/flutter_fixtures"><img src="https://img.shields.io/pub/v/flutter_fixtures.svg" alt="pub.dev version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
+</p>
 
-A Flutter library for mocking HTTP requests and other data sources with fixture files. This library provides a flexible way to intercept requests and return mock responses, making it ideal for development, testing, and demos.
+Flutter Fixtures sits between your app and its data. The requests you already make through Dio or sqflite are answered from JSON fixture files instead of a live backend, and each fixture can hold several responses, so you can switch between success, empty and error states from a dialog inside the running app.
 
-<div align="center">
-  <img src="docs/recording.gif" alt="Flutter Fixtures Demo" width="500"/>
-  <p><em>Universal data mocking for Flutter applications</em></p>
-</div>
+Use it to build screens before the API exists, demo without a network, and reproduce the edge cases that are hard to hit for real.
 
-## Packages
+<p align="center">
+  <img src="docs/recording.gif" width="230" alt="The example app making a request twice and picking a different fixture response each time">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/pick.png" width="230" alt="The pick dialog listing Success 200, Success from data file 200 and Failure 400 for a login request">
+</p>
+<p align="center"><em>The example app: one request, three possible answers, chosen at runtime.</em></p>
 
-This library is designed to be modular and extensible. It consists of the following packages:
+## Quick start
 
-- **flutter_fixtures_core**: Core interfaces and domain models
-- **flutter_fixtures_dio**: Dio HTTP client implementation
-- **flutter_fixtures_sqflite**: SQLite/sqflite database implementation
-- **flutter_fixtures_ui**: UI components for fixture selection
-- **flutter_fixtures_recorder**: Record & replay engine for real traffic from any source, for demos and offline use (the dio and sqflite packages ship the matching interceptor/adapter)
-- **flutter_fixtures**: Meta-package bundling core, dio and ui (sqflite and recorder are opt-in)
-
-## Features
-
-- **Multiple Data Providers**: Support for different data providers (Dio HTTP, sqflite databases, with more planned)
-- **Flexible Selection Modes**: Choose how fixtures are selected (random, default, or user-selected)
-- **UI Components**: Built-in UI components for user interaction
-- **Extensible Architecture**: Easy to extend with new data providers and UI components
-- **Modular Design**: Use only the packages you need or the combined meta-package
-
-## Installation
-
-### Complete Package
-
-For the full functionality, add the meta-package to your `pubspec.yaml` file:
-
-```yaml
-dependencies:
-  flutter_fixtures: ^0.1.0
-```
-
-Or use the following command:
+**1. Add the package.** The meta-package bundles the Dio interceptor and the pick dialog.
 
 ```bash
 flutter pub add flutter_fixtures
 ```
 
-### Modular Installation
-
-If you only need specific functionality, you can add individual packages:
-
-```yaml
-dependencies:
-  # Core interfaces and models (required)
-  flutter_fixtures_core: ^0.1.0
-
-  # Only if you need Dio support
-  flutter_fixtures_dio: ^0.1.0
-
-  # Only if you need sqflite support
-  flutter_fixtures_sqflite: ^0.1.0
-
-  # Only if you need UI components
-  flutter_fixtures_ui: ^0.1.0
-```
-
-### Custom Implementations
-
-You can create your own implementations by depending only on the core package:
-
-```yaml
-dependencies:
-  flutter_fixtures_core: ^0.1.0
-```
-
-Then implement the interfaces provided by the core package to create your custom data providers or UI components.
-
-## Usage
-
-### Basic Usage with Dio
+**2. Register the interceptor** on the Dio instance your app already uses.
 
 ```dart
 import 'package:dio/dio.dart';
 import 'package:flutter_fixtures/flutter_fixtures.dart';
 
-// Create a Dio instance
-final dio = Dio(BaseOptions(baseUrl: 'https://example.com'));
-
-// Add the FixturesInterceptor
-dio.interceptors.add(
-  FixturesInterceptor(
-    dataSelectorView: FixturesDialogView(
-      contextProvider: () => navigatorKey.currentContext!,
+final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
+  ..interceptors.add(
+    FixturesInterceptor(
+      dataSelector: DataSelectorType.pick,
+      dataSelectorView: FixturesDialogView(
+        contextProvider: () => navigatorKey.currentContext!,
+      ),
     ),
-    dataSelector: DataSelectorType.random,
-    dataSelectorDelay: DataSelectorDelay.moderate, // Optional: simulate network delay
-  ),
-);
+  );
+```
 
-// Make requests as usual
+**3. Write a fixture.** Create `assets/fixtures/GET_users.json` and register the folder in `pubspec.yaml`.
+
+```json
+{
+  "description": "Users List",
+  "values": [
+    { "identifier": "Success", "description": "200", "default": true,
+      "data": { "users": [{ "id": 1, "name": "Alice" }] } },
+    { "identifier": "Empty",   "description": "200", "data": { "users": [] } },
+    { "identifier": "Error",   "description": "500", "data": { "error": "Internal Server Error" } }
+  ]
+}
+```
+
+```yaml
+flutter:
+  assets:
+    - assets/fixtures/
+```
+
+**4. Make the request as usual.** A dialog asks which response to return. Pick *Error* and your error screen shows up.
+
+```dart
 final response = await dio.get('/users');
 ```
 
-### Basic Usage with sqflite
+> [!TIP]
+> Use `DataSelectorType.defaultValue` for automated tests and CI, and `DataSelectorType.random` to shake loose state bugs during development. The dialog is for humans.
 
-The sqflite integration uses a `DatabaseAdapter` interface that allows you to swap between real databases and fixtures at runtime with **zero code changes** in your repositories.
+## How it works
+
+<p align="center">
+  <img src="docs/readme/pipeline.svg" width="100%" alt="A request is matched against sources in order (fixture files, OpenAPI spec, your source), one response is selected by strategy (default, random, pick), a delay is applied, and the answer is returned. A second lane records every response and replays it in order.">
+</p>
+
+**1. The request becomes a file name.** `GET /users` looks for `GET_users.json`; slashes become underscores. Query values are tried in sorted-key order: `GET_search_2_test.json` for `/search?q=test&page=2`, then wildcards `GET_search_*_*.json` or `GET_search_{{page}}_{{q}}.json`. The first file that exists wins.
+
+**2. Sources are consulted in order.** Fixture files first, then an OpenAPI spec if you add one, then any `HttpFixtureSource` of your own. The first source that resolves the request provides the collection.
+
+**3. One response is selected.**
+
+| Strategy | What happens |
+| --- | --- |
+| `DataSelectorType.defaultValue` | Returns the entry marked `"default": true` |
+| `DataSelectorType.random` | Returns any entry at random |
+| `DataSelectorType.pick` | Shows a dialog and returns what you chose. Choices can be remembered per request. |
+
+**4. The answer is delayed, then returned.** Pass `dataSelectorDelay` to test loading states: `instant` (default), `fast` (~100 ms), `moderate` (~500 ms), `slow` (~2 s), or `custom(1500)`.
+
+### Anatomy of a fixture file
+
+| Field | Meaning |
+| --- | --- |
+| `description` | Title of the collection, shown in the pick dialog |
+| `values[]` | The possible responses |
+| `values[].identifier` | Label of one response |
+| `values[].description` | Its status: the first three characters become the HTTP status code |
+| `values[].default` | Marks the response used by `defaultValue` |
+| `values[].data` | The inline payload |
+| `values[].dataPath` | A JSON file relative to the fixtures folder, for large payloads. Use instead of `data`, and list its subfolder (for example `assets/fixtures/data/`) in `pubspec.yaml` too. |
+
+## Beyond HTTP
+
+### SQLite with sqflite
+
+Code your repositories against `DatabaseAdapter`, then decide at startup whether it talks to a real database or to fixtures. Nothing in the repository changes.
 
 ```dart
 import 'package:flutter_fixtures_sqflite/flutter_fixtures_sqflite.dart';
 
-// Define your repository using DatabaseAdapter
-class UserRepository {
-  final DatabaseAdapter db;
-  UserRepository(this.db);
-
-  Future<List<Map<String, dynamic>>> getUsers() async {
-    return await db.query('users');
-  }
-
-  Future<int> createUser(Map<String, dynamic> user) async {
-    return await db.insert('users', user);
-  }
-}
-
-// In development/testing - use fixtures:
+// Development: answer queries from assets/fixtures/database/
 final db = FixtureDatabaseAdapter(
   dataQuery: SqfliteDataQuery(),
   dataSelector: DataSelectorType.pick,
   dataSelectorView: FixturesDialogView.of(context),
 );
 
-// In production - use real sqflite:
+// Production: the real thing
 // final db = RealDatabaseAdapter(await openDatabase('app.db'));
 
-// Same repository code works with both!
-final repo = UserRepository(db);
-final users = await repo.getUsers();
+final users = await db.query('users'); // -> query_users.json
 ```
 
-#### sqflite Fixture Files
+Fixture files are named `{operation}_{table}.json`, so `db.insert('orders', …)` reads `insert_orders.json`. See the [sqflite package](packages/flutter_fixtures_sqflite/README.md) for the full adapter API.
 
-Create fixture files in `assets/fixtures/database/`:
+<p align="center">
+  <img src="docs/recording-sqflite.gif" width="230" alt="The SQLite tab querying the users table, picking a fixture, then switching to the products table and picking again">
+</p>
 
-```json
-// assets/fixtures/database/query_users.json
-{
-  "description": "Users table query",
-  "values": [
-    {
-      "identifier": "Multiple Users",
-      "description": "Returns list of users",
-      "default": true,
-      "data": [
-        {"id": 1, "name": "Alice", "email": "alice@example.com"},
-        {"id": 2, "name": "Bob", "email": "bob@example.com"}
-      ]
-    },
-    {
-      "identifier": "Empty",
-      "description": "No users found",
-      "data": []
-    }
-  ]
-}
+### OpenAPI specs
+
+If your API ships an OpenAPI 3.x document, drop it in your assets and every documented response becomes a selectable fixture, labelled by status code and description, with payloads taken from the spec's examples or generated from its schema. Hand-written files still win when both exist.
+
+```dart
+FixturesInterceptor(
+  sources: [
+    HttpFileFixtureSource(),
+    OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
+  ],
+  dataSelector: DataSelectorType.pick,
+)
 ```
 
-The file naming convention is `{operation}_{table}.json`:
-- `query_users.json` → `db.query('users')`
-- `insert_orders.json` → `db.insert('orders', ...)`
-- `update_products.json` → `db.update('products', ...)`
-- `delete_sessions.json` → `db.delete('sessions', ...)`
+Details live in the [Dio package](packages/flutter_fixtures_dio/README.md#openapi-fixtures).
 
-### Fixture Selection Modes
+### Record and replay
 
-The library supports three fixture selection modes:
+Capture real traffic once, then replay it later in the same order, with no network at all. One recorder covers every wired source, so an HTTP call and a SQL query recorded in the same session come back together. It ships with a toolbar and a sessions sheet, and every control is also on the public API.
 
-1. **Random**: Randomly selects a fixture response
-   ```dart
-   dataSelector: DataSelectorType.random
-   ```
+```dart
+import 'package:flutter_fixtures_recorder/flutter_fixtures_recorder.dart';
 
-2. **Default**: Always selects the fixture marked as default
-   ```dart
-   dataSelector: DataSelectorType.defaultValue
-   ```
+final recorder = FixtureRecorder(
+  store: sessionStoreForDirectory(() async =>
+      '${(await getApplicationDocumentsDirectory()).path}/fixture_recordings'),
+);
 
-3. **Pick**: Shows a dialog for the user to pick the response
-   ```dart
-   dataSelector: DataSelectorType.pick
-   ```
+dio.interceptors.add(RecorderInterceptor(recorder: recorder));   // HTTP
+final db = RecorderDatabaseAdapter(inner: realDb, recorder: recorder); // SQL
 
-### Fixture Files
+RecorderToolbar(recorder: recorder) // anywhere in your debug UI
+```
 
-Fixture files should be placed in the `assets/fixtures` directory and included in your `pubspec.yaml`:
+Place `RecorderInterceptor` before `FixturesInterceptor` and the two chain: fixture picks are recorded too, and a replay serves them back without showing a dialog. Ordering, miss policies and custom storage are covered in the [recorder package](packages/flutter_fixtures_recorder/README.md).
+
+<p align="center">
+  <img src="docs/recording-recorder.gif" width="230" alt="The Recorder tab: start recording, pick responses for two requests, save the session as Login demo, then replay it and watch both requests answered instantly with no dialog">
+</p>
+<p align="center"><em>Record two picks, save, replay: the same answers come back in order, tagged REPLAY.</em></p>
+
+## Packages
+
+<p align="center">
+  <img src="docs/readme/packages.svg" width="100%" alt="Package map: the flutter_fixtures meta-package bundles core, dio and ui; sqflite and recorder are opt-in packages that build on core.">
+</p>
+
+| Package | | What it adds |
+| --- | --- | --- |
+| [`flutter_fixtures`](packages/flutter_fixtures) | [![pub](https://img.shields.io/pub/v/flutter_fixtures.svg)](https://pub.dev/packages/flutter_fixtures) | Core + Dio + UI in one dependency |
+| [`flutter_fixtures_core`](packages/flutter_fixtures_core) | [![pub](https://img.shields.io/pub/v/flutter_fixtures_core.svg)](https://pub.dev/packages/flutter_fixtures_core) | Models, fixture sources, selection flow, OpenAPI, the recorder seam |
+| [`flutter_fixtures_dio`](packages/flutter_fixtures_dio) | [![pub](https://img.shields.io/pub/v/flutter_fixtures_dio.svg)](https://pub.dev/packages/flutter_fixtures_dio) | `FixturesInterceptor` and `RecorderInterceptor` for Dio |
+| [`flutter_fixtures_ui`](packages/flutter_fixtures_ui) | [![pub](https://img.shields.io/pub/v/flutter_fixtures_ui.svg)](https://pub.dev/packages/flutter_fixtures_ui) | The pick dialog |
+| [`flutter_fixtures_sqflite`](packages/flutter_fixtures_sqflite) | [![pub](https://img.shields.io/pub/v/flutter_fixtures_sqflite.svg)](https://pub.dev/packages/flutter_fixtures_sqflite) | `DatabaseAdapter` with real, fixture and recording implementations |
+| [`flutter_fixtures_recorder`](packages/flutter_fixtures_recorder) | [![pub](https://img.shields.io/pub/v/flutter_fixtures_recorder.svg)](https://pub.dev/packages/flutter_fixtures_recorder) | Record & replay engine, toolbar and sessions sheet |
+
+Pick only what you need:
 
 ```yaml
-flutter:
-  assets:
-    - assets/fixtures/
-    - assets/fixtures/data/
+dependencies:
+  flutter_fixtures_core: ^0.3.0     # always
+  flutter_fixtures_dio: ^0.3.0      # HTTP via Dio
+  flutter_fixtures_ui: ^0.3.0       # the pick dialog
+  flutter_fixtures_sqflite: ^0.3.0  # SQLite
+  flutter_fixtures_recorder: ^0.1.0 # record & replay
 ```
 
-Example fixture file (`assets/fixtures/GET_users.json`):
-
-```json
-{
-  "description": "Users List",
-  "values": [
-    {
-      "identifier": "Success",
-      "description": "200",
-      "default": true,
-      "data": {"users": [{"id": 1, "name": "John"}]}
-    },
-    {
-      "identifier": "Empty",
-      "description": "200",
-      "data": {"users": []}
-    },
-    {
-      "identifier": "Error",
-      "description": "500",
-      "data": {"error": "Internal Server Error"}
-    }
-  ]
-}
-```
-
-### OpenAPI Fixtures
-
-If your API ships an OpenAPI 3.x spec, you can skip hand-writing fixture
-files: paste the spec's JSON into your assets and add an
-`OpenApiFixtureSource` to the interceptor's sources.
+To support another data source, depend on core alone and implement its interfaces. The [core package](packages/flutter_fixtures_core/README.md) walks through a custom source, and a custom selector UI is one method:
 
 ```dart
-dio.interceptors.add(
-  FixturesInterceptor(
-    sources: [
-      HttpFileFixtureSource(),
-      OpenApiFixtureSource(specPath: 'assets/fixtures/openapi.json'),
-    ],
-    dataSelector: DataSelectorType.pick,
-  ),
-);
-```
-
-Sources are consulted in order and the first one that resolves wins — here
-hand-written fixture files take precedence and the spec covers the rest.
-
-Requests with no matching fixture file are looked up in the spec (including
-`{param}` path templates and server base paths), and each documented
-response becomes a selectable fixture: the status code and response
-description label it, and the payload comes from the spec's examples — or,
-when an operation has none, from sample data generated from its schema.
-Hand-written fixture files always take precedence, so you can override any
-endpoint with a custom fixture whenever you need more control.
-
-## Extensibility
-
-Flutter Fixtures is designed to be highly extensible. You can create your own implementations for different data providers, UI components, or storage mechanisms.
-
-### Response Delays
-
-Simulate network latency to test loading states:
-
-```dart
-// Use predefined delays
-dataSelectorDelay: DataSelectorDelay.moderate  // 500ms delay
-
-// Or create custom delays
-dataSelectorDelay: DataSelectorDelay.custom(1500)  // 1.5 second delay
-```
-
-Available options:
-- `DataSelectorDelay.instant` - No delay (default)
-- `DataSelectorDelay.fast` - ~100ms
-- `DataSelectorDelay.moderate` - ~500ms
-- `DataSelectorDelay.slow` - ~2000ms
-- `DataSelectorDelay.custom(ms)` - Custom delay
-
-### Creating a Custom Fixture Provider
-
-A fixture provider is a source: it turns a domain request into a
-`FixtureCollection` and materializes a document's payload. HTTP providers
-implement `HttpFixtureSource` from core and join the interceptor's
-`sources` list; for other domains, define a seam of the same shape and
-drive it with `FixtureSelector.serve` — see the
-[core package README](packages/flutter_fixtures_core/README.md) for a
-worked example.
-
-### Creating a Custom UI Component
-
-To create a custom UI for fixture selection, implement the `DataSelectorView` interface:
-
-```dart
-class MyCustomSelectorView implements DataSelectorView {
+class MySelectorView implements DataSelectorView {
   @override
   Future<FixtureChoice?> pick(FixtureCollection fixture) async {
-    // Your custom UI implementation: return the user's choice,
-    // or null if they cancelled
+    // show your UI; return the choice, or null if cancelled
   }
 }
 ```
 
-## Future Implementations (To-Do List)
+## Example app
 
-The following implementations are planned for future releases:
+The [example](example) has four tabs: Basic, Advanced (query wildcards and OpenAPI), SQLite, and Recorder.
 
-### HTTP Clients
+```bash
+cd example && flutter run
+```
+
+## Roadmap
+
+<details>
+<summary>What exists and what is planned</summary>
+
+**HTTP clients**
 - [x] Dio
 - [ ] http package
 - [ ] Chopper
 - [ ] Retrofit
 - [ ] GraphQL
 
-### Database Providers
+**Database providers**
 - [x] SQLite (sqflite)
 - [ ] Hive
 - [ ] Isar
 - [ ] ObjectBox
 - [ ] Realm
 
-### UI Selectors
+**UI selectors**
 - [x] Dialog
-- [ ] Bottom Sheet
+- [ ] Bottom sheet
 - [ ] Dropdown
 - [ ] Notification with actions
 - [ ] Sidebar panel
 
-### Other Features
-- [x] OpenAPI-driven fixtures (build fixtures from a spec's docs and examples)
-- [ ] Fixture recording mode
-- [ ] Fixture validation
+**Other**
+- [x] OpenAPI-driven fixtures
 - [x] Response delay simulation
+- [x] Record & replay
+- [ ] Fixture validation
 - [ ] Network condition simulation
+
+Want to take one? Open an issue first so we can agree on the approach.
+
+</details>
 
 ## Development
 
-### Workspace Structure
+<details>
+<summary>Workspace setup and Melos commands</summary>
 
-This project uses Flutter workspaces to manage multiple packages. The workspace is defined in the root `pubspec.yaml` file:
-
-```yaml
-workspace:
-  - packages/flutter_fixtures_core
-  - packages/flutter_fixtures_dio
-  - packages/flutter_fixtures_recorder
-  - packages/flutter_fixtures_sqflite
-  - packages/flutter_fixtures_ui
-  - packages/flutter_fixtures
-```
-
-### Melos Commands
-
-This project uses [Melos](https://melos.invertase.dev/) for managing the monorepo. Melos provides powerful scripting and automation capabilities while working alongside Dart's native workspace for dependency resolution.
-
-#### Setup
-
-If you're a contributor or cloning the repository, initialize the workspace:
+The repository is a Dart workspace managed with [Melos](https://melos.invertase.dev/).
 
 ```bash
-# Install dependencies for all packages
-dart pub get
-
-# Bootstrap the Melos workspace
-melos bootstrap
+dart pub get          # resolve the workspace
+melos bootstrap       # link packages
 ```
 
-#### Development Workflow
+| Task | Command |
+| --- | --- |
+| Run all tests | `melos run test` |
+| Tests for changed packages only | `melos run test:changed` |
+| Coverage | `melos run test:coverage` |
+| Format | `melos run format` |
+| Analyze | `melos run analyze` |
+| Format check + analyze + test | `melos run check` |
+| Same, changed packages only | `melos run check:changed` |
+| Outdated dependencies | `melos run deps:outdated` |
+| Clean build output | `melos run clean` |
+| Publish dry run | `melos run publish:check` |
 
-**Run tests:**
-```bash
-# Run all tests across all packages
-melos run test
+Run something in one package with `melos exec --scope="flutter_fixtures_core" -- flutter test`.
 
-# Run tests only on packages that changed (faster)
-melos run test:changed
-
-# Generate coverage reports
-melos run test:coverage
-```
-
-**Code quality:**
-```bash
-# Format all Dart code
-melos run format
-
-# Check formatting without making changes (useful for CI)
-melos run format:check
-
-# Run static analysis on all packages
-melos run analyze
-
-# Analyze only changed packages
-melos run analyze:changed
-
-# Run all quality checks (format + analyze + test)
-melos run check
-
-# Quick check on changed packages only
-melos run check:changed
-```
-
-**Package management:**
-```bash
-# List all managed packages (excludes example app)
-melos list
-
-# Run pub get in all packages
-melos run get
-
-# Check for outdated dependencies
-melos run deps:outdated
-```
-
-**Cleaning:**
-```bash
-# Clean build artifacts and generated files
-melos run clean
-
-# Deep clean including pubspec.lock files
-melos run clean:deep
-```
-
-**Publishing:**
-```bash
-# Dry run publish to verify packages are ready
-melos run publish:check
-
-# Publish packages (interactive)
-melos publish
-```
-
-**Advanced operations:**
-```bash
-# Run a command in a specific package
-melos exec --scope="flutter_fixtures_core" -- flutter test
-
-# Run a command in packages that depend on core
-melos exec --depends-on="flutter_fixtures_core" -- flutter test
-
-# Run a command on all changed packages
-melos exec --diff="origin/main" -- flutter analyze
-```
-
-#### Why Melos?
-
-- **Automated scripting**: Run commands across all packages with a single command
-- **Selective execution**: Execute commands only on changed packages for faster development
-- **Version management**: Coordinate versioning and changelog generation across packages
-- **Better DX**: Simplified workflows for testing, formatting, and publishing in monorepos
-
-## Example
-
-See the [example](example) directory for a complete example of how to use the library.
+</details>
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-If you'd like to contribute a new implementation from the to-do list, please open an issue first to discuss the approach.
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), then open a pull request. For a new implementation from the roadmap, open an issue first to discuss the approach.
 
 ## Support
 
-If you find this library helpful, consider supporting its development:
+If this library saves you time, consider supporting its development.
 
-<a href="https://www.buymeacoffee.com/broto" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+<a href="https://www.buymeacoffee.com/broto" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="50"></a>
+
+## License
+
+MIT. See [LICENSE](LICENSE).

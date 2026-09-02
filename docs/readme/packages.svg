@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" role="img" aria-labelledby="title desc">
+  <title id="title">Package map</title>
+  <desc id="desc">The flutter_fixtures meta-package bundles flutter_fixtures_core, flutter_fixtures_dio and flutter_fixtures_ui. flutter_fixtures_sqflite and flutter_fixtures_recorder are opt-in and build on core.</desc>
+
+  <rect width="1200" height="340" rx="28" fill="#15121F"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif">
+    <!-- meta bundle -->
+    <rect x="64" y="56" width="560" height="228" rx="22" fill="none" stroke="#A78BFA" stroke-width="1.5" stroke-dasharray="8 6"/>
+    <rect x="84" y="42" width="480" height="30" rx="8" fill="#15121F"/>
+    <text x="96" y="63" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" letter-spacing="1" fill="#A78BFA">flutter_fixtures</text>
+    <text x="300" y="63" font-size="16" fill="#8B86A0">meta-package · one dependency</text>
+
+    <!-- core -->
+    <rect x="96" y="104" width="280" height="140" rx="18" fill="#2B2542" stroke="#A78BFA" stroke-width="1.5"/>
+    <text x="120" y="142" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="700" fill="#F4F1F8">_core</text>
+    <text x="120" y="176" font-size="18" fill="#CBC5DC">Models, sources, selection,</text>
+    <text x="120" y="202" font-size="18" fill="#CBC5DC">OpenAPI, recorder seam</text>
+    <text x="120" y="228" font-size="16" fill="#8B86A0">required by everything</text>
+
+    <!-- dio -->
+    <rect x="428" y="104" width="160" height="60" rx="14" fill="#1E1A2D" stroke="#342E4A" stroke-width="1.5"/>
+    <text x="452" y="130" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="600" fill="#F4F1F8">_dio</text>
+    <text x="452" y="152" font-size="16" fill="#8B86A0">HTTP interceptor</text>
+
+    <!-- ui -->
+    <rect x="428" y="184" width="160" height="60" rx="14" fill="#1E1A2D" stroke="#342E4A" stroke-width="1.5"/>
+    <text x="452" y="210" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="600" fill="#F4F1F8">_ui</text>
+    <text x="452" y="232" font-size="16" fill="#8B86A0">pick dialog</text>
+
+    <!-- links inside bundle -->
+    <path d="M376 134 H428" stroke="#5D5578" stroke-width="2"/>
+    <path d="M376 214 H428" stroke="#5D5578" stroke-width="2"/>
+
+    <!-- opt-in -->
+    <text x="700" y="63" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" letter-spacing="2" fill="#8B86A0">OPT-IN</text>
+
+    <rect x="700" y="104" width="436" height="60" rx="14" fill="#1E1A2D" stroke="#342E4A" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="724" y="130" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="600" fill="#F4F1F8">_sqflite</text>
+    <text x="724" y="152" font-size="16" fill="#8B86A0">DatabaseAdapter · real db, fixtures, or recorder</text>
+
+    <rect x="700" y="184" width="436" height="60" rx="14" fill="#1E1A2D" stroke="#342E4A" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="724" y="210" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="600" fill="#F4F1F8">_recorder</text>
+    <text x="724" y="232" font-size="16" fill="#8B86A0">record &amp; replay engine, toolbar, sessions sheet</text>
+
+    <!-- links from core to opt-in -->
+    <path d="M588 134 H700" stroke="#5D5578" stroke-width="2" stroke-dasharray="6 4"/>
+    <path d="M588 214 H700" stroke="#5D5578" stroke-width="2" stroke-dasharray="6 4"/>
+
+    <text x="64" y="316" font-size="16" fill="#5D5578">Lines show which packages build on which.</text>
+  </g>
+</svg>
